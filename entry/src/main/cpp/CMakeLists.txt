@@ -1,6 +1,6 @@
 # the minimum version of CMake.
 cmake_minimum_required(VERSION 3.5.0)
-project(hish)
+project(hiemu)
 
 set(NATIVERENDER_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
