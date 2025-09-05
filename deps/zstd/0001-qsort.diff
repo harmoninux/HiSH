@@ -1,0 +1,43 @@
+diff --color -uNr zstd-1.5.7.orig/lib/dictBuilder/cover.c zstd-1.5.7/lib/dictBuilder/cover.c
+--- zstd-1.5.7.orig/lib/dictBuilder/cover.c	2025-02-19 08:04:24
++++ zstd-1.5.7/lib/dictBuilder/cover.c	2025-06-11 20:44:59
+@@ -241,10 +241,8 @@
+   unsigned d;
+ } COVER_ctx_t;
+ 
+-#if !defined(_GNU_SOURCE) && !defined(__APPLE__) && !defined(_MSC_VER)
+ /* C90 only offers qsort() that needs a global context. */
+ static COVER_ctx_t *g_coverCtx = NULL;
+-#endif
+ 
+ /*-*************************************
+ *  Helper functions
+@@ -324,28 +322,10 @@
+  * to clean it up.
+  */
+ static void stableSort(COVER_ctx_t *ctx) {
+-#if defined(__APPLE__)
+-    qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
+-            ctx,
+-            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+-#elif defined(_GNU_SOURCE)
+-    qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
+-            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
+-            ctx);
+-#elif defined(_WIN32) && defined(_MSC_VER)
+-    qsort_s(ctx->suffix, ctx->suffixSize, sizeof(U32),
+-            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
+-            ctx);
+-#elif defined(__OpenBSD__)
+     g_coverCtx = ctx;
+-    mergesort(ctx->suffix, ctx->suffixSize, sizeof(U32),
+-          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+-#else /* C90 fallback.*/
+-    g_coverCtx = ctx;
+     /* TODO(cavalcanti): implement a reentrant qsort() when is not available. */
+     qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
+           (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+-#endif
+ }
+ 
+ /**

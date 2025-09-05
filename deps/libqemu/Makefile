@@ -1,0 +1,34 @@
+include ../utils/Makefrag
+
+# to disable jit, add --enable-tcg-interpreter option
+
+all: download/qemu
+	rm -rf temp build
+	mkdir -p temp build/bin
+	cd download/qemu && git worktree add -f $(shell pwd)/temp/qemu HEAD
+	cd temp/qemu && \
+	PKG_CONFIG=$(shell which pkg-config) \
+	PKG_CONFIG_PATH= \
+	PKG_CONFIG_LIBDIR=$(shell pwd)/../buildroot/lib/pkgconfig:$(shell pwd)/../buildroot/share/pkgconfig \
+	PKG_CONFIG_buildroot_DIR=$(shell pwd)/../buildroot \
+	CFLAGS="-D_UAPI_LINUX_VIRTIO_VSOCK_H -D_UAPI_LINUX_VIRTIO_TYPES_H -D_UAPI_LINUX_VIRTIO_RING_H -D_UAPI_LINUX_VIRTIO_PMEM_H -D_UAPI_LINUX_VIRTIO_NET_H -D_UAPI_LINUX_VIRTIO_IOMMU_H -D_UAPI_LINUX_VIRTIO_FS_H -D_UAPI_LINUX_VIRTIO_CONSOLE_H -D_UAPI_LINUX_VIRTIO_CONFIG_H -D_LINUX_SYSINFO_H -UHAVE_OPENAT2_H -D__user= -D__force= ${CFLAGS} -Wno-unused-command-line-argument -I$(shell pwd)/../buildroot/include/glib-2.0 -I$(shell pwd)/../buildroot/lib/glib-2.0/include -L$(shell pwd)/../buildroot/lib" \
+	./configure --target-list=aarch64-softmmu,x86_64-softmmu --cross-prefix= --host-cc=cc --disable-kvm --disable-xen --disable-rust --disable-docs --disable-werror --static \
+	 --disable-bsd-user --disable-guest-agent --disable-gcrypt --disable-debug-info --disable-debug-tcg --enable-attr --disable-brlapi --disable-linux-aio --disable-bzip2 --disable-cap-ng --disable-curl --disable-glusterfs --disable-gnutls --disable-nettle --disable-gtk --disable-rdma --disable-libiscsi --disable-vnc-jpeg --disable-kvm --disable-lzo --disable-curses --disable-libnfs --disable-numa --disable-opengl --disable-rbd --disable-vnc-sasl --disable-sdl --disable-seccomp --disable-smartcard --disable-snappy --disable-spice --disable-libusb --disable-usb-redir --disable-vde --disable-vhost-net --disable-virglrenderer --disable-virtfs --disable-vnc --disable-vte --disable-xen --disable-xen-pci-passthrough --enable-linux-user --disable-tools --disable-libudev --disable-passt
+	cd temp/qemu && make -j $(shell nproc) && make install DESTDIR=$(shell pwd)/build
+	$(OHOS_SDK_HOME)/native/llvm/bin/llvm-strip ./build/usr/local/bin/*
+	mkdir -p ../buildroot/bin
+	mkdir -p ../buildroot/usr/share/qemu
+	cp -rv ./build/usr/local/bin/qemu-aarch64 ../buildroot/bin/qemu-harmonix-aarch64
+	cp -rv ./build/usr/local/bin/qemu-x86_64 ../buildroot/bin/qemu-harmonix-x86_64
+	cp -rv ./build/usr/local/bin/qemu-system-* ../buildroot/bin/
+	cp -rv ./scripts/* ../buildroot/bin/
+	cp -rv ./build/usr/local/share/qemu/bios-256k.bin ../buildroot/usr/share/qemu/
+	cp -rv ./build/usr/local/share/qemu/efi-e1000.rom ../buildroot/usr/share/qemu/
+	cp -rv ./build/usr/local/share/qemu/kvmvapic.bin ../buildroot/usr/share/qemu/
+	cp -rv ./build/usr/local/share/qemu/linuxboot_dma.bin ../buildroot/usr/share/qemu/
+	cp -rv ./build/usr/local/share/qemu/vgabios-stdvga.bin ../buildroot/usr/share/qemu/
+	cp -rv ./build/usr/local/share/qemu/efi-virtio.rom ../buildroot/usr/share/qemu/
+
+download/qemu:
+	mkdir -p download
+	cd download && git clone -b libqemu --depth=100 https://github.com/hackeris/harmony-qemu qemu
