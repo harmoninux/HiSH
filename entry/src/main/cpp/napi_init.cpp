@@ -20,7 +20,7 @@
 #undef LOG_DOMAIN
 #undef LOG_TAG
 #define LOG_DOMAIN 0x3300
-#define LOG_TAG "HiEMU"
+#define LOG_TAG "HiSH"
 
 struct data_buffer {
     char *buf;
@@ -121,50 +121,61 @@ static void call_on_exit_callback(napi_env env, napi_value js_callback, void *co
     napi_call_function(env, global, js_callback, 0, args, &result);
 }
 
-void terminal_worker(int stdout_pipe_fd) {
+std::string convert_to_hex(const uint8_t *buffer, int r) {
+    std::string hex;
+    for (int i = 0; i < r; i++) {
+        if (buffer[i] >= 127 || buffer[i] < 32) {
+            char temp[8];
+            snprintf(temp, sizeof(temp), "\\x%02x", buffer[i]);
+            hex += temp;
+        } else if (buffer[i] == '\'' || buffer[i] == '\"' || buffer[i] == '\\') {
+            char temp[8];
+            snprintf(temp, sizeof(temp), "\\%c", buffer[i]);
+            hex += temp;
+        } else {
+            hex += (char)buffer[i];
+        }
+    }
+    return hex;
+}
 
-    int fd = stdout_pipe_fd;
+void call_data_callback(const std::string &hex) {
+    if (hex.length() > 0 && on_data_callback != nullptr) {
+        data_buffer *pbuf = new data_buffer{.buf = new char[hex.length()], .size = (size_t)hex.length()};
+        memcpy(pbuf->buf, &hex[0], hex.length());
+        napi_call_threadsafe_function(on_data_callback, pbuf, napi_tsfn_nonblocking);
+    }
+}
+
+void terminal_worker(int stdout_pipe_fd) {
 
     while (true) {
 
-        struct pollfd fds[1];
-        fds[0].fd = fd;
+        bool broken;
+
+        struct pollfd fds[2];
+        fds[0].fd = stdout_pipe_fd;
         fds[0].events = POLLIN;
         int res = poll(fds, 1, 100);
 
         uint8_t buffer[1024];
-        if (res > 0) {
+        for (int i = 0; i < res; i += 1) {
+            int fd = fds[i].fd;
             ssize_t r = read(fd, buffer, sizeof(buffer) - 1);
             if (r > 0) {
                 // pretty print
-                std::string hex;
-                for (int i = 0; i < r; i++) {
-                    if (buffer[i] >= 127 || buffer[i] < 32) {
-                        char temp[8];
-                        snprintf(temp, sizeof(temp), "\\x%02x", buffer[i]);
-                        hex += temp;
-                    } else if (buffer[i] == '\'' || buffer[i] == '\"' || buffer[i] == '\\') {
-                        char temp[8];
-                        snprintf(temp, sizeof(temp), "\\%c", buffer[i]);
-                        hex += temp;
-                    } else {
-                        hex += (char)buffer[i];
-                    }
-                }
-
+                auto hex = convert_to_hex(buffer, r);
                 //  call callback registered by ArkTS
-                if (hex.length() > 0 && on_data_callback != nullptr) {
-                    data_buffer *pbuf = new data_buffer{.buf = new char[hex.length()], .size = (size_t)hex.length()};
-                    memcpy(pbuf->buf, &hex[0], hex.length());
-                    napi_call_threadsafe_function(on_data_callback, pbuf, napi_tsfn_nonblocking);
-                }
-
+                call_data_callback(hex);
                 OH_LOG_INFO(LOG_APP, "Received, data: %{public}s", hex.c_str());
             } else if (r < 0) {
-
                 OH_LOG_INFO(LOG_APP, "Program exited, %{public}ld %{public}d", r, errno);
-                break;
+                broken = true;
             }
+        }
+
+        if (broken) {
+            break;
         }
     }
 
@@ -206,22 +217,43 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
     dup2(stdout_pipe[1], STDOUT_FILENO);
     close(stdout_pipe[1]);
-
     dup2(stdin_pipe[0], STDIN_FILENO);
     close(stdin_pipe[0]);
 
     int stdout_pipe_fd = stdout_pipe[0];
     stdin_pipe_fd = stdin_pipe[1];
 
-    std::thread thread([stdout_pipe_fd]() { terminal_worker(stdout_pipe_fd); });
+    std::thread thread([=]() { terminal_worker(stdout_pipe_fd); });
     thread.detach();
 
-    std::thread vm([]() {
-        while (true) {
-            char buf[1024];
-            scanf("%s", buf);
-            printf("%s\n", buf);
+    std::thread vm([entry]() {
+        char *args[] = {"qemu-system-aarch64",
+                        "-machine",
+                        "virt",
+                        "-cpu",
+                        "cortex-a53",
+                        "-smp",
+                        "1",
+                        "-m",
+                        "1G",
+                        "-kernel",
+                        "/data/storage/el2/base/haps/entry/files/vm/kernel_aarch64",
+                        "-drive",
+                        "if=none,format=qcow2,file=/data/storage/el2/base/haps/entry/files/vm/alpine_aarch64_rootfs.qcow2,id=hd0",
+                        "-device",
+                        "virtio-blk-device,drive=hd0",
+                        "-append",
+                        "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0",
+                        "-nographic",
+                        "-L",
+                        "/data/storage/el2/base/haps/entry/files/vm/",
+                        nullptr};
+        int argc = 0;
+        while (args[argc] != nullptr) {
+            argc += 1;
         }
+
+        entry(argc, args);
     });
     vm.detach();
 

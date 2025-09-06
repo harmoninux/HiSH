@@ -12,7 +12,7 @@
 #undef LOG_DOMAIN
 #undef LOG_TAG
 #define LOG_DOMAIN 0x3300
-#define LOG_TAG "HiEMUChild"
+#define LOG_TAG "HiSHChild"
 
 typedef int (*QemuSystemEntry)(int, char **);
 

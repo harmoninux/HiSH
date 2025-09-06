@@ -110,17 +110,5 @@ function onTerminalReady() {
 
     hterm.openUrl = (url) => native.openLink(url);
 
-    io.print('Welcome to Harmonix! A project to run Linux ELF binary on HarmonyOS.\r\n');
-    io.print(
-        '     _   _                                  _      \r\n' +
-        '    | | | | __ _ _ __ _ __ ___   ___  _ __ (_)_  __\r\n' +
-        '    | |_| |/ _` | \'__| \'_ ` _ \\ / _ \\| \'_ \\| \\ \\/ /\r\n' +
-        '    |  _  | (_| | |  | | | | | | (_) | | | | |>  < \r\n' +
-        '    |_| |_|\\__,_|_|  |_| |_| |_|\\___/|_| |_|_/_/\\_\\\r\n'
-    )
-    io.print('\r\n');
-    io.print('Use `harmonix run` to start.\r\n');
-    io.print('You can also use Harmonix in HiShell.\r\n');
-
     native.load();
 }

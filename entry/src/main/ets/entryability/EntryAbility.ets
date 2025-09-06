@@ -1,6 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import fs from '@ohos.file.fs';
 
 const DOMAIN = 0x0000;
 
@@ -25,6 +26,25 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
+
+    let bundleVmDir = this.context.filesDir + "/vm"
+    if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
+      fs.mkdirSync(bundleVmDir)
+    }
+    for (let filename of ["vm/alpine_aarch64_rootfs.qcow2", "vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
+
+      let filePath = this.context.filesDir + "/" + filename;
+      if (fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
+        continue
+      }
+
+      let value: Uint8Array = this.context.resourceManager.getRawFileContentSync(filename);
+      let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+      fs.writeSync(file.fd, value.buffer);
+      fs.closeSync(file);
+      hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
+    }
+    hilog.info(DOMAIN, 'testTag', 'filesDir: %{public}s', this.context.filesDir);
   }
 
   onWindowStageDestroy(): void {
