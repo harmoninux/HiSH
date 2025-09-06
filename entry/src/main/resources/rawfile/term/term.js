@@ -53,7 +53,6 @@ function onTerminalReady() {
     exports.getSize = () => [term.screenSize.width, term.screenSize.height];
 
     // selection, copying
-    term.scrollPort_.screen_.contentEditable = false;
     term.blur();
     term.focus();
     exports.copy = () => term.getSelectionText();
