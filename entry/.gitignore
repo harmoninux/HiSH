@@ -8,3 +8,5 @@
 *.gz
 kernel_*
 *.qcow2
+libs_tcg
+libs_tci
