@@ -7,7 +7,7 @@ const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 
@@ -19,13 +19,8 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
-    windowStage.loadContent('pages/Index', (err) => {
-      if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
-        return;
-      }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
-    });
+    hilog.info(DOMAIN, 'testTag', 'filesDir: %{public}s', this.context.filesDir);
+    hilog.info(DOMAIN, 'testTag', 'tempDir: %{public}s', this.context.tempDir);
 
     let bundleVmDir = this.context.filesDir + "/vm"
     if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
@@ -44,7 +39,14 @@ export default class EntryAbility extends UIAbility {
       fs.closeSync(file);
       hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
     }
-    hilog.info(DOMAIN, 'testTag', 'filesDir: %{public}s', this.context.filesDir);
+
+    windowStage.loadContent('pages/Index', (err) => {
+      if (err.code) {
+        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
+        return;
+      }
+      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+    });
   }
 
   onWindowStageDestroy(): void {

@@ -11,11 +11,6 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
   return buf.buffer;
 }
 
-interface Size {
-  width: number,
-  height: number
-}
-
 class NativeProxy {
   controller: webview.WebviewController;
 
@@ -30,14 +25,9 @@ class NativeProxy {
   }
 
   async load(): Promise<void> {
-
     hilog.info(DOMAIN, 'WebTerminal', 'load')
-
     this.controller.runJavaScript('exports.setFocused(true)')
-
-    const size: Size = await this.getSize();
-    napi.startVM(size.width, size.height,
-      (d: ArrayBuffer) => this.onData(d), () => this.onClose())
+    napi.startVM((d: ArrayBuffer) => this.onData(d), () => this.onClose())
   }
 
   private onData(ab: ArrayBuffer) {
@@ -51,13 +41,6 @@ class NativeProxy {
   }
 
   async resize(): Promise<void> {
-    const s = await this.getSize();
-  }
-
-  private async getSize(): Promise<Size> {
-    const ext = await this.controller.runJavaScriptExt('exports.getSize()');
-    const arr = ext.getArray();
-    return { width: arr[0] as number, height: arr[1] as number };
   }
 }
 

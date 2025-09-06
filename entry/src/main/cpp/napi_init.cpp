@@ -13,6 +13,8 @@
 #include <limits.h>
 #include <poll.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <thread>
 #include <unistd.h>
 
@@ -21,6 +23,9 @@
 #undef LOG_TAG
 #define LOG_DOMAIN 0x3300
 #define LOG_TAG "HiSH"
+
+#define UNIX_SOCKET "/data/storage/el2/base/haps/entry/temp/serial_socket"
+#define UNIX_SOCKET_SERVER "unix:" UNIX_SOCKET ",server"
 
 struct data_buffer {
     char *buf;
@@ -147,14 +152,41 @@ void call_data_callback(const std::string &hex) {
     }
 }
 
-void terminal_worker(int stdout_pipe_fd) {
+void terminal_worker() {
+
+    while (true) {
+        int acc = access(UNIX_SOCKET, F_OK);
+        if (acc == 0) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    struct sockaddr_un server_addr;
+    int client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (client_fd == -1) {
+        OH_LOG_INFO(LOG_APP, "Failed to create unix socket: %{public}s", errno);
+        return;
+    }
+
+    // Connect to server
+    memset(&server_addr, 0, sizeof(struct sockaddr_un));
+    server_addr.sun_family = AF_UNIX;
+    strncpy(server_addr.sun_path, UNIX_SOCKET, sizeof(server_addr.sun_path) - 1);
+
+    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_un)) == -1) {
+        OH_LOG_INFO(LOG_APP, "Failed to connect to unix socket: %{public}d", errno);
+        return;
+    }
+
+    stdin_pipe_fd = client_fd;
 
     while (true) {
 
         bool broken;
 
         struct pollfd fds[2];
-        fds[0].fd = stdout_pipe_fd;
+        fds[0].fd = client_fd;
         fds[0].events = POLLIN;
         int res = poll(fds, 1, 100);
 
@@ -186,68 +218,51 @@ void terminal_worker(int stdout_pipe_fd) {
 
 static napi_value startVM(napi_env env, napi_callback_info info) {
 
-    size_t argc = 4;
-    napi_value args[4] = {nullptr};
+    size_t argc = 2;
+    napi_value args[2] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-
-    double value0;
-    napi_get_value_double(env, args[0], &value0);
-    int width = value0;
-
-    double value1;
-    napi_get_value_double(env, args[1], &value1);
-    int height = value1;
 
     napi_value data_cb_name;
     napi_create_string_utf8(env, "data_callback", NAPI_AUTO_LENGTH, &data_cb_name);
-    napi_create_threadsafe_function(env, args[2], nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
+    napi_create_threadsafe_function(env, args[0], nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
                                     call_on_data_callback, &on_data_callback);
 
     napi_value exit_cb_name;
     napi_create_string_utf8(env, "exit_callback", NAPI_AUTO_LENGTH, &exit_cb_name);
-    napi_create_threadsafe_function(env, args[3], nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
+    napi_create_threadsafe_function(env, args[1], nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
                                     call_on_exit_callback, &on_exit_callback);
 
     auto entry = getQemuSystemEntry();
 
-    int stdout_pipe[2];
-    int stdin_pipe[2];
-    pipe(stdout_pipe);
-    pipe(stdin_pipe);
+    if (access(UNIX_SOCKET, F_OK) == 0) {
+        unlink(UNIX_SOCKET);
+    }
 
-    dup2(stdout_pipe[1], STDOUT_FILENO);
-    close(stdout_pipe[1]);
-    dup2(stdin_pipe[0], STDIN_FILENO);
-    close(stdin_pipe[0]);
-
-    int stdout_pipe_fd = stdout_pipe[0];
-    stdin_pipe_fd = stdin_pipe[1];
-
-    std::thread thread([=]() { terminal_worker(stdout_pipe_fd); });
-    thread.detach();
-
-    std::thread vm([entry]() {
-        char *args[] = {"qemu-system-aarch64",
-                        "-machine",
-                        "virt",
-                        "-cpu",
-                        "cortex-a53",
-                        "-smp",
-                        "1",
-                        "-m",
-                        "1G",
-                        "-kernel",
-                        "/data/storage/el2/base/haps/entry/files/vm/kernel_aarch64",
-                        "-drive",
-                        "if=none,format=qcow2,file=/data/storage/el2/base/haps/entry/files/vm/alpine_aarch64_rootfs.qcow2,id=hd0",
-                        "-device",
-                        "virtio-blk-device,drive=hd0",
-                        "-append",
-                        "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0",
-                        "-nographic",
-                        "-L",
-                        "/data/storage/el2/base/haps/entry/files/vm/",
-                        nullptr};
+    std::thread vm_loop([entry]() {
+        char *args[] = {
+            "qemu-system-aarch64",
+            "-machine",
+            "virt",
+            "-cpu",
+            "cortex-a53",
+            "-smp",
+            "2",
+            "-m",
+            "1G",
+            "-kernel",
+            "/data/storage/el2/base/haps/entry/files/vm/kernel_aarch64",
+            "-drive",
+            "if=none,format=qcow2,file=/data/storage/el2/base/haps/entry/files/vm/alpine_aarch64_rootfs.qcow2,id=hd0",
+            "-device",
+            "virtio-blk-device,drive=hd0",
+            "-append",
+            "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0",
+            "-nographic",
+            "-L",
+            "/data/storage/el2/base/haps/entry/files/vm/",
+            "-serial",
+            UNIX_SOCKET_SERVER,
+            nullptr};
         int argc = 0;
         while (args[argc] != nullptr) {
             argc += 1;
@@ -255,12 +270,19 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
         entry(argc, args);
     });
-    vm.detach();
+    vm_loop.detach();
+
+    std::thread thread([=]() { terminal_worker(); });
+    thread.detach();
 
     return nullptr;
 }
 
 static napi_value send(napi_env env, napi_callback_info info) {
+
+    if (stdin_pipe_fd < 0) {
+        return nullptr;
+    }
 
     size_t argc = 1;
     napi_value args[1] = {nullptr};
