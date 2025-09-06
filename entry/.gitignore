@@ -4,3 +4,6 @@
 /build
 /.cxx
 /.test
+
+*.gz
+*.qcow2
