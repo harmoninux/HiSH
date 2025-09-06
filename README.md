@@ -9,6 +9,7 @@ Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) a
 ## How to build
 
 - Clone this repo to local
+- Copy `build-profile.template.json5` to `build-profile.json5`
 - Download files from [Releases page](https://github.com/harmoninux/HiSH/releases) and move to corresponding location as following
 ```bash
 alpine_aarch64_rootfs.qcow2     # to entry/src/main/resources/rawfile/vm 
