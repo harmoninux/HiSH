@@ -7,9 +7,6 @@ hterm.Terminal.IO.prototype.onVTKeystroke = function (data) {
 hterm.Terminal.IO.prototype.onTerminalResize = function (width, height) {
     native.resize(width, height);
 };
-hterm.ScrollPort.prototype.onTouch = function (e) {
-    Object.defineProperty(e, 'defaultPrevented', { value: true });
-};
 
 hterm.defaultStorage = new lib.Storage.Memory();
 window.onload = async function () {
