@@ -19,21 +19,23 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
-    hilog.info(DOMAIN, 'testTag', 'filesDir: %{public}s', this.context.filesDir);
-    hilog.info(DOMAIN, 'testTag', 'tempDir: %{public}s', this.context.tempDir);
+    const appContext = this.context.getApplicationContext();
 
-    let bundleVmDir = this.context.filesDir + "/vm"
+    hilog.info(DOMAIN, 'testTag', 'filesDir: %{public}s', appContext.filesDir);
+    hilog.info(DOMAIN, 'testTag', 'tempDir: %{public}s', appContext.tempDir);
+
+    let bundleVmDir = appContext.filesDir + "/vm"
     if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
       fs.mkdirSync(bundleVmDir)
     }
     for (let filename of ["vm/alpine_aarch64_rootfs.qcow2", "vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
 
-      let filePath = this.context.filesDir + "/" + filename;
+      let filePath = appContext.filesDir + "/" + filename;
       if (fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
         continue
       }
 
-      let value: Uint8Array = this.context.resourceManager.getRawFileContentSync(filename);
+      let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
       let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
       fs.writeSync(file.fd, value.buffer);
       fs.closeSync(file);

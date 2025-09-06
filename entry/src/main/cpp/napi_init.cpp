@@ -24,9 +24,6 @@
 #define LOG_DOMAIN 0x3300
 #define LOG_TAG "HiSH"
 
-#define UNIX_SOCKET "/data/storage/el2/base/haps/entry/temp/serial_socket"
-#define UNIX_SOCKET_SERVER "unix:" UNIX_SOCKET ",server"
-
 struct data_buffer {
     char *buf;
     size_t size;
@@ -36,12 +33,39 @@ int stdin_pipe_fd = -1;
 napi_threadsafe_function on_data_callback = nullptr;
 napi_threadsafe_function on_exit_callback = nullptr;
 
-typedef int (*QemuSystemEntry)(int, char **);
+typedef int (*QemuSystemEntry)(int, const char **);
 
-static void getBundleCodeDir(char *bundleCodeDir) {
-    int32_t codeDirLength;
-    OH_AbilityRuntime_ApplicationContextGetBundleCodeDir(bundleCodeDir, PATH_MAX, &codeDirLength);
-    bundleCodeDir[codeDirLength] = '\0';
+std::string getBundleCodeDir() {
+    
+    char bundleCodeDir[PATH_MAX];
+   
+    int32_t dirLength;
+    OH_AbilityRuntime_ApplicationContextGetBundleCodeDir(bundleCodeDir, PATH_MAX, &dirLength);
+    bundleCodeDir[dirLength] = '\0';
+
+    return bundleCodeDir;
+}
+
+std::string getTempDir() {
+    
+    char tempDir[PATH_MAX];
+   
+    int32_t dirLength;
+    OH_AbilityRuntime_ApplicationContextGetTempDir(tempDir, PATH_MAX, &dirLength);
+    tempDir[dirLength] = '\0';
+
+    return tempDir;
+}
+
+std::string getFilesDir() {
+    
+    char tempDir[PATH_MAX];
+   
+    int32_t dirLength;
+    OH_AbilityRuntime_ApplicationContextGetFilesDir(tempDir, PATH_MAX, &dirLength);
+    tempDir[dirLength] = '\0';
+
+    return tempDir;
 }
 
 static QemuSystemEntry getQemuSystemEntry() {
@@ -55,12 +79,11 @@ static QemuSystemEntry getQemuSystemEntry() {
     const char *abiList = OH_GetAbiList();
     OH_LOG_INFO(LOG_APP, "abiList: %{public}s", abiList);
 
-    char bundleCodeDir[PATH_MAX];
-    getBundleCodeDir(bundleCodeDir);
-    OH_LOG_INFO(LOG_APP, "bundleCodeDir: %{public}s", bundleCodeDir);
+    std::string bundleCodeDir = getBundleCodeDir();
+    OH_LOG_INFO(LOG_APP, "bundleCodeDir: %{public}s", bundleCodeDir.c_str());
 
     char libQemuPath[PATH_MAX];
-    snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir, abiList);
+    snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir.c_str(), abiList);
     OH_LOG_INFO(LOG_APP, "path of libqemu.so: %{public}s", libQemuPath);
 
     void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
@@ -72,11 +95,10 @@ static QemuSystemEntry getQemuSystemEntry() {
 
 static void startQemuProcess() {
 
-    char bundleCodeDir[PATH_MAX];
-    getBundleCodeDir(bundleCodeDir);
+    auto bundleCodeDir = getBundleCodeDir();
 
     NativeChildProcess_Args args;
-    args.entryParams = strdup(bundleCodeDir);
+    args.entryParams = strdup(bundleCodeDir.c_str());
 
     args.fdList.head = (NativeChildProcess_Fd *)malloc(sizeof(NativeChildProcess_Fd));
     args.fdList.head->fdName = (char *)malloc(sizeof(char) * 4);
@@ -152,10 +174,10 @@ void call_data_callback(const std::string &hex) {
     }
 }
 
-void terminal_worker() {
+void terminal_worker(const char* unix_socket_path) {
 
     while (true) {
-        int acc = access(UNIX_SOCKET, F_OK);
+        int acc = access(unix_socket_path, F_OK);
         if (acc == 0) {
             break;
         }
@@ -172,7 +194,7 @@ void terminal_worker() {
     // Connect to server
     memset(&server_addr, 0, sizeof(struct sockaddr_un));
     server_addr.sun_family = AF_UNIX;
-    strncpy(server_addr.sun_path, UNIX_SOCKET, sizeof(server_addr.sun_path) - 1);
+    strncpy(server_addr.sun_path, unix_socket_path, sizeof(server_addr.sun_path) - 1);
 
     if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_un)) == -1) {
         OH_LOG_INFO(LOG_APP, "Failed to connect to unix socket: %{public}d", errno);
@@ -232,14 +254,22 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_threadsafe_function(env, args[1], nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
                                     call_on_exit_callback, &on_exit_callback);
 
-    auto entry = getQemuSystemEntry();
+    auto qemuEntry = getQemuSystemEntry();
+    
+    auto vmFilesDir = getFilesDir() + "/vm";
+    auto tempDir = getTempDir();
+    std::string unixSocketPath = tempDir + "/serial_socket";
 
-    if (access(UNIX_SOCKET, F_OK) == 0) {
-        unlink(UNIX_SOCKET);
+    if (access(unixSocketPath.c_str(), F_OK) == 0) {
+        unlink(unixSocketPath.c_str());
     }
 
-    std::thread vm_loop([entry]() {
-        char *args[] = {
+    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir]() {
+        std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
+        std::string kernelPath = vmFilesDir + "/kernel_aarch64";
+        std::string rootFsImgPath = vmFilesDir + "/alpine_aarch64_rootfs.qcow2";
+        std::string driveOption = "if=none,format=qcow2,file=" + rootFsImgPath + ",id=hd0";
+        const char *args[] = {
             "qemu-system-aarch64",
             "-machine",
             "virt",
@@ -250,29 +280,29 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             "-m",
             "1G",
             "-kernel",
-            "/data/storage/el2/base/haps/entry/files/vm/kernel_aarch64",
+            kernelPath.c_str(),
             "-drive",
-            "if=none,format=qcow2,file=/data/storage/el2/base/haps/entry/files/vm/alpine_aarch64_rootfs.qcow2,id=hd0",
+            driveOption.c_str(),
             "-device",
             "virtio-blk-device,drive=hd0",
             "-append",
             "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0",
             "-nographic",
             "-L",
-            "/data/storage/el2/base/haps/entry/files/vm/",
+            vmFilesDir.c_str(),
             "-serial",
-            UNIX_SOCKET_SERVER,
+            unixSocketSerial.c_str(),
             nullptr};
         int argc = 0;
         while (args[argc] != nullptr) {
             argc += 1;
         }
 
-        entry(argc, args);
+        qemuEntry(argc, args);
     });
     vm_loop.detach();
 
-    std::thread thread([=]() { terminal_worker(); });
+    std::thread thread([=]() { terminal_worker(unixSocketPath.c_str()); });
     thread.detach();
 
     return nullptr;
