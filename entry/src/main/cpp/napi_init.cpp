@@ -36,9 +36,9 @@ napi_threadsafe_function on_exit_callback = nullptr;
 typedef int (*QemuSystemEntry)(int, const char **);
 
 std::string getBundleCodeDir() {
-    
+
     char bundleCodeDir[PATH_MAX];
-   
+
     int32_t dirLength;
     OH_AbilityRuntime_ApplicationContextGetBundleCodeDir(bundleCodeDir, PATH_MAX, &dirLength);
     bundleCodeDir[dirLength] = '\0';
@@ -47,9 +47,9 @@ std::string getBundleCodeDir() {
 }
 
 std::string getTempDir() {
-    
+
     char tempDir[PATH_MAX];
-   
+
     int32_t dirLength;
     OH_AbilityRuntime_ApplicationContextGetTempDir(tempDir, PATH_MAX, &dirLength);
     tempDir[dirLength] = '\0';
@@ -58,9 +58,9 @@ std::string getTempDir() {
 }
 
 std::string getFilesDir() {
-    
+
     char tempDir[PATH_MAX];
-   
+
     int32_t dirLength;
     OH_AbilityRuntime_ApplicationContextGetFilesDir(tempDir, PATH_MAX, &dirLength);
     tempDir[dirLength] = '\0';
@@ -85,8 +85,17 @@ static QemuSystemEntry getQemuSystemEntry() {
     char libQemuPath[PATH_MAX];
     snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir.c_str(), abiList);
     OH_LOG_INFO(LOG_APP, "path of libqemu.so: %{public}s", libQemuPath);
+    if (strcmp(abiList, "arm64-v8a") == 0 && access(libQemuPath, F_OK) != 0) {
+        OH_LOG_INFO(LOG_APP, "%{public}s not exist, errno: %{public}d", libQemuPath, errno);
+        snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir.c_str(), "arm64");
+    }
 
     void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
+
+    if (!libQemuHandle) {
+        OH_LOG_INFO(LOG_APP, "Failed to load libqemu.so errno: %{public}d", errno);
+    }
+
     qemuSystemEntry = (QemuSystemEntry)dlsym(libQemuHandle, "qemu_system_entry");
     OH_LOG_INFO(LOG_APP, "libqemu.so, handle: 0x%{public}p, entry: 0x%{public}p", libQemuHandle, qemuSystemEntry);
 
@@ -174,7 +183,7 @@ void call_data_callback(const std::string &hex) {
     }
 }
 
-void terminal_worker(const char* unix_socket_path) {
+void terminal_worker(const char *unix_socket_path) {
 
     while (true) {
         int acc = access(unix_socket_path, F_OK);
@@ -255,7 +264,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                                     call_on_exit_callback, &on_exit_callback);
 
     auto qemuEntry = getQemuSystemEntry();
-    
+
     auto vmFilesDir = getFilesDir() + "/vm";
     auto tempDir = getTempDir();
     std::string unixSocketPath = tempDir + "/serial_socket";
@@ -269,30 +278,29 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         std::string kernelPath = vmFilesDir + "/kernel_aarch64";
         std::string rootFsImgPath = vmFilesDir + "/alpine_aarch64_rootfs.qcow2";
         std::string driveOption = "if=none,format=qcow2,file=" + rootFsImgPath + ",id=hd0";
-        const char *args[] = {
-            "qemu-system-aarch64",
-            "-machine",
-            "virt",
-            "-cpu",
-            "cortex-a53",
-            "-smp",
-            "2",
-            "-m",
-            "1G",
-            "-kernel",
-            kernelPath.c_str(),
-            "-drive",
-            driveOption.c_str(),
-            "-device",
-            "virtio-blk-device,drive=hd0",
-            "-append",
-            "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0",
-            "-nographic",
-            "-L",
-            vmFilesDir.c_str(),
-            "-serial",
-            unixSocketSerial.c_str(),
-            nullptr};
+        const char *args[] = {"qemu-system-aarch64",
+                              "-machine",
+                              "virt",
+                              "-cpu",
+                              "cortex-a53",
+                              "-smp",
+                              "2",
+                              "-m",
+                              "1G",
+                              "-kernel",
+                              kernelPath.c_str(),
+                              "-drive",
+                              driveOption.c_str(),
+                              "-device",
+                              "virtio-blk-device,drive=hd0",
+                              "-append",
+                              "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0",
+                              "-nographic",
+                              "-L",
+                              vmFilesDir.c_str(),
+                              "-serial",
+                              unixSocketSerial.c_str(),
+                              nullptr};
         int argc = 0;
         while (args[argc] != nullptr) {
             argc += 1;
