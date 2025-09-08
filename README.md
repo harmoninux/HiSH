@@ -19,16 +19,18 @@ arm64-v8a.libqemu-system-aarch64.so   # to entry/libs/arm64-v8a/libqemu-system-a
 ```
 - Build project in DevEco Studio
 
-## Screens
+## Screenshots
 
-### On 2in1(PC)
+Screenshots of HiSH running on various HarmonyOS devices.
+
+### 2in1(PC)
 
 ![On 2in1(PC)](docs/images/Screenshot_2025-09-06T173115.png)
 
-### On Tablet
+### Tablet
 
 ![On 2in1(PC)](docs/images/Screenshot_2025-09-06T173044.png)
 
-### On Phone
+### Phone
 
 <img src="docs/images/Screenshot_2025-09-06T173059.png" width="400" alt="On Phone"/>
