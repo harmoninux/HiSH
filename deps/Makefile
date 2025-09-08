@@ -11,7 +11,8 @@ copy: output/.stamp
 
 output/.stamp: $(STAMP) Makefile
 	rm -f ../entry/libs/$(OHOS_ABI)/*
-	cp output/libqemu-system-aarch64.so ../entry/libs/$(OHOS_ABI)/
+	cp output/*.so ../entry/libs/$(OHOS_ABI)/
+	cp output/*.so.* ../entry/libs/$(OHOS_ABI)/
 	touch output/.stamp
 
 %/.stamp: %/Makefile
