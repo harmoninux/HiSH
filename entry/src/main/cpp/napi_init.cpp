@@ -300,6 +300,10 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                               vmFilesDir.c_str(),
                               "-serial",
                               unixSocketSerial.c_str(),
+                              "-netdev",
+                              "user,id=eth0",
+                              "-device",
+                              "virtio-net-device,netdev=eth0",
                               nullptr};
         int argc = 0;
         while (args[argc] != nullptr) {

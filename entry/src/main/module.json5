@@ -15,6 +15,9 @@
       },
       {
         "name": "ohos.permission.kernel.DISABLE_CODE_MEMORY_PROTECTION"
+      },
+      {
+        "name": "ohos.permission.INTERNET"
       }
     ],
     "deliveryWithInstall": true,
