@@ -25,12 +25,12 @@ Screenshots of HiSH running on various HarmonyOS devices.
 
 ### 2in1(PC)
 
-![On 2in1(PC)](docs/images/Screenshot_2025-09-06T173115.png)
+![On 2in1(PC)](docs/images/Screenshot_2025-09-11T005915.png)
 
 ### Tablet
 
-![On 2in1(PC)](docs/images/Screenshot_2025-09-06T173044.png)
+![On 2in1(PC)](docs/images/Screenshot_2025-09-11T010000.png)
 
 ### Phone
 
-<img src="docs/images/Screenshot_2025-09-06T173059.png" width="400" alt="On Phone"/>
+<img src="docs/images/Screenshot_2025-09-11T010113.png" width="400" alt="On Phone"/>
