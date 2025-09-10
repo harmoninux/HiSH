@@ -24,6 +24,11 @@ window.onload = async function () {
     // Creating and preloading the <audio> element for this sometimes hangs WebKit on iOS 16 for some reason. Can be most easily reproduced by resetting a simulator and starting the app. System logs show Fig hanging while trying to do work.
     term.getPrefs().set('audible-bell-sound', '');
 
+    var fontSize = native.getFontSize();
+    if (fontSize) {
+        term.getPrefs().set('font-size', fontSize);
+    }
+
     term.onTerminalReady = onTerminalReady;
     term.decorate(document.getElementById('terminal'));
     term.installKeyboard();

@@ -3,6 +3,7 @@ import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 const DOMAIN = 0x0000;
 
@@ -42,6 +43,14 @@ class NativeProxy {
 
   async resize(): Promise<void> {
   }
+
+  getFontSize(): number | null {
+    if(deviceInfo.deviceType === 'phone'
+      || deviceInfo.deviceType === 'default') {
+      return 13;
+    }
+    return null;
+  }
 }
 
 @Entry
@@ -70,7 +79,7 @@ struct Index {
         .javaScriptProxy({
           object: this.native,
           name: 'native',
-          methodList: ['sendInput', 'resize', 'load'],
+          methodList: ['sendInput', 'resize', 'load', 'getFontSize'],
           controller: this.webviewController,
           asyncMethodList: [],
           permission: `{
