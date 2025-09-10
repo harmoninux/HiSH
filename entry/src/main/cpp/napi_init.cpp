@@ -294,7 +294,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                               "-device",
                               "virtio-blk-device,drive=hd0",
                               "-append",
-                              "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0",
+                              "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi",
                               "-nographic",
                               "-L",
                               vmFilesDir.c_str(),
