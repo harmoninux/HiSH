@@ -34,3 +34,7 @@ Screenshots of HiSH running on various HarmonyOS devices.
 ### Phone
 
 <img src="docs/images/Screenshot_2025-09-11T010113.png" width="400" alt="On Phone"/>
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=harmoninux/hish&type=Date)](https://www.star-history.com/#harmoninux/hish&Date)
