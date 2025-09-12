@@ -12,67 +12,15 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
   return buf.buffer;
 }
 
-class NativeProxy {
-  controller: webview.WebviewController;
-
-  constructor(controller: WebviewController) {
-    this.controller = controller;
-  }
-
-  sendInput(data: string): void {
-    hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
-    let buffer = stringToArrayBuffer(data, 'utf-8');
-    napi.send(buffer)
-  }
-
-  async load(): Promise<void> {
-    hilog.info(DOMAIN, 'WebTerminal', 'load')
-    this.controller.runJavaScript('exports.setFocused(true)')
-    napi.startVM((d: ArrayBuffer) => this.onData(d), () => this.onClose())
-  }
-
-  private onData(ab: ArrayBuffer) {
-    let dec = util.TextDecoder.create('utf-8', { ignoreBOM: true });
-    let s: string = dec.decodeToString(new Uint8Array(ab));
-    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
-    this.controller.runJavaScript('exports.write("' + s + '")');
-  }
-
-  setCtrlPressed(b: boolean) {
-    this.controller.runJavaScript('exports.setCtrlPressed(' + b + ')')
-  }
-
-  private onClose() {
-  }
-
-  async resize(): Promise<void> {
-  }
-
-  getFontSize(): number | null {
-    if (deviceInfo.deviceType === 'phone'
-      || deviceInfo.deviceType === 'default') {
-      return 13;
-    }
-    return null;
-  }
-}
-
 @Entry
 @Component
 struct Index {
   @Require webviewController: WebviewController = new webview.WebviewController()
-  @Require native: NativeProxy = new NativeProxy(this.webviewController)
   @Require showVirtKey: boolean = deviceInfo.deviceType !== '2in1'
-  @Require ctrlPressed: boolean = false
-
-  onData(a: ArrayBuffer) {
-    let dec = util.TextDecoder.create('utf-8', { ignoreBOM: true })
-    let s: string = dec.decodeToString(new Uint8Array(a))
-    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s)
-  }
+  @Require @State ctrlPressed: boolean = false
 
   aboutToAppear(): void {
-    webview.WebviewController.setWebDebuggingAccess(true)
+    // webview.WebviewController.setWebDebuggingAccess(true)
   }
 
   onExit() {
@@ -85,7 +33,7 @@ struct Index {
         controller: this.webviewController
       })
         .javaScriptProxy({
-          object: this.native,
+          object: this,
           name: 'native',
           methodList: ['sendInput', 'resize', 'load', 'getFontSize'],
           controller: this.webviewController,
@@ -110,8 +58,9 @@ struct Index {
           Button('TAB')
             .height(28)
             .margin({ left: 5 })
+            .padding({ left: 10, right: 10})
             .onClick(() => {
-              this.send('\t');
+              this.sendInput('\t');
             })
           Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
             Text('CTRL')
@@ -123,8 +72,9 @@ struct Index {
           Button('ESC')
             .height(28)
             .margin({ left: 5 })
+            .padding({ left: 10, right: 10})
             .onClick(() => {
-              this.send('\x1b');
+              this.sendInput('\x1b');
             })
 
           Row().layoutWeight(1)
@@ -132,26 +82,30 @@ struct Index {
           Button('↑')
             .height(28)
             .margin({ right: 5 })
+            .padding({ left: 10, right: 10})
             .onClick(() => {
-              this.send('\x1b[A');
+              this.sendInput('\x1b[A');
             })
           Button('↓')
             .height(28)
             .margin({ right: 5 })
+            .padding({ left: 10, right: 10})
             .onClick(() => {
-              this.send('\x1b[B');
+              this.sendInput('\x1b[B');
             })
           Button('←')
             .height(28)
             .margin({ right: 5 })
+            .padding({ left: 10, right: 10})
             .onClick(() => {
-              this.send('\x1b[D');
+              this.sendInput('\x1b[D');
             })
           Button('→')
             .height(28)
             .margin({ right: 5 })
+            .padding({ left: 10, right: 10})
             .onClick(() => {
-              this.send('\x1b[C');
+              this.sendInput('\x1b[C');
             })
         }
         .margin(5)
@@ -162,10 +116,45 @@ struct Index {
 
   private toggleCtrl() {
     this.ctrlPressed = !this.ctrlPressed;
-    this.native.setCtrlPressed(this.ctrlPressed);
+    this.webviewController.runJavaScript('exports.setCtrlPressed(' + this.ctrlPressed + ')')
   }
 
-  private send(b: string) {
-    this.native.sendInput(b);
+  //  ============== for javascript in ArkWeb ================
+
+  sendInput(data: string): void {
+    hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
+    let buffer = stringToArrayBuffer(data, 'utf-8');
+    napi.send(buffer)
+
+    if (this.ctrlPressed) {
+      this.toggleCtrl()
+    }
+  }
+
+  async load(): Promise<void> {
+    hilog.info(DOMAIN, 'WebTerminal', 'load')
+    this.webviewController.runJavaScript('exports.setFocused(true)')
+    napi.startVM((d: ArrayBuffer) => this.onData(d), () => this.onClose())
+  }
+
+  async resize(): Promise<void> {
+  }
+
+  getFontSize(): number | null {
+    if (deviceInfo.deviceType === 'phone'
+      || deviceInfo.deviceType === 'default') {
+      return 13;
+    }
+    return null;
+  }
+
+  private onData(ab: ArrayBuffer) {
+    let dec = util.TextDecoder.create('utf-8', { ignoreBOM: true });
+    let s: string = dec.decodeToString(new Uint8Array(ab));
+    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
+    this.webviewController.runJavaScript('exports.write("' + s + '")');
+  }
+
+  private onClose() {
   }
 }
