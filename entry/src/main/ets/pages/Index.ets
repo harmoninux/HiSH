@@ -38,6 +38,10 @@ class NativeProxy {
     this.controller.runJavaScript('exports.write("' + s + '")');
   }
 
+  setCtrlPressed(b: boolean) {
+    this.controller.runJavaScript('exports.setCtrlPressed(' + b + ')')
+  }
+
   private onClose() {
   }
 
@@ -45,7 +49,7 @@ class NativeProxy {
   }
 
   getFontSize(): number | null {
-    if(deviceInfo.deviceType === 'phone'
+    if (deviceInfo.deviceType === 'phone'
       || deviceInfo.deviceType === 'default') {
       return 13;
     }
@@ -56,22 +60,26 @@ class NativeProxy {
 @Entry
 @Component
 struct Index {
-  @State message: string = 'Hello World';
-  @State started: boolean = false
   @Require webviewController: WebviewController = new webview.WebviewController()
   @Require native: NativeProxy = new NativeProxy(this.webviewController)
+  @Require showVirtKey: boolean = deviceInfo.deviceType !== '2in1'
+  @Require ctrlPressed: boolean = false
 
   onData(a: ArrayBuffer) {
     let dec = util.TextDecoder.create('utf-8', { ignoreBOM: true })
     let s: string = dec.decodeToString(new Uint8Array(a))
-    hilog.info(DOMAIN, 'WebTerminal', 'write, id: %{public}d, data: %{public}s', this.id, s)
+    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s)
+  }
+
+  aboutToAppear(): void {
+    webview.WebviewController.setWebDebuggingAccess(true)
   }
 
   onExit() {
   }
 
   build() {
-    Row() {
+    Column() {
       Web({
         src: $rawfile('term/term.html'),
         controller: this.webviewController
@@ -96,8 +104,68 @@ struct Index {
         }`
         })
         .backgroundColor('#000')
-        .height('100%')
+        .layoutWeight(1)
+      if (this.showVirtKey) {
+        Row() {
+          Button('TAB')
+            .height(28)
+            .margin({ left: 5 })
+            .onClick(() => {
+              this.send('\t');
+            })
+          Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
+            Text('CTRL')
+              .height(20)
+          }
+          .height(28)
+          .margin({ left: 5 })
+          .onClick(() => this.toggleCtrl())
+          Button('ESC')
+            .height(28)
+            .margin({ left: 5 })
+            .onClick(() => {
+              this.send('\x1b');
+            })
+
+          Row().layoutWeight(1)
+
+          Button('↑')
+            .height(28)
+            .margin({ right: 5 })
+            .onClick(() => {
+              this.send('\x1b[A');
+            })
+          Button('↓')
+            .height(28)
+            .margin({ right: 5 })
+            .onClick(() => {
+              this.send('\x1b[B');
+            })
+          Button('←')
+            .height(28)
+            .margin({ right: 5 })
+            .onClick(() => {
+              this.send('\x1b[D');
+            })
+          Button('→')
+            .height(28)
+            .margin({ right: 5 })
+            .onClick(() => {
+              this.send('\x1b[C');
+            })
+        }
+        .margin(5)
+      }
     }
     .height('100%')
+  }
+
+  private toggleCtrl() {
+    this.ctrlPressed = !this.ctrlPressed;
+    this.native.setCtrlPressed(this.ctrlPressed);
+  }
+
+  private send(b: string) {
+    this.native.sendInput(b);
   }
 }

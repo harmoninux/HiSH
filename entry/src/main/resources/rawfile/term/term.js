@@ -1,3 +1,61 @@
+window.exports = {};
+
+function installVirtualCtrl() {
+    var ctrlPressed = false;
+
+    function preProcessKeyEvent(e) {
+        if (ctrlPressed) {
+            Object.defineProperty(e, 'ctrlKey', {value: true});
+            Object.defineProperty(e, 'returnValue', {value: true});
+            Object.defineProperty(e, 'defaultPrevented', {value: true});
+        }
+    }
+
+    hterm.Keyboard.prototype.originalOnKeyDown_ = hterm.Keyboard.prototype.onKeyDown_;
+    hterm.Keyboard.prototype.onKeyDown_ = function (e) {
+        console.log('keyDown', e)
+        preProcessKeyEvent(e);
+        this.originalOnKeyDown_(e);
+    };
+    hterm.Keyboard.prototype.originalonKeyPress_ = hterm.Keyboard.prototype.onKeyPress_;
+    hterm.Keyboard.prototype.onKeyPress_ = function (e) {
+        console.log('keyPress', e)
+        preProcessKeyEvent(e);
+        this.originalonKeyPress_(e);
+    };
+    hterm.Keyboard.prototype.originalOnKeyUp_ = hterm.Keyboard.prototype.onKeyUp_;
+    hterm.Keyboard.prototype.onKeyUp_ = function (e) {
+        console.log('keyUp', e)
+        preProcessKeyEvent(e);
+        this.originalOnKeyUp_(e);
+    };
+    hterm.Keyboard.prototype.originalOnTextInput_ = hterm.Keyboard.prototype.onTextInput_;
+    hterm.Keyboard.prototype.onTextInput_ = function (e) {
+        console.log('textInput', e)
+        if (!ctrlPressed) {
+            this.originalOnTextInput_(e);
+        } else {
+            var data = ''
+            for (var i = 0; i < e.data.length; i++) {
+                var c;
+                if (e.data[i] >= 'a' && e.data[i] <= 'z')
+                    c = String.fromCharCode(e.data.charCodeAt(i) - 'a'.charCodeAt(0) + 1);
+                else
+                    c = e.data.charAt(i);
+                data += c;
+            }
+            Object.defineProperty(e, 'data', {value: data})
+            this.originalOnTextInput_(e)
+        }
+    };
+
+    exports.setCtrlPressed = (b) => {
+        ctrlPressed = b;
+    };
+}
+
+installVirtualCtrl();
+
 hterm.Terminal.IO.prototype.sendString = function (data) {
     native.sendInput(data);
 };
@@ -36,9 +94,6 @@ window.onload = async function () {
 
 function onTerminalReady() {
 
-    // Functions for native -> JS
-    window.exports = {};
-
     this.setCursorVisible(true);
     var io = term.io.push();
     term.reset();
@@ -59,14 +114,6 @@ function onTerminalReady() {
     term.focus();
     exports.copy = () => term.getSelectionText();
 
-    // focus
-    // This listener blocks blur events that come in because the webview has lost first responder
-    term.scrollPort_.screen_.addEventListener('blur', (e) => {
-        if (e.target.ownerDocument.activeElement == e.target) {
-            e.stopPropagation();
-        }
-    }, { capture: true });
-
     exports.setFocused = (focus) => {
         if (focus) {
             term.focus();
@@ -74,40 +121,12 @@ function onTerminalReady() {
             term.blur();
         }
     };
-    // Scroll to bottom wrapper
-    exports.scrollToBottom = () => term.scrollEnd();
-    // Set scroll position
-    exports.newScrollTop = (y) => {
-        // two lines instead of one because the value you read out of scrollTop can be different from the value you write into it
-        term.scrollPort_.screen_.scrollTop = y;
-        lastScrollTop = term.scrollPort_.screen_.scrollTop;
-    };
-
-    exports.updateStyle = ({
-        foregroundColor,
-        backgroundColor,
-        fontFamily,
-        fontSize,
-        colorPaletteOverrides,
-        blinkCursor,
-        cursorShape
-    }) => {
-        term.getPrefs().set('background-color', backgroundColor);
-        term.getPrefs().set('foreground-color', foregroundColor);
-        term.getPrefs().set('cursor-color', foregroundColor);
-        term.getPrefs().set('font-family', fontFamily);
-        term.getPrefs().set('font-size', fontSize);
-        term.getPrefs().set('color-palette-overrides', colorPaletteOverrides);
-        term.getPrefs().set('cursor-blink', blinkCursor);
-        term.getPrefs().set('cursor-shape', cursorShape);
-    };
 
     exports.getCharacterSize = () => {
         return [term.scrollPort_.characterSize.width, term.scrollPort_.characterSize.height];
     };
 
     exports.clearScrollback = () => term.clearScrollback();
-    exports.setUserGesture = () => term.accessibilityReader_.hasUserGesture = true;
 
     hterm.openUrl = (url) => native.openLink(url);
 

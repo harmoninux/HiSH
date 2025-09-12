@@ -1,6 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window } from '@kit.ArkUI';
+import { window, KeyboardAvoidMode } from '@kit.ArkUI';
+import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
 
 const DOMAIN = 0x0000;
@@ -21,18 +22,32 @@ export default class EntryAbility extends UIAbility {
 
     const appContext = this.context.getApplicationContext();
 
+    this.extractResources(appContext);
+
+    windowStage.loadContent('pages/Index', (err) => {
+      windowStage.getMainWindowSync().getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
+      if (err.code) {
+        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
+        return;
+      }
+      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+    });
+  }
+
+  private extractResources(appContext: common.ApplicationContext) {
+
     hilog.info(DOMAIN, 'testTag', 'filesDir: %{public}s', appContext.filesDir);
     hilog.info(DOMAIN, 'testTag', 'tempDir: %{public}s', appContext.tempDir);
 
-    let bundleVmDir = appContext.filesDir + "/vm"
+    let bundleVmDir = appContext.filesDir + "/vm";
     if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
-      fs.mkdirSync(bundleVmDir)
+      fs.mkdirSync(bundleVmDir);
     }
     for (let filename of ["vm/alpine_aarch64_rootfs.qcow2", "vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
 
       let filePath = appContext.filesDir + "/" + filename;
       if (fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
-        continue
+        continue;
       }
 
       let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
@@ -41,14 +56,6 @@ export default class EntryAbility extends UIAbility {
       fs.closeSync(file);
       hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
     }
-
-    windowStage.loadContent('pages/Index', (err) => {
-      if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
-        return;
-      }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
-    });
   }
 
   onWindowStageDestroy(): void {
