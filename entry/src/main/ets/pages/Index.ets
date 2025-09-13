@@ -7,6 +7,10 @@ import { deviceInfo } from '@kit.BasicServicesKit';
 
 const DOMAIN = 0x0000;
 
+const VKeyMargin = 5;
+const VKeyPadding = 8;
+const VKeyHeight = 28;
+
 function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
   const buf = buffer.from(str, encoding);
   return buf.buffer;
@@ -55,24 +59,25 @@ struct Index {
         .layoutWeight(1)
       if (this.showVirtKey) {
         Row() {
-          Button('TAB')
-            .height(28)
-            .margin({ left: 5 })
-            .padding({ left: 10, right: 10})
+          Button('Tab')
+            .height(VKeyHeight)
+            .margin({ left: VKeyMargin })
+            .padding({ left: VKeyPadding, right: VKeyPadding})
             .onClick(() => {
               this.sendInput('\t');
             })
           Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
-            Text('CTRL')
+            Text('Ctrl')
               .height(20)
           }
-          .height(28)
-          .margin({ left: 5 })
+          .height(VKeyHeight)
+          .margin({ left: VKeyMargin })
+          .selectedColor($r('sys.color.interactive_active'))
           .onClick(() => this.toggleCtrl())
-          Button('ESC')
-            .height(28)
-            .margin({ left: 5 })
-            .padding({ left: 10, right: 10})
+          Button('Esc')
+            .height(VKeyHeight)
+            .margin({ left: VKeyMargin })
+            .padding({ left: VKeyPadding, right: VKeyPadding})
             .onClick(() => {
               this.sendInput('\x1b');
             })
@@ -80,30 +85,30 @@ struct Index {
           Row().layoutWeight(1)
 
           Button('↑')
-            .height(28)
-            .margin({ right: 5 })
-            .padding({ left: 10, right: 10})
+            .height(VKeyHeight)
+            .margin({ right: VKeyMargin })
+            .padding({ left: VKeyPadding, right: VKeyPadding})
             .onClick(() => {
               this.sendInput('\x1b[A');
             })
           Button('↓')
-            .height(28)
-            .margin({ right: 5 })
-            .padding({ left: 10, right: 10})
+            .height(VKeyHeight)
+            .margin({ right: VKeyMargin })
+            .padding({ left: VKeyPadding, right: VKeyPadding})
             .onClick(() => {
               this.sendInput('\x1b[B');
             })
           Button('←')
-            .height(28)
-            .margin({ right: 5 })
-            .padding({ left: 10, right: 10})
+            .height(VKeyHeight)
+            .margin({ right: VKeyMargin })
+            .padding({ left: VKeyPadding, right: VKeyPadding})
             .onClick(() => {
               this.sendInput('\x1b[D');
             })
           Button('→')
-            .height(28)
-            .margin({ right: 5 })
-            .padding({ left: 10, right: 10})
+            .height(VKeyHeight)
+            .margin({ right: VKeyMargin })
+            .padding({ left: VKeyPadding, right: VKeyPadding})
             .onClick(() => {
               this.sendInput('\x1b[C');
             })
