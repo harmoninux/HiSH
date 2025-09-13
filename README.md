@@ -67,7 +67,7 @@ git clone --depth=1 -b v6.16 https://github.com/torvalds/linux
 - Download linux kernel build config
 ```shell
 cd linux
-curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_tinyconfig > .config
+curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_tinydocker > .config
 ```
 - Build Linux kernel
 ```shell
