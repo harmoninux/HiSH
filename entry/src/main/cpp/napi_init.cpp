@@ -102,6 +102,7 @@ static QemuSystemEntry getQemuSystemEntry() {
     return qemuSystemEntry;
 }
 
+//  TODO: run qemu in isolated process
 static void startQemuProcess() {
 
     auto bundleCodeDir = getBundleCodeDir();
@@ -247,6 +248,14 @@ void terminal_worker(const char *unix_socket_path) {
     }
 }
 
+static int getArgc(const char **args) {
+    int argc = 0;
+    while (args[argc] != nullptr) {
+        argc += 1;
+    }
+    return argc;
+}
+
 static napi_value startVM(napi_env env, napi_callback_info info) {
 
     size_t argc = 2;
@@ -305,17 +314,15 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                               "-device",
                               "virtio-net-device,netdev=eth0",
                               nullptr};
-        int argc = 0;
-        while (args[argc] != nullptr) {
-            argc += 1;
-        }
+        
+        int argc = getArgc(args);
 
         qemuEntry(argc, args);
     });
     vm_loop.detach();
 
-    std::thread thread([=]() { terminal_worker(unixSocketPath.c_str()); });
-    thread.detach();
+    std::thread worker([=]() { terminal_worker(unixSocketPath.c_str()); });
+    worker.detach();
 
     return nullptr;
 }
@@ -330,21 +337,12 @@ static napi_value send(napi_env env, napi_callback_info info) {
     napi_value args[1] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
-    char *data;
+    uint8_t *data;
     size_t length;
     napi_status ret = napi_get_arraybuffer_info(env, args[0], (void **)&data, &length);
     assert(ret == napi_ok);
 
-    std::string hex;
-    for (int i = 0; i < length; i++) {
-        if (data[i] >= 127 || data[i] < 32) {
-            char temp[8];
-            snprintf(temp, sizeof(temp), "\\x%02x", data[i]);
-            hex += temp;
-        } else {
-            hex += (char)data[i];
-        }
-    }
+    std::string hex = convert_to_hex(data, ret);
     OH_LOG_INFO(LOG_APP, "Send, data: %{public}s", hex.c_str());
 
     int fd = stdin_pipe_fd;
