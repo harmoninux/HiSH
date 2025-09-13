@@ -47,6 +47,8 @@ function installVirtualCtrl() {
             Object.defineProperty(e, 'data', {value: data})
             this.originalOnTextInput_(e)
         }
+        e.preventDefault();
+        e.stopPropagation();
     };
 
     exports.setCtrlPressed = (b) => {
@@ -57,9 +59,11 @@ function installVirtualCtrl() {
 installVirtualCtrl();
 
 hterm.Terminal.IO.prototype.sendString = function (data) {
+    console.log('sendString', data)
     native.sendInput(data);
 };
 hterm.Terminal.IO.prototype.onVTKeystroke = function (data) {
+    console.log('onVTKeystroke', data)
     native.sendInput(data);
 };
 hterm.Terminal.IO.prototype.onTerminalResize = function (width, height) {
