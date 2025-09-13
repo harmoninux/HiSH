@@ -4,7 +4,7 @@ Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com
 
 This is screenshot of HiSH on Tablet emulator:
 
-<img src="docs/images/Screenshot_2025-09-13T122058.png" width="800" alt="On Phone"/>
+<img src="docs/images/Screenshot_2025-09-13T122842.png" width="800" alt="On Tablet"/>
 
 # How to use
 
@@ -95,6 +95,6 @@ Screenshots of HiSH running on various HarmonyOS devices.
 
 <img src="docs/images/Screenshot_2025-09-13T122218.png" width="400" alt="On Phone"/>
 
-## Star History
+# Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=harmoninux/hish&type=Date)](https://www.star-history.com/#harmoninux/hish&Date)
