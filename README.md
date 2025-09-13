@@ -78,11 +78,11 @@ Screenshots of HiSH running on various HarmonyOS devices.
 
 ### Tablet
 
-![On 2in1(PC)](docs/images/Screenshot_2025-09-11T010000.png)
+![On 2in1(PC)](docs/images/Screenshot_2025-09-13T122058.png)
 
 ### Phone
 
-<img src="docs/images/Screenshot_2025-09-11T010113.png" width="400" alt="On Phone"/>
+<img src="docs/images/Screenshot_2025-09-13T122218.png" width="400" alt="On Phone"/>
 
 ## Star History
 
