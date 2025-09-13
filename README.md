@@ -8,7 +8,10 @@ Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) a
 
 # How to build
 
-
+- HAP bundle
+- Linux kernel (optional)
+- libqemu-system (optional)
+- rootfs
 
 ## Build HAP
 
@@ -22,7 +25,7 @@ Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) a
 - Build project in DevEco Studio
 - Sign and run in your device or emulator
 
-## Build libs (Optional)
+## Build libqemu-system (Optional)
 
 Build your own `libqemu-system-aarch64.so` for `entry/libs` on Ubuntu (or WSL2 on Windows), for customizing `libqemu`
 
@@ -67,6 +70,10 @@ curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
 ```
 - The kernel image is at `arch/arm64/boot/Image`, copy it to `entry/src/main/resources/rawfile/vm/kernel_aarch64`
+
+## Build rootfs for Linux (Optional)
+
+TODO
 
 # Screenshots
 
