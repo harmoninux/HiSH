@@ -2,6 +2,13 @@
 
 Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com/hackeris/harmony-qemu), both 2in1(PC), Tablet and Phone are supported.
 
+## Core Features
+
+- Complete arm64 Linux kernel
+- Networking (NAT)
+- Alpine Linux rootfs
+- Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
+
 This is screenshot of HiSH on Tablet emulator:
 
 <img src="docs/images/Screenshot_2025-09-13T122842.png" width="800" alt="On Tablet"/>
