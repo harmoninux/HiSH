@@ -24,7 +24,7 @@ Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) a
 - Download files from [Releases page](https://github.com/harmoninux/HiSH/releases) and move to corresponding location as following
   - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/v0.0.4/arm64-v8a.libqemu-system-aarch64.so)
   - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/v0.0.4/x86_64.libqemu-system-aarch64.so)
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/HiSH/releases/download/v0.0.4/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/HiSH/releases/download/v0.0.8/kernel_aarch64)
   - [entry/src/main/resources/rawfile/vm/alpine_aarch64_rootfs.qcow2](https://github.com/harmoninux/HiSH/releases/download/v0.0.4/alpine_aarch64_rootfs.qcow2)
 - Build project in DevEco Studio
 - Sign and run in your device or emulator
