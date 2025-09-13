@@ -15,7 +15,7 @@ Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) a
 - HAP bundle
 - Linux kernel (optional)
 - libqemu-system (optional)
-- rootfs
+- rootfs (optional)
 
 ## Build HAP
 
@@ -77,7 +77,39 @@ make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
 
 ## Build rootfs for Linux (Optional)
 
-TODO
+Build your own rootfs for HiSH
+
+- Download and extract Alpine rootfs from [downloads | Alpine Linux](https://alpinelinux.org/downloads)
+```shell
+mkdir alpine
+tar xvf alpine-minirootfs-3.22.1-aarch64.tar.gz -C alpine
+```
+- Use `qemu-img` to create a `rootfs.img` file
+```shell
+qemu-img create -f raw rootfs.img 8G
+```
+- Make fs for `rootfs.img` file
+```shell
+mkfs.ext4 rootfs.img
+```
+- Mount `rootfs.img` as directory
+```shell
+sudo mkdir /mnt/rootfs
+sudo mount rootfs.img /mnt/rootfs
+```
+- Copy files of rootfs to `/mnt/rootfs`
+```shell
+sudo cp -r alpine/* /mnt/rootfs
+```
+- Unmount `/mnt/rootfs`
+```shell
+sudo umount /mnt/rootfs
+```
+- Convert raw img to qcow2 format
+```shell
+qemu-img convert -p -f raw -O qcow2 rootfs.img rootfs.qcow2
+```
+- Put `rootfs.qcow2` to `entry/src/main/resources/rawfile/vm/alpine_aarch64_rootfs.qcow2`
 
 # Screenshots
 
