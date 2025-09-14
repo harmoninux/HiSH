@@ -22,6 +22,7 @@ struct Index {
   @Require webviewController: WebviewController = new webview.WebviewController()
   @Require showVirtKey: boolean = deviceInfo.deviceType !== '2in1'
   @Require @State ctrlPressed: boolean = false
+  @Require utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
 
   aboutToAppear(): void {
     // webview.WebviewController.setWebDebuggingAccess(true)
@@ -154,8 +155,7 @@ struct Index {
   }
 
   private onData(ab: ArrayBuffer) {
-    let dec = util.TextDecoder.create('utf-8', { ignoreBOM: true });
-    let s: string = dec.decodeToString(new Uint8Array(ab));
+    let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }

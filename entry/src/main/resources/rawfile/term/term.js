@@ -104,10 +104,10 @@ function onTerminalReady() {
 
     let decoder = new TextDecoder();
     exports.write = (data) => {
-        term.io.writeUTF16(decoder.decode(lib.codec.stringToCodeUnitArray(data)));
+        term.io.writeUTF16(decoder.decode(lib.codec.stringToCodeUnitArray(data), {stream: true}));
     };
     exports.paste = (data) => {
-        term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data)));
+        term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data), {stream: true}));
     };
 
     // hterm size updates native size
