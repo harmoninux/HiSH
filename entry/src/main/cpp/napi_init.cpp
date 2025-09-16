@@ -285,7 +285,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir]() {
         std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
         std::string kernelPath = vmFilesDir + "/kernel_aarch64";
-        std::string rootFsImgPath = vmFilesDir + "/alpine_aarch64_rootfs.qcow2";
+        std::string rootFsImgPath = vmFilesDir + "/rootfs_aarch64.qcow2";
         std::string driveOption = "if=none,format=qcow2,file=" + rootFsImgPath + ",id=hd0";
         const char *args[] = {"qemu-system-aarch64",
                               "-machine",

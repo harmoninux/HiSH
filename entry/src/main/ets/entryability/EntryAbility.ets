@@ -43,7 +43,7 @@ export default class EntryAbility extends UIAbility {
     if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
       fs.mkdirSync(bundleVmDir);
     }
-    for (let filename of ["vm/alpine_aarch64_rootfs.qcow2", "vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
+    for (let filename of ["vm/rootfs_aarch64.qcow2", "vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
 
       let filePath = appContext.filesDir + "/" + filename;
       if (fs.accessSync(filePath, fs.AccessModeType.EXIST)) {

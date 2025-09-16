@@ -32,7 +32,7 @@ Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) a
   - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/v0.0.4/arm64-v8a.libqemu-system-aarch64.so)
   - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/v0.0.4/x86_64.libqemu-system-aarch64.so)
   - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/HiSH/releases/download/v0.0.8/kernel_aarch64)
-  - [entry/src/main/resources/rawfile/vm/alpine_aarch64_rootfs.qcow2](https://github.com/harmoninux/HiSH/releases/download/v0.0.10/alpine_aarch64_rootfs.qcow2)
+  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/HiSH/releases/download/v0.0.10/rootfs_aarch64.qcow2)
 - Build project in DevEco Studio
 - Sign and run in your device or emulator
 
@@ -116,7 +116,7 @@ sudo umount /mnt/rootfs
 ```shell
 qemu-img convert -p -f raw -O qcow2 rootfs.img rootfs.qcow2
 ```
-- Put `rootfs.qcow2` to `entry/src/main/resources/rawfile/vm/alpine_aarch64_rootfs.qcow2`
+- Put `rootfs.qcow2` to `entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2`
 
 # Screenshots
 
