@@ -25,12 +25,15 @@ export default class EntryAbility extends UIAbility {
     this.extractResources(appContext);
 
     windowStage.loadContent('pages/Index', (err) => {
-      windowStage.getMainWindowSync().getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+
+      let mainWindow = windowStage.getMainWindowSync();
+      mainWindow.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
+      mainWindow.setWindowKeepScreenOn(true);
     });
   }
 
