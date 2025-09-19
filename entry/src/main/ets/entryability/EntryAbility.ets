@@ -1,5 +1,6 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { window, KeyboardAvoidMode } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
@@ -35,6 +36,17 @@ export default class EntryAbility extends UIAbility {
       mainWindow.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
       mainWindow.setWindowKeepScreenOn(true);
     });
+
+    if (canIUse('SystemCapability.Window.SessionManager')) {
+      windowStage.getMainWindow((err: BusinessError, window: window.Window) => {
+        if (err.code) {
+          hilog.error(0x0000, 'testTag', 'Failed to get the main window. Cause: %{public}s', JSON.stringify(err) ?? '');
+          return;
+        }
+        window.setWindowDecorVisible(false);
+        window.setWindowDecorHeight(48);
+      });
+    }
   }
 
   private extractResources(appContext: common.ApplicationContext) {
