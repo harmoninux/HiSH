@@ -1,6 +1,5 @@
 #include "napi/native_api.h"
 #include <AbilityKit/ability_runtime/application_context.h>
-#include <AbilityKit/native_child_process.h>
 #include <assert.h>
 #include <cerrno>
 #include <cstdint>
@@ -100,32 +99,6 @@ static QemuSystemEntry getQemuSystemEntry() {
     OH_LOG_INFO(LOG_APP, "libqemu.so, handle: 0x%{public}p, entry: 0x%{public}p", libQemuHandle, qemuSystemEntry);
 
     return qemuSystemEntry;
-}
-
-//  TODO: run qemu in isolated process
-static void startQemuProcess() {
-
-    auto bundleCodeDir = getBundleCodeDir();
-
-    NativeChildProcess_Args args;
-    args.entryParams = strdup(bundleCodeDir.c_str());
-
-    args.fdList.head = (NativeChildProcess_Fd *)malloc(sizeof(NativeChildProcess_Fd));
-    args.fdList.head->fdName = (char *)malloc(sizeof(char) * 4);
-    (void)strcpy(args.fdList.head->fdName, "fd1");
-    int32_t fd = open("/data/storage/el2/base/haps/entry/files/test.txt", O_RDWR | O_CREAT, 0644);
-    args.fdList.head->fd = fd;
-    args.fdList.head->next = NULL;
-    NativeChildProcess_Options options = {.isolationMode = NCP_ISOLATION_MODE_ISOLATED};
-
-    int32_t pid = -1;
-    Ability_NativeChildProcess_ErrCode ret =
-        OH_Ability_StartNativeChildProcess("libqemu_childprocess.so:Main", args, options, &pid);
-    if (ret != NCP_NO_ERROR) {
-        // 释放NativeChildProcess_Args中的内存空间防止内存泄漏
-        // 子进程未能正常启动时的异常处理
-        // ...
-    }
 }
 
 static void call_on_data_callback(napi_env env, napi_value js_callback, void *context, void *data) {
