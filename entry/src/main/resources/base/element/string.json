@@ -21,6 +21,10 @@
       "value": "完成"
     },
     {
+      "name": "code_repository",
+      "value": "仓库"
+    },
+    {
       "name": "open_source_license",
       "value": "开源许可"
     },

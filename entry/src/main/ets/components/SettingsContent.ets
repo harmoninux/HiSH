@@ -49,6 +49,14 @@ export default struct SettingsContent {
       Column() {
 
         LinkItem({
+          icon: $r('sys.symbol.house'),
+          title: $r('app.string.code_repository'),
+          click: () => {
+            this.toWebBrowser('https://github.com/harmoninux/hish')
+          }
+        })
+
+        LinkItem({
           icon: $r('sys.symbol.doc_text_badge_checkmark'),
           title: $r('app.string.open_source_license'),
           click: () => {
