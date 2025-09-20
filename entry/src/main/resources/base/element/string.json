@@ -19,6 +19,14 @@
     {
       "name": "SettingComplete_label",
       "value": "完成"
+    },
+    {
+      "name": "open_source_license",
+      "value": "开源许可"
+    },
+    {
+      "name": "about_me",
+      "value": "关于"
     }
   ]
 }

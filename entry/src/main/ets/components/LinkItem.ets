@@ -1,8 +1,8 @@
 @Component
 export struct LinkItem {
   @Prop icon: Resource
-  @Prop title: string
-  @Prop subTitle: string
+  @Prop title: string | Resource
+  @Prop subTitle: string | Resource
   click?: () => void
 
   build() {
