@@ -19,6 +19,7 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 @Component
 export default struct WebTerminal {
   @Require showVirtKey: boolean
+  openSettings?: () => void
   @State ctrlPressed: boolean = false
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
@@ -106,16 +107,18 @@ export default struct WebTerminal {
             .onClick(() => {
               this.sendInput('\x1b[C');
             })
-          Button() {
-            Image($r('app.media.settings'))
-              .width(16)
+          if (this.openSettings) {
+            Button() {
+              Image($r('app.media.gearshape'))
+                .width(16)
+            }
+            .height(VKeyHeight)
+            .margin({ right: VKeyMargin })
+            .padding({ left: VKeyPadding, right: VKeyPadding })
+            .onClick(() => {
+              this.openSettings!()
+            })
           }
-          .height(VKeyHeight)
-          .margin({ right: VKeyMargin })
-          .padding({ left: VKeyPadding, right: VKeyPadding })
-          .onClick(() => {
-
-          })
         }
         .margin(5)
       }

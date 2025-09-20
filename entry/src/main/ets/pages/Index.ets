@@ -1,14 +1,42 @@
+import { CustomContentDialog } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import WebTerminal from '../components/WebTerminal'
+import SettingsContent from '../components/SettingsContent';
 
 @Entry
 @Component
 struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
+  settingController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.Setting_title'),
+      contentBuilder: () => {
+        this.buildSettings();
+      },
+      buttons: [{
+        value: $r('app.string.SettingComplete_label'),
+        buttonStyle: ButtonStyleMode.TEXTUAL,
+        action: () => {
+          this.settingController.close()
+        }
+      }]
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center
+  })
 
   aboutToAppear(): void {
-    webview.WebviewController.setWebDebuggingAccess(true)
+    // webview.WebviewController.setWebDebuggingAccess(true)
+  }
+
+  @Builder
+  buildSettings() {
+    SettingsContent()
+  }
+
+  openSettings() {
+    this.settingController.open()
   }
 
   build() {
@@ -22,17 +50,17 @@ struct Index {
               .margin({ left: 10 })
           }
 
-          Row().layoutWeight(1)
+          Blank()
 
           Row() {
-            Image($r('app.media.settings'))
+            Image($r('app.media.gearshape'))
               .width(28)
               .aspectRatio(1)
               .padding(4)
               .borderRadius(4)
               .hoverEffect(HoverEffect.Highlight)
               .onClick(() => {
-
+                this.openSettings()
               })
           }
         }
@@ -43,10 +71,15 @@ struct Index {
           right: 150,
         })
 
-        WebTerminal({ showVirtKey: !this.isPc })
+        WebTerminal({ showVirtKey: false })
           .layoutWeight(1)
       } else {
-        WebTerminal({ showVirtKey: !this.isPc })
+        WebTerminal({
+          showVirtKey: true,
+          openSettings: () => {
+            this.openSettings();
+          }
+        })
       }
     }
     .width("100%")

@@ -11,6 +11,14 @@
     {
       "name": "EntryAbility_label",
       "value": "HiSH"
+    },
+    {
+      "name": "Setting_title",
+      "value": "设置"
+    },
+    {
+      "name": "SettingComplete_label",
+      "value": "完成"
     }
   ]
 }
