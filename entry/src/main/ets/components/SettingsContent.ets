@@ -16,7 +16,7 @@ export default struct SettingsContent {
   webController: webview.WebviewController = new webview.WebviewController()
   portMappingController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '端口映射',
+      primaryTitle: $r('app.string.setting_port_mapping'),
       contentBuilder: () => {
         this.buildPortMapping();
       }
@@ -79,8 +79,12 @@ export default struct SettingsContent {
         Column() {
           Row() {
             Column() {
-              Text($r('app.string.setting_cpu')).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_cpu_desc')).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+              Text($r('app.string.setting_cpu'))
+                .fontSize($r('sys.float.Body_L'))
+                .fontColor($r('sys.color.font_primary'))
+              Text($r('app.string.setting_cpu_desc'))
+                .fontSize($r('sys.float.Body_M'))
+                .fontColor($r('sys.color.font_tertiary'))
             }
             .flexGrow(1)
             .alignItems(HorizontalAlign.Start)
@@ -97,8 +101,12 @@ export default struct SettingsContent {
 
           Row() {
             Column() {
-              Text($r('app.string.setting_mem_size')).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_mem_size_desc')).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+              Text($r('app.string.setting_mem_size'))
+                .fontSize($r('sys.float.Body_L'))
+                .fontColor($r('sys.color.font_primary'))
+              Text($r('app.string.setting_mem_size_desc'))
+                .fontSize($r('sys.float.Body_M'))
+                .fontColor($r('sys.color.font_tertiary'))
             }
             .flexGrow(1)
             .alignItems(HorizontalAlign.Start)
@@ -241,7 +249,9 @@ export default struct SettingsContent {
     Column() {
 
       Row() {
-        Text('开启端口映射').fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
+        Text($r('app.string.setting_enable_port_mapping'))
+          .fontSize($r('sys.float.Body_L'))
+          .fontColor($r('sys.color.font_primary'))
         Checkbox()
           .select(this.vmPortMappingEnabled)
           .onChange((value: boolean) => {

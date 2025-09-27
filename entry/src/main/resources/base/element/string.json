@@ -65,6 +65,10 @@
       "value": "端口映射"
     },
     {
+      "name": "setting_enable_port_mapping",
+      "value": "开启端口映射"
+    },
+    {
       "name": "setting_port_mapping_desc",
       "value": "开启和设置端口映射"
     },
