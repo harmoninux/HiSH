@@ -11,6 +11,7 @@
 **/.test
 /.appanalyzer
 build-profile.json5
+build-profile.json5.*
 *.hap
 *.so
 .idea
