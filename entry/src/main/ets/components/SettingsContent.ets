@@ -2,12 +2,15 @@ import { CustomContentDialog } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { LinkItem } from "./LinkItem"
 import { common, Want } from '@kit.AbilityKit';
+import preference from '@ohos.data.preferences';
+import { BusinessError } from '@ohos.base';
+import vmOption from '../model/vmOption';
 
 @Component
 export default struct SettingsContent {
-  
+  @Watch('saveVmCpuCount') @StorageProp(vmOption.cpuCountName) vmCpuCount: number = 1
+  @Watch('saveVmMemSize') @StorageProp(vmOption.memSizeName) vmMemSize: number = 512
   webController: webview.WebviewController = new webview.WebviewController()
-  
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -23,7 +26,6 @@ export default struct SettingsContent {
       }]
     })
   })
-  
   aboutController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.about_me'),
@@ -39,14 +41,62 @@ export default struct SettingsContent {
       }]
     })
   })
-  
+  context = this.getUIContext().getHostContext() as common.UIAbilityContext
+  preferences?: preference.Preferences
 
-  aboutToAppear(): void {
+  async aboutToAppear(): Promise<void> {
+    this.preferences = await preference.getPreferences(this.context.getApplicationContext(), vmOption.preferenceName)
+  }
+
+  saveVmCpuCount() {
+    this.preferences!.put(vmOption.cpuCountName, this.vmCpuCount)
+    this.preferences!.flush()
+  }
+
+  saveVmMemSize() {
+    this.preferences!.put(vmOption.memSizeName, this.vmMemSize)
+    this.preferences!.flush()
   }
 
   build() {
     Scroll() {
       Column() {
+
+        Row() {
+          Column() {
+            Text('CPU').fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
+            Text('设置CPU核数').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+          }
+          .flexGrow(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Select([{ value: '1' }, { value: '2' }, { value: '4' }])
+            .width(100)
+            .value(this.vmCpuCount.toString())
+            .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.cpuCountName, parseInt(value)))
+        }
+        .alignItems(VerticalAlign.Center)
+        .width('100%')
+        .height(56)
+        .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+
+        Row() {
+          Column() {
+            Text('内存').fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
+            Text('设置内存大小（MB）').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+          }
+          .flexGrow(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Select([{ value: '512' }, { value: '1024' }, { value: '2048' }, { value: '4096' }])
+            .width(100)
+            .value(this.vmMemSize.toString())
+            .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.memSizeName, parseInt(value)))
+        }
+        .alignItems(VerticalAlign.Center)
+        .width('100%')
+        .height(56)
+        .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
 
         LinkItem({
           icon: $r('sys.symbol.house'),

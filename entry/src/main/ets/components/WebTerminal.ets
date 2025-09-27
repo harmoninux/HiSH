@@ -4,6 +4,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
+import vmOption from '../model/vmOption'
 
 const DOMAIN = 0x0000;
 
@@ -20,6 +21,8 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 export default struct WebTerminal {
   @Require showVirtKey: boolean
   openSettings?: () => void
+  @StorageProp(vmOption.cpuCountName) vmCpuCount: number = 1
+  @StorageProp(vmOption.memSizeName) vmMemSize: number = 512
   @State ctrlPressed: boolean = false
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
@@ -144,9 +147,15 @@ export default struct WebTerminal {
   }
 
   async load(): Promise<void> {
-    hilog.info(DOMAIN, 'WebTerminal', 'load')
+    hilog.info(DOMAIN, 'WebTerminal', 'startVM with cpu: %{public}d, mem: %{public}dMB', this.vmCpuCount,
+      this.vmMemSize)
     this.webviewController.runJavaScript('exports.setFocused(true)')
-    napi.startVM((d: ArrayBuffer) => this.onData(d), () => this.onClose())
+    napi.startVM({
+      cpuCount: this.vmCpuCount,
+      memSize: this.vmMemSize,
+      onData: (d: ArrayBuffer) => this.onData(d),
+      onExit: () => this.onClose()
+    })
   }
 
   async resize(): Promise<void> {

@@ -15,10 +15,8 @@ export struct LinkItem {
         Text(this.title).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
         Text(this.subTitle).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
       }
-      .width('70%')
+      .flexGrow(1)
       .alignItems(HorizontalAlign.Start)
-
-      Blank()
 
       if (this.click) {
         SymbolGlyph($r('sys.symbol.chevron_right'))

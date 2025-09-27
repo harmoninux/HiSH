@@ -231,18 +231,43 @@ static int getArgc(const char **args) {
 
 static napi_value startVM(napi_env env, napi_callback_info info) {
 
-    size_t argc = 2;
-    napi_value args[2] = {nullptr};
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    
+    napi_value key_name;
+    napi_value nv_cpu_count;
+    napi_value nv_mem_size;
+    napi_value nv_on_data_cb;
+    napi_value nv_on_exit_cb;
+
+    napi_create_string_utf8(env, "cpuCount", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_cpu_count);
+    
+    napi_create_string_utf8(env, "memSize", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_mem_size);
+    
+    napi_create_string_utf8(env, "onData", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_on_data_cb);
+    
+    napi_create_string_utf8(env, "onExit", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_on_exit_cb);
+    
+    double d_cpu_count, d_mem_size;
+    int cpuCount, memSize;
+    napi_get_value_double(env, nv_cpu_count, &d_cpu_count);
+    cpuCount = d_cpu_count;
+    napi_get_value_double(env, nv_mem_size, &d_mem_size);
+    memSize = d_mem_size;
 
     napi_value data_cb_name;
     napi_create_string_utf8(env, "data_callback", NAPI_AUTO_LENGTH, &data_cb_name);
-    napi_create_threadsafe_function(env, args[0], nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
+    napi_create_threadsafe_function(env, nv_on_data_cb, nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
                                     call_on_data_callback, &on_data_callback);
 
     napi_value exit_cb_name;
     napi_create_string_utf8(env, "exit_callback", NAPI_AUTO_LENGTH, &exit_cb_name);
-    napi_create_threadsafe_function(env, args[1], nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
+    napi_create_threadsafe_function(env, nv_on_exit_cb, nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
                                     call_on_exit_callback, &on_exit_callback);
 
     auto qemuEntry = getQemuSystemEntry();
@@ -255,20 +280,22 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         unlink(unixSocketPath.c_str());
     }
 
-    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir]() {
+    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir, cpuCount, memSize]() {
         std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
         std::string kernelPath = vmFilesDir + "/kernel_aarch64";
         std::string rootFsImgPath = vmFilesDir + "/rootfs_aarch64.qcow2";
         std::string driveOption = "if=none,format=qcow2,file=" + rootFsImgPath + ",id=hd0";
+        std::string cpu = std::to_string(cpuCount);
+        std::string mem = std::to_string(memSize) + "M";
         const char *args[] = {"qemu-system-aarch64",
                               "-machine",
                               "virt",
                               "-cpu",
                               "cortex-a53",
                               "-smp",
-                              "2",
+                              cpu.c_str(),
                               "-m",
-                              "1G",
+                              mem.c_str(),
                               "-kernel",
                               kernelPath.c_str(),
                               "-drive",

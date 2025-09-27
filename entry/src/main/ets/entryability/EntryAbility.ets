@@ -3,7 +3,10 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { window, KeyboardAvoidMode } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
+import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
+
+import vmOption from '../model/vmOption'
 
 const DOMAIN = 0x0000;
 
@@ -17,13 +20,19 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
   }
 
-  onWindowStageCreate(windowStage: window.WindowStage): void {
+  async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
     const appContext = this.context.getApplicationContext();
 
     this.extractResources(appContext);
+
+    const vmPref = await preference.getPreferences(appContext, vmOption.preferenceName)
+    const vmCpuCount = await vmPref.get(vmOption.cpuCountName, 1);
+    const vmMemSize = await vmPref.get(vmOption.memSizeName, 512);
+    AppStorage.setOrCreate(vmOption.cpuCountName, vmCpuCount)
+    AppStorage.setOrCreate(vmOption.memSizeName, vmMemSize)
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
