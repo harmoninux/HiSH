@@ -2,11 +2,11 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "HiSH Entry Module"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "description"
+      "value": "HiSH Entry Ability"
     },
     {
       "name": "EntryAbility_label",
