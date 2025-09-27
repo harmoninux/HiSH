@@ -5,9 +5,9 @@ function installVirtualCtrl() {
 
     function preProcessKeyEvent(e) {
         if (ctrlPressed) {
-            Object.defineProperty(e, 'ctrlKey', {value: true});
-            Object.defineProperty(e, 'returnValue', {value: true});
-            Object.defineProperty(e, 'defaultPrevented', {value: true});
+            Object.defineProperty(e, 'ctrlKey', { value: true });
+            Object.defineProperty(e, 'returnValue', { value: true });
+            Object.defineProperty(e, 'defaultPrevented', { value: true });
         }
     }
 
@@ -38,13 +38,14 @@ function installVirtualCtrl() {
             var data = ''
             for (var i = 0; i < e.data.length; i++) {
                 var c;
-                if (e.data[i] >= 'a' && e.data[i] <= 'z')
+                if (e.data[i] >= 'a' && e.data[i] <= 'z') {
                     c = String.fromCharCode(e.data.charCodeAt(i) - 'a'.charCodeAt(0) + 1);
-                else
+                } else {
                     c = e.data.charAt(i);
+                }
                 data += c;
             }
-            Object.defineProperty(e, 'data', {value: data})
+            Object.defineProperty(e, 'data', { value: data })
             this.originalOnTextInput_(e)
         }
         e.preventDefault();
@@ -104,10 +105,10 @@ function onTerminalReady() {
 
     let decoder = new TextDecoder();
     exports.write = (data) => {
-        term.io.writeUTF16(decoder.decode(lib.codec.stringToCodeUnitArray(data), {stream: true}));
+        term.io.writeUTF16(decoder.decode(lib.codec.stringToCodeUnitArray(data), { stream: true }));
     };
     exports.paste = (data) => {
-        term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data), {stream: true}));
+        term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data), { stream: true }));
     };
 
     // hterm size updates native size
@@ -133,6 +134,14 @@ function onTerminalReady() {
     exports.clearScrollback = () => term.clearScrollback();
 
     hterm.openUrl = (url) => native.openLink(url);
+
+    io.print(
+        'HiSH is starting...\r\n\r\n' +
+            '     |  | _)   __|  |  |\r\n' +
+            '     __ |  | \\__ \\  __ |\r\n' +
+            '    _| _| _| ____/ _| _|\r\n'+
+            '\r\n'
+    );
 
     native.load();
 }
