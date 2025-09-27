@@ -21,6 +21,10 @@
       "value": "完成"
     },
     {
+      "name": "SettingSave_label",
+      "value": "保存"
+    },
+    {
       "name": "code_repository",
       "value": "项目仓库"
     },
@@ -55,6 +59,30 @@
     {
       "name": "setting_mem_size_desc",
       "value": "设置内存大小（MB）"
+    },
+    {
+      "name": "setting_port_mapping",
+      "value": "端口映射"
+    },
+    {
+      "name": "setting_port_mapping_desc",
+      "value": "开启和设置端口映射"
+    },
+    {
+      "name": "setting_add",
+      "value": "添加"
+    },
+    {
+      "name": "setting_duplicated_port",
+      "value": "端口号重复"
+    },
+    {
+      "name": "setting_incomplete_port_mapping",
+      "value": "第%d项不完整"
+    },
+    {
+      "name": "setting_port_should_larger",
+      "value": "第%d项端口号应大于1000"
     }
   ]
 }
