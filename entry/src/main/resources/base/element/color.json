@@ -3,6 +3,10 @@
     {
       "name": "start_window_background",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "setting_block_background",
+      "value": "#0DFFFFFF"
     }
   ]
 }

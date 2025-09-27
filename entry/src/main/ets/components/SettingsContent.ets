@@ -62,65 +62,79 @@ export default struct SettingsContent {
     Scroll() {
       Column() {
 
-        Row() {
-          Column() {
-            Text('CPU').fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
-            Text('设置CPU核数').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
-          }
-          .flexGrow(1)
-          .alignItems(HorizontalAlign.Start)
+        Text($r("app.string.setting_block_system"))
+          .margin({ bottom: 10, left: 20 })
+          .width('100%')
+        Column() {
+          Row() {
+            Column() {
+              Text($r('app.string.setting_cpu')).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
+              Text($r('app.string.setting_cpu_desc')).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+            }
+            .flexGrow(1)
+            .alignItems(HorizontalAlign.Start)
 
-          Select([{ value: '1' }, { value: '2' }, { value: '4' }])
-            .width(100)
-            .value(this.vmCpuCount.toString())
-            .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.cpuCountName, parseInt(value)))
+            Select([{ value: '1' }, { value: '2' }, { value: '4' }])
+              .width(100)
+              .value(this.vmCpuCount.toString())
+              .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.cpuCountName, parseInt(value)))
+          }
+          .alignItems(VerticalAlign.Center)
+          .width('100%')
+          .height(56)
+          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+
+          Row() {
+            Column() {
+              Text($r('app.string.setting_mem_size')).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
+              Text($r('app.string.setting_mem_size_desc')).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+            }
+            .flexGrow(1)
+            .alignItems(HorizontalAlign.Start)
+
+            Select([{ value: '512' }, { value: '1024' }, { value: '2048' }, { value: '4096' }])
+              .width(100)
+              .value(this.vmMemSize.toString())
+              .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.memSizeName, parseInt(value)))
+          }
+          .alignItems(VerticalAlign.Center)
+          .width('100%')
+          .height(56)
+          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
         }
-        .alignItems(VerticalAlign.Center)
-        .width('100%')
-        .height(56)
-        .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+        .borderRadius(20)
+        .backgroundColor($r('app.color.setting_block_background'))
 
-        Row() {
-          Column() {
-            Text('内存').fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
-            Text('设置内存大小（MB）').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
-          }
-          .flexGrow(1)
-          .alignItems(HorizontalAlign.Start)
+        Text($r('app.string.setting_block_about'))
+          .margin({ top: 20, bottom: 10, left: 20 })
+          .width('100%')
+        Column() {
+          LinkItem({
+            icon: $r('sys.symbol.house'),
+            title: $r('app.string.code_repository'),
+            click: () => {
+              this.toWebBrowser('https://github.com/harmoninux/hish')
+            }
+          })
 
-          Select([{ value: '512' }, { value: '1024' }, { value: '2048' }, { value: '4096' }])
-            .width(100)
-            .value(this.vmMemSize.toString())
-            .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.memSizeName, parseInt(value)))
+          LinkItem({
+            icon: $r('sys.symbol.doc_text_badge_checkmark'),
+            title: $r('app.string.open_source_license'),
+            click: () => {
+              this.openSourceController.open();
+            }
+          })
+
+          LinkItem({
+            icon: $r('sys.symbol.info_circle'),
+            title: $r('app.string.about_me'),
+            click: () => {
+              this.aboutController.open();
+            }
+          })
         }
-        .alignItems(VerticalAlign.Center)
-        .width('100%')
-        .height(56)
-        .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-
-        LinkItem({
-          icon: $r('sys.symbol.house'),
-          title: $r('app.string.code_repository'),
-          click: () => {
-            this.toWebBrowser('https://github.com/harmoninux/hish')
-          }
-        })
-
-        LinkItem({
-          icon: $r('sys.symbol.doc_text_badge_checkmark'),
-          title: $r('app.string.open_source_license'),
-          click: () => {
-            this.openSourceController.open();
-          }
-        })
-
-        LinkItem({
-          icon: $r('sys.symbol.info_circle'),
-          title: $r('app.string.about_me'),
-          click: () => {
-            this.aboutController.open();
-          }
-        })
+        .borderRadius(20)
+        .backgroundColor($r('app.color.setting_block_background'))
       }
     }
     .scrollable(ScrollDirection.Vertical)

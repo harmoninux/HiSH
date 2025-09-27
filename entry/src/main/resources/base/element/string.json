@@ -31,6 +31,30 @@
     {
       "name": "about_me",
       "value": "关于"
+    },
+    {
+      "name": "setting_block_about",
+      "value": "关于"
+    },
+    {
+      "name": "setting_block_system",
+      "value": "系统"
+    },
+    {
+      "name": "setting_cpu",
+      "value": "CPU"
+    },
+    {
+      "name": "setting_cpu_desc",
+      "value": "设置CPU核数"
+    },
+    {
+      "name": "setting_mem_size",
+      "value": "内存"
+    },
+    {
+      "name": "setting_mem_size_desc",
+      "value": "设置内存大小（MB）"
     }
   ]
 }
