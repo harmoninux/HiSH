@@ -150,12 +150,17 @@ export default struct WebTerminal {
     hilog.info(DOMAIN, 'WebTerminal', 'startVM with cpu: %{public}d, mem: %{public}dMB', this.vmCpuCount,
       this.vmMemSize)
     this.webviewController.runJavaScript('exports.setFocused(true)')
-    napi.startVM({
+    const appContext = this.getUIContext().getHostContext()?.getApplicationContext()!
+    const options: napi.VmOptions = {
+      bundleCodeDir: appContext.bundleCodeDir,
+      tempDir: appContext.tempDir,
+      filesDir: appContext.filesDir,
       cpuCount: this.vmCpuCount,
       memSize: this.vmMemSize,
       onData: (d: ArrayBuffer) => this.onData(d),
       onExit: () => this.onClose()
-    })
+    }
+    napi.startVM(options)
   }
 
   async resize(): Promise<void> {

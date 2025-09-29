@@ -1,4 +1,7 @@
 export type VmOptions = {
+  bundleCodeDir: string
+  tempDir: string
+  filesDir: string
   cpuCount: number
   memSize: number
   onData: (ArrayBuffer) => void

@@ -34,40 +34,7 @@ napi_threadsafe_function on_exit_callback = nullptr;
 
 typedef int (*QemuSystemEntry)(int, const char **);
 
-std::string getBundleCodeDir() {
-
-    char bundleCodeDir[PATH_MAX];
-
-    int32_t dirLength;
-    OH_AbilityRuntime_ApplicationContextGetBundleCodeDir(bundleCodeDir, PATH_MAX, &dirLength);
-    bundleCodeDir[dirLength] = '\0';
-
-    return bundleCodeDir;
-}
-
-std::string getTempDir() {
-
-    char tempDir[PATH_MAX];
-
-    int32_t dirLength;
-    OH_AbilityRuntime_ApplicationContextGetTempDir(tempDir, PATH_MAX, &dirLength);
-    tempDir[dirLength] = '\0';
-
-    return tempDir;
-}
-
-std::string getFilesDir() {
-
-    char tempDir[PATH_MAX];
-
-    int32_t dirLength;
-    OH_AbilityRuntime_ApplicationContextGetFilesDir(tempDir, PATH_MAX, &dirLength);
-    tempDir[dirLength] = '\0';
-
-    return tempDir;
-}
-
-static QemuSystemEntry getQemuSystemEntry() {
+static QemuSystemEntry getQemuSystemEntry(const std::string &bundleCodeDir) {
 
     static QemuSystemEntry qemuSystemEntry = nullptr;
 
@@ -78,7 +45,6 @@ static QemuSystemEntry getQemuSystemEntry() {
     const char *abiList = OH_GetAbiList();
     OH_LOG_INFO(LOG_APP, "abiList: %{public}s", abiList);
 
-    std::string bundleCodeDir = getBundleCodeDir();
     OH_LOG_INFO(LOG_APP, "bundleCodeDir: %{public}s", bundleCodeDir.c_str());
 
     char libQemuPath[PATH_MAX];
@@ -229,6 +195,14 @@ static int getArgc(const char **args) {
     return argc;
 }
 
+std::string getPathString(napi_env env, napi_value value) {
+    char buf[PATH_MAX];
+    size_t size;
+    napi_get_value_string_utf8(env, value, buf, PATH_MAX, &size);
+    buf[size] = 0;
+    return buf;
+}
+
 static napi_value startVM(napi_env env, napi_callback_info info) {
 
     size_t argc = 1;
@@ -236,10 +210,22 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     
     napi_value key_name;
+    napi_value nv_bundle_code_dir;
+    napi_value nv_temp_dir;
+    napi_value nv_files_dir;
     napi_value nv_cpu_count;
     napi_value nv_mem_size;
     napi_value nv_on_data_cb;
     napi_value nv_on_exit_cb;
+
+    napi_create_string_utf8(env, "bundleCodeDir", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_bundle_code_dir);
+
+    napi_create_string_utf8(env, "tempDir", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_temp_dir);
+
+    napi_create_string_utf8(env, "filesDir", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_files_dir);
 
     napi_create_string_utf8(env, "cpuCount", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_cpu_count);
@@ -252,6 +238,10 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     
     napi_create_string_utf8(env, "onExit", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_on_exit_cb);
+    
+    std::string bundleCodeDir = getPathString(env, nv_bundle_code_dir);
+    std::string tempDir = getPathString(env, nv_temp_dir);
+    std::string bundleFileDir = getPathString(env, nv_files_dir);
     
     double d_cpu_count, d_mem_size;
     int cpuCount, memSize;
@@ -270,10 +260,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_threadsafe_function(env, nv_on_exit_cb, nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
                                     call_on_exit_callback, &on_exit_callback);
 
-    auto qemuEntry = getQemuSystemEntry();
+    auto qemuEntry = getQemuSystemEntry(bundleCodeDir);
 
-    auto vmFilesDir = getFilesDir() + "/vm";
-    auto tempDir = getTempDir();
+    auto vmFilesDir = bundleFileDir + "/vm";
     std::string unixSocketPath = tempDir + "/serial_socket";
 
     if (access(unixSocketPath.c_str(), F_OK) == 0) {
