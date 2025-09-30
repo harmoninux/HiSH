@@ -86,7 +86,7 @@
     },
     {
       "name": "setting_port_should_larger",
-      "value": "第%d项端口号应大于1000"
+      "value": "第%d项Host端口号应大于1000"
     }
   ]
 }

@@ -209,7 +209,7 @@ export default struct SettingsContent {
   ) {
     Row() {
       Row() {
-        TextInput({ text: item.guest?.toString() })
+        TextInput({ text: item.guest?.toString(), placeholder: 'Guest' })
           .type(InputType.Number)
           .width(80)
           .onChange((value) => {
@@ -217,7 +217,7 @@ export default struct SettingsContent {
             updateGuest(guest)
           })
         Text(':').margin({ left: 5, right: 5 })
-        TextInput({ text: item.host?.toString() })
+        TextInput({ text: item.host?.toString(), placeholder: 'Host' })
           .type(InputType.Number)
           .width(80)
           .onChange((value) => {
