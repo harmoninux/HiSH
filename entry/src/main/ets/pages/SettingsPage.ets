@@ -1,0 +1,20 @@
+import { ComposeTitleBar } from '@kit.ArkUI'
+import SettingsContent from '../components/SettingsContent'
+
+@Entry
+@Component
+struct Index {
+  build() {
+    Column() {
+      ComposeTitleBar({
+        title: $r('app.string.Setting_title')
+      })
+      Column() {
+        SettingsContent()
+      }
+      .margin({ left: 20, right: 20 })
+    }
+    .width('100%')
+    .height('100%')
+  }
+}

@@ -8,6 +8,7 @@ import SettingsContent from '../components/SettingsContent';
 @Component
 struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
+  isPhone: boolean = deviceInfo.deviceType === 'phone'
   settingController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.Setting_title'),
@@ -36,7 +37,13 @@ struct Index {
   }
 
   openSettings() {
-    this.settingController.open()
+    if (this.isPhone) {
+      this.getUIContext().getRouter().pushUrl({
+        url: 'pages/SettingsPage'
+      })
+    } else {
+      this.settingController.open()
+    }
   }
 
   build() {
@@ -77,7 +84,7 @@ struct Index {
         WebTerminal({
           showVirtKey: true,
           openSettings: () => {
-            this.openSettings();
+            this.openSettings()
           }
         })
       }
