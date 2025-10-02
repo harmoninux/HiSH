@@ -4,7 +4,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
-import vmOption from '../model/vmOption'
+import appOption from '../model/appOption'
 
 const DOMAIN = 0x0000;
 
@@ -19,10 +19,10 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 
 @Component
 export default struct WebTerminal {
-  @Require showVirtKey: boolean
+  @Require showVirtKey: boolean = false
   openSettings?: () => void
-  @StorageProp(vmOption.cpuCountName) vmCpuCount: number = 1
-  @StorageProp(vmOption.memSizeName) vmMemSize: number = 512
+  @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
+  @StorageProp(appOption.memSizeName) vmMemSize: number = 512
   @State ctrlPressed: boolean = false
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
@@ -151,7 +151,7 @@ export default struct WebTerminal {
       this.vmMemSize)
     this.webviewController.runJavaScript('exports.setFocused(true)')
     const appContext = this.getUIContext().getHostContext()?.getApplicationContext()!
-    const options: napi.VmOptions = {
+    const options: napi.appOptions = {
       bundleCodeDir: appContext.bundleCodeDir,
       tempDir: appContext.tempDir,
       filesDir: appContext.filesDir,

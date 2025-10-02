@@ -6,7 +6,7 @@ import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 
-import vmOption from '../model/vmOption'
+import appOption from '../model/appOption'
 
 const DOMAIN = 0x0000;
 
@@ -28,11 +28,12 @@ export default class EntryAbility extends UIAbility {
 
     this.extractResources(appContext);
 
-    const vmPref = await preference.getPreferences(appContext, vmOption.preferenceName)
-    const vmCpuCount = await vmPref.get(vmOption.cpuCountName, 1);
-    const vmMemSize = await vmPref.get(vmOption.memSizeName, 512);
-    AppStorage.setOrCreate(vmOption.cpuCountName, vmCpuCount)
-    AppStorage.setOrCreate(vmOption.memSizeName, vmMemSize)
+    const appPref = await preference.getPreferences(appContext, appOption.preferenceName)
+    const vmCpuCount = await appPref.get(appOption.cpuCountName, 1);
+    const vmMemSize = await appPref.get(appOption.memSizeName, 512);
+    const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean
+    AppStorage.setOrCreate(appOption.cpuCountName, vmCpuCount)
+    AppStorage.setOrCreate(appOption.memSizeName, vmMemSize)
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
@@ -43,7 +44,9 @@ export default class EntryAbility extends UIAbility {
 
       let mainWindow = windowStage.getMainWindowSync();
       mainWindow.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
-      mainWindow.setWindowKeepScreenOn(true);
+      mainWindow.setWindowKeepScreenOn(keepScreenOn);
+
+      AppStorage.setOrCreate('mainWindow', mainWindow)
     });
 
     if (canIUse('SystemCapability.Window.SessionManager')) {

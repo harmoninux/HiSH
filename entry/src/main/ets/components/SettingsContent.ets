@@ -1,16 +1,17 @@
-import { CustomContentDialog } from '@kit.ArkUI';
+import { CustomContentDialog, window } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { LinkItem } from "./LinkItem"
 import { common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
-import vmOption from '../model/vmOption';
-import { PortMapping } from '../model/vmOption'
+import { PortMapping } from '../model/appOption'
 import { JSON, util } from '@kit.ArkTS';
+import appOption from '../model/appOption';
 
 @Component
 export default struct SettingsContent {
-  @Watch('saveVmCpuCount') @StorageProp(vmOption.cpuCountName) vmCpuCount: number = 1
-  @Watch('saveVmMemSize') @StorageProp(vmOption.memSizeName) vmMemSize: number = 512
+  @Watch('saveVmCpuCount') @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
+  @Watch('saveVmMemSize') @StorageProp(appOption.memSizeName) vmMemSize: number = 512
+  @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
   @State vmPortMappingEnabled: boolean = false
   @State portMappings: PortMapping[] = [{ guest: 22, host: 2222 }]
   webController: webview.WebviewController = new webview.WebviewController()
@@ -56,17 +57,27 @@ export default struct SettingsContent {
   preferences?: preference.Preferences
 
   async aboutToAppear(): Promise<void> {
-    this.preferences = await preference.getPreferences(this.context.getApplicationContext(), vmOption.preferenceName)
+    this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
   }
 
   saveVmCpuCount() {
-    this.preferences!.put(vmOption.cpuCountName, this.vmCpuCount)
+    this.preferences!.put(appOption.cpuCountName, this.vmCpuCount)
     this.preferences!.flush()
   }
 
   saveVmMemSize() {
-    this.preferences!.put(vmOption.memSizeName, this.vmMemSize)
+    this.preferences!.put(appOption.memSizeName, this.vmMemSize)
     this.preferences!.flush()
+  }
+
+  saveKeepScreenOn() {
+    this.preferences!.put(appOption.keepScreenOn, this.keepScreenOn)
+    this.preferences!.flush()
+
+    const mainWindow = AppStorage.get('mainWindow') as window.Window
+    if(mainWindow) {
+      mainWindow.setWindowKeepScreenOn(this.keepScreenOn)
+    }
   }
 
   build() {
@@ -92,7 +103,7 @@ export default struct SettingsContent {
             Select([{ value: '1' }, { value: '2' }, { value: '4' }])
               .width(100)
               .value(this.vmCpuCount.toString())
-              .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.cpuCountName, parseInt(value)))
+              .onSelect((_i, value) => AppStorage.setOrCreate(appOption.cpuCountName, parseInt(value)))
           }
           .alignItems(VerticalAlign.Center)
           .width('100%')
@@ -114,7 +125,7 @@ export default struct SettingsContent {
             Select([{ value: '512' }, { value: '1024' }, { value: '2048' }, { value: '4096' }])
               .width(100)
               .value(this.vmMemSize.toString())
-              .onSelect((_i, value) => AppStorage.setOrCreate(vmOption.memSizeName, parseInt(value)))
+              .onSelect((_i, value) => AppStorage.setOrCreate(appOption.memSizeName, parseInt(value)))
           }
           .alignItems(VerticalAlign.Center)
           .width('100%')
@@ -141,9 +152,39 @@ export default struct SettingsContent {
           .width('100%')
           .height(56)
           .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-          .onClick(async (e) => {
+          .onClick(async () => {
             await this.loadAndOpenPortMapping()
           })
+        }
+        .borderRadius(20)
+        .backgroundColor($r('app.color.setting_block_background'))
+
+        Text($r("app.string.setting_block_display"))
+          .margin({ top: 20, bottom: 10, left: 20 })
+          .width('100%')
+        Column() {
+          Row() {
+            Column() {
+              Text($r('app.string.setting_keep_screen_on'))
+                .fontSize($r('sys.float.Body_L'))
+                .fontColor($r('sys.color.font_primary'))
+              Text($r('app.string.setting_keep_screen_on_desc'))
+                .fontSize($r('sys.float.Body_M'))
+                .fontColor($r('sys.color.font_tertiary'))
+            }
+            .flexGrow(1)
+            .alignItems(HorizontalAlign.Start)
+
+            Checkbox()
+              .select(this.keepScreenOn)
+              .onChange((value: boolean) => {
+                AppStorage.setOrCreate(appOption.keepScreenOn, value)
+              })
+          }
+          .alignItems(VerticalAlign.Center)
+          .width('100%')
+          .height(56)
+          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
         }
         .borderRadius(20)
         .backgroundColor($r('app.color.setting_block_background'))
@@ -186,16 +227,16 @@ export default struct SettingsContent {
   }
 
   async loadAndOpenPortMapping() {
-    const json = await this.preferences!.get(vmOption.portMapping, '[]') as string;
-    this.vmPortMappingEnabled = await this.preferences!.get(vmOption.portMappingEnabled, false) as boolean
+    const json = await this.preferences!.get(appOption.portMapping, '[]') as string;
+    this.vmPortMappingEnabled = await this.preferences!.get(appOption.portMappingEnabled, false) as boolean
     this.portMappings = JSON.parse(json) as PortMapping[]
     this.portMappingController.open()
   }
 
   async savePortMapping() {
     const json = JSON.stringify(this.portMappings)
-    await this.preferences!.put(vmOption.portMappingEnabled, this.vmPortMappingEnabled)
-    await this.preferences!.put(vmOption.portMapping, json)
+    await this.preferences!.put(appOption.portMappingEnabled, this.vmPortMappingEnabled)
+    await this.preferences!.put(appOption.portMapping, json)
     await this.preferences!.flush()
     this.portMappingController.close()
   }

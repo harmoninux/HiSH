@@ -45,6 +45,10 @@
       "value": "系统"
     },
     {
+      "name": "setting_block_display",
+      "value": "显示"
+    },
+    {
       "name": "setting_cpu",
       "value": "CPU"
     },
@@ -87,6 +91,14 @@
     {
       "name": "setting_port_should_larger",
       "value": "第%d项Host端口号应大于1000"
+    },
+    {
+      "name": "setting_keep_screen_on",
+      "value": "保持屏幕常亮"
+    },
+    {
+      "name": "setting_keep_screen_on_desc",
+      "value": "开启后，应用在前台时保持屏幕常亮"
     }
   ]
 }

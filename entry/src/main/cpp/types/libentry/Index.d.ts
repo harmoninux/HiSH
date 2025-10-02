@@ -1,4 +1,4 @@
-export type VmOptions = {
+export type appOptions = {
   bundleCodeDir: string
   tempDir: string
   filesDir: string
@@ -8,5 +8,5 @@ export type VmOptions = {
   onExit: () => void
 }
 
-export const startVM: (options: VmOptions) => void;
+export const startVM: (options: appOptions) => void;
 export const send: (content: ArrayBuffer) => void;

@@ -1,9 +1,10 @@
-class vmOption {
+class appOption {
   static preferenceName = 'vm_pref'
   static cpuCountName = 'vmCpuCount'
   static memSizeName = 'vmMemSize'
   static portMappingEnabled = 'vmPortMappingEnabled'
   static portMapping = 'vmPortMapping'
+  static keepScreenOn = 'appKeepScreenOn'
 }
 
 interface PortMapping {
@@ -11,6 +12,6 @@ interface PortMapping {
   host?: number
 }
 
-export default vmOption
+export default appOption
 
 export { PortMapping }
