@@ -34,6 +34,7 @@ export default class EntryAbility extends UIAbility {
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean
     AppStorage.setOrCreate(appOption.cpuCountName, vmCpuCount)
     AppStorage.setOrCreate(appOption.memSizeName, vmMemSize)
+    AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn)
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
