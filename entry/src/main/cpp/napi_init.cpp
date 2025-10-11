@@ -49,12 +49,12 @@ static QemuSystemEntry getQemuSystemEntry(const std::string &bundleCodeDir) {
 
     char libQemuPath[PATH_MAX];
     snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir.c_str(), abiList);
-    OH_LOG_INFO(LOG_APP, "path of libqemu.so: %{public}s", libQemuPath);
+
     if (strcmp(abiList, "arm64-v8a") == 0 && access(libQemuPath, F_OK) != 0) {
-        OH_LOG_INFO(LOG_APP, "%{public}s not exist, errno: %{public}d", libQemuPath, errno);
         snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir.c_str(), "arm64");
     }
 
+    OH_LOG_INFO(LOG_APP, "path of libqemu.so: %{public}s", libQemuPath);
     void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
 
     if (!libQemuHandle) {
@@ -130,13 +130,16 @@ void terminal_worker(const char *unix_socket_path) {
         if (acc == 0) {
             break;
         }
+        OH_LOG_INFO(LOG_APP, "serial unix socket not exist: %{public}s", unix_socket_path);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+    
+    OH_LOG_INFO(LOG_APP, "serial unix socket found: %{public}s", unix_socket_path);
 
     struct sockaddr_un server_addr;
     int client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (client_fd == -1) {
-        OH_LOG_INFO(LOG_APP, "Failed to create unix socket: %{public}s", errno);
+        OH_LOG_INFO(LOG_APP, "Failed to create unix socket: %{public}d", errno);
         return;
     }
 
@@ -265,7 +268,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     auto vmFilesDir = bundleFileDir + "/vm";
     std::string unixSocketPath = tempDir + "/serial_socket";
 
+    OH_LOG_INFO(LOG_APP, "serial unix socket: %{public}s", unixSocketPath.c_str());
     if (access(unixSocketPath.c_str(), F_OK) == 0) {
+        OH_LOG_INFO(LOG_APP, "remove exist unix socket: %{public}s", unixSocketPath.c_str());
         unlink(unixSocketPath.c_str());
     }
 
@@ -305,6 +310,10 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                               nullptr};
         
         int argc = getArgc(args);
+        
+        OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}d", argc);
+        OH_LOG_INFO(LOG_APP, "linux kernel: %{public}s", kernelPath.c_str());
+        OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFsImgPath.c_str());
 
         qemuEntry(argc, args);
     });

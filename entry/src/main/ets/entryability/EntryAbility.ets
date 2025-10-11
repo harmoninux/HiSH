@@ -5,6 +5,7 @@ import { window, KeyboardAvoidMode } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 import appOption from '../model/appOption'
 
@@ -50,7 +51,8 @@ export default class EntryAbility extends UIAbility {
       AppStorage.setOrCreate('mainWindow', mainWindow)
     });
 
-    if (canIUse('SystemCapability.Window.SessionManager')) {
+    if (canIUse('SystemCapability.Window.SessionManager')
+      && deviceInfo.deviceType === '2in1') {
       windowStage.getMainWindow((err: BusinessError, window: window.Window) => {
         if (err.code) {
           hilog.error(0x0000, 'testTag', 'Failed to get the main window. Cause: %{public}s', JSON.stringify(err) ?? '');
