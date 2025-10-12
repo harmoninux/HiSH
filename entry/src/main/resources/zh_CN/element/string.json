@@ -14,39 +14,39 @@
     },
     {
       "name": "Setting_title",
-      "value": "Settings"
+      "value": "设置"
     },
     {
       "name": "SettingComplete_label",
-      "value": "OK"
+      "value": "完成"
     },
     {
       "name": "SettingSave_label",
-      "value": "Save"
+      "value": "保存"
     },
     {
       "name": "code_repository",
-      "value": "Code repository"
+      "value": "项目仓库"
     },
     {
       "name": "open_source_license",
-      "value": "Open source"
+      "value": "开源许可"
     },
     {
       "name": "about_me",
-      "value": "About me"
+      "value": "关于"
     },
     {
       "name": "setting_block_about",
-      "value": "About"
+      "value": "关于"
     },
     {
       "name": "setting_block_system",
-      "value": "System"
+      "value": "系统"
     },
     {
       "name": "setting_block_display",
-      "value": "Display"
+      "value": "显示"
     },
     {
       "name": "setting_cpu",
@@ -54,51 +54,51 @@
     },
     {
       "name": "setting_cpu_desc",
-      "value": "Set CPU cores"
+      "value": "设置CPU核数"
     },
     {
       "name": "setting_mem_size",
-      "value": "Memory"
+      "value": "内存"
     },
     {
       "name": "setting_mem_size_desc",
-      "value": "Set memory size(MB)"
+      "value": "设置内存大小（MB）"
     },
     {
       "name": "setting_port_mapping",
-      "value": "Port mapping"
+      "value": "端口映射"
     },
     {
       "name": "setting_enable_port_mapping",
-      "value": "Enable port mapping"
+      "value": "开启端口映射"
     },
     {
       "name": "setting_port_mapping_desc",
-      "value": "Enable and specify port mapping"
+      "value": "开启和设置端口映射"
     },
     {
       "name": "setting_add",
-      "value": "Add"
+      "value": "添加"
     },
     {
       "name": "setting_duplicated_port",
-      "value": "Duplicated port"
+      "value": "端口号重复"
     },
     {
       "name": "setting_incomplete_port_mapping",
-      "value": "The %d item is not complete"
+      "value": "第%d项不完整"
     },
     {
       "name": "setting_port_should_larger",
-      "value": "The host port of %d should larger than 1000"
+      "value": "第%d项Host端口号应大于1000"
     },
     {
       "name": "setting_keep_screen_on",
-      "value": "Keep screen on"
+      "value": "保持屏幕常亮"
     },
     {
       "name": "setting_keep_screen_on_desc",
-      "value": "To keep screen on"
+      "value": "开启后，应用在前台时保持屏幕常亮"
     }
   ]
 }
