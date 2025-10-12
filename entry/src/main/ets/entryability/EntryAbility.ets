@@ -7,7 +7,7 @@ import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 
-import appOption from '../model/appOption'
+import appOption, { PortMapping } from '../model/appOption'
 
 const DOMAIN = 0x0000;
 
@@ -33,9 +33,13 @@ export default class EntryAbility extends UIAbility {
     const vmCpuCount = await appPref.get(appOption.cpuCountName, 1);
     const vmMemSize = await appPref.get(appOption.memSizeName, 512);
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean
+    const portMappingEnabled = await appPref.get(appOption.portMappingEnabled, false) as boolean
+    const portMapping = JSON.parse(await appPref.get(appOption.portMapping, '[]') as string) as PortMapping[]
     AppStorage.setOrCreate(appOption.cpuCountName, vmCpuCount)
     AppStorage.setOrCreate(appOption.memSizeName, vmMemSize)
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn)
+    AppStorage.setOrCreate(appOption.portMappingEnabled, portMappingEnabled)
+    AppStorage.setOrCreate(appOption.portMapping, portMapping)
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {

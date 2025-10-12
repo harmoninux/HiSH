@@ -4,7 +4,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
-import appOption from '../model/appOption'
+import appOption, { PortMapping } from '../model/appOption'
 
 const DOMAIN = 0x0000;
 
@@ -23,6 +23,8 @@ export default struct WebTerminal {
   openSettings?: () => void
   @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
   @StorageProp(appOption.memSizeName) vmMemSize: number = 512
+  @StorageProp(appOption.portMappingEnabled) portMappingEnabled: boolean = false
+  @StorageProp(appOption.portMapping) portMapping: PortMapping[] = []
   @State ctrlPressed: boolean = false
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
@@ -147,16 +149,21 @@ export default struct WebTerminal {
   }
 
   async load(): Promise<void> {
-    hilog.info(DOMAIN, 'WebTerminal', 'startVM with cpu: %{public}d, mem: %{public}dMB', this.vmCpuCount,
-      this.vmMemSize)
     this.webviewController.runJavaScript('exports.setFocused(true)')
     const appContext = this.getUIContext().getHostContext()?.getApplicationContext()!
+    //  hostfwd=tcp::8080-:80,hostfwd=tcp::2222-:22
+    const portMapping = this.portMappingEnabled
+      ? this.portMapping.map(it => `hostfwd=tcp::${it.host}-:${it.guest}`).join(',')
+      : '';
+    hilog.info(DOMAIN, 'WebTerminal', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
+      this.vmCpuCount, this.vmMemSize, portMapping)
     const options: napi.appOptions = {
       bundleCodeDir: appContext.bundleCodeDir,
       tempDir: appContext.tempDir,
       filesDir: appContext.filesDir,
       cpuCount: this.vmCpuCount,
       memSize: this.vmMemSize,
+      portMapping: portMapping,
       onData: (d: ArrayBuffer) => this.onData(d),
       onExit: () => this.onClose()
     }

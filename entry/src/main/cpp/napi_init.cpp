@@ -206,6 +206,18 @@ std::string getPathString(napi_env env, napi_value value) {
     return buf;
 }
 
+std::string getString(napi_env env, napi_value value) {
+    
+    size_t size;
+    napi_get_value_string_utf8(env, value, nullptr, 0, &size);
+
+    char *buf = new char[size + 1];
+    napi_get_value_string_utf8(env, value, buf, size + 1, &size);
+    buf[size] = 0;
+
+    return buf;
+}
+
 static napi_value startVM(napi_env env, napi_callback_info info) {
 
     size_t argc = 1;
@@ -218,6 +230,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_value nv_files_dir;
     napi_value nv_cpu_count;
     napi_value nv_mem_size;
+    napi_value nv_port_mapping;
     napi_value nv_on_data_cb;
     napi_value nv_on_exit_cb;
 
@@ -236,6 +249,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "memSize", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_mem_size);
     
+    napi_create_string_utf8(env, "portMapping", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_port_mapping);
+    
     napi_create_string_utf8(env, "onData", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_on_data_cb);
     
@@ -245,6 +261,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     std::string bundleCodeDir = getPathString(env, nv_bundle_code_dir);
     std::string tempDir = getPathString(env, nv_temp_dir);
     std::string bundleFileDir = getPathString(env, nv_files_dir);
+    std::string portMapping = getString(env, nv_port_mapping);
     
     double d_cpu_count, d_mem_size;
     int cpuCount, memSize;
@@ -274,13 +291,14 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         unlink(unixSocketPath.c_str());
     }
 
-    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir, cpuCount, memSize]() {
+    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir, cpuCount, memSize, portMapping]() {
         std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
         std::string kernelPath = vmFilesDir + "/kernel_aarch64";
         std::string rootFsImgPath = vmFilesDir + "/rootfs_aarch64.qcow2";
         std::string driveOption = "if=none,format=qcow2,file=" + rootFsImgPath + ",id=hd0";
         std::string cpu = std::to_string(cpuCount);
         std::string mem = std::to_string(memSize) + "M";
+        std::string portMappingOption = portMapping.empty() ? "user,id=eth0" : "user,id=eth0," + portMapping;
         const char *args[] = {"qemu-system-aarch64",
                               "-machine",
                               "virt",
@@ -304,11 +322,11 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                               "-serial",
                               unixSocketSerial.c_str(),
                               "-netdev",
-                              "user,id=eth0",
+                              portMappingOption.c_str(),
                               "-device",
                               "virtio-net-device,netdev=eth0",
                               nullptr};
-        
+
         int argc = getArgc(args);
         
         OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}d", argc);

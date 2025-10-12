@@ -4,6 +4,7 @@ export type appOptions = {
   filesDir: string
   cpuCount: number
   memSize: number
+  portMapping: string,
   onData: (ArrayBuffer) => void
   onExit: () => void
 }
