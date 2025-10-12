@@ -49,19 +49,13 @@ export default class EntryAbility extends UIAbility {
       mainWindow.setWindowKeepScreenOn(keepScreenOn);
 
       AppStorage.setOrCreate('mainWindow', mainWindow)
-    });
 
-    if (canIUse('SystemCapability.Window.SessionManager')
-      && deviceInfo.deviceType === '2in1') {
-      windowStage.getMainWindow((err: BusinessError, window: window.Window) => {
-        if (err.code) {
-          hilog.error(0x0000, 'testTag', 'Failed to get the main window. Cause: %{public}s', JSON.stringify(err) ?? '');
-          return;
-        }
-        window.setWindowDecorVisible(false);
-        window.setWindowDecorHeight(48);
-      });
-    }
+      if (canIUse('SystemCapability.Window.SessionManager')
+        && deviceInfo.deviceType === '2in1') {
+        mainWindow.setWindowDecorVisible(false);
+        mainWindow.setWindowDecorHeight(48);
+      }
+    });
   }
 
   private extractResources(appContext: common.ApplicationContext) {
