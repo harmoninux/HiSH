@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "hm.hackeris.hish",
+    "bundleName": "app.hackeris.hish",
     "vendor": "hackeris",
     "versionCode": 1000000,
     "versionName": "1.0.0",
