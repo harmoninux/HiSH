@@ -7,9 +7,10 @@ You can install from [Invite Test of AppGallery](https://appgallery.huawei.com/l
 ## Core Features
 
 - Complete arm64 Linux kernel
-- Networking (NAT)
+- Networking with port forwarding
 - Alpine Linux rootfs
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
+- JIT (Only available for developer)
 
 This is screenshot of HiSH on Tablet emulator:
 
