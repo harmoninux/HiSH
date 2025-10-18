@@ -32,9 +32,9 @@ export default class EntryAbility extends UIAbility {
 
     await this.loadPreferences(appPref);
 
-    const bundleInfo = await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
-    AppStorage.setOrCreate('versionCode', bundleInfo.versionCode)
-    AppStorage.setOrCreate('versionName', bundleInfo.versionName)
+    const bundleInfo =
+      await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
+    AppStorage.setOrCreate('bundleInfo', bundleInfo)
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {

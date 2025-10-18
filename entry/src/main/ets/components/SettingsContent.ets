@@ -1,7 +1,7 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { LinkItem } from "./LinkItem"
-import { common, Want } from '@kit.AbilityKit';
+import { bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import { PortMapping } from '../model/appOption'
 import { JSON, util } from '@kit.ArkTS';
@@ -12,7 +12,7 @@ export default struct SettingsContent {
   @Watch('saveVmCpuCount') @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
   @Watch('saveVmMemSize') @StorageProp(appOption.memSizeName) vmMemSize: number = 512
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
-  @StorageProp('versionName') versionName: string = ''
+  @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   @State vmPortMappingEnabled: boolean = false
   @State portMappings: PortMapping[] = [{ guest: 22, host: 2222 }]
@@ -464,7 +464,7 @@ export default struct SettingsContent {
       Text($r('app.string.app_name'))
         .margin({ top: 10 })
 
-      Text(`${this.versionName}(${this.versionCode})`)
+      Text(`${this.bundleInfo?.versionName}(${this.bundleInfo?.versionCode})`)
         .fontSize(14)
         .fontColor('#ccc')
         .margin({ top: 5 })
@@ -488,7 +488,7 @@ export default struct SettingsContent {
   async restartApp() {
     let applicationContext = this.context.getApplicationContext();
     let want: Want = {
-      bundleName: 'app.hackeris.hish',
+      bundleName: this.bundleInfo?.name,
       abilityName: 'EntryAbility'
     };
     applicationContext.restartApp(want);
