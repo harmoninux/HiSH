@@ -10,4 +10,4 @@ export type appOptions = {
 }
 
 export const startVM: (options: appOptions) => void;
-export const send: (content: ArrayBuffer) => void;
+export const sendInput: (content: ArrayBuffer) => void;

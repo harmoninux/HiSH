@@ -141,7 +141,7 @@ export default struct WebTerminal {
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
     let buffer = stringToArrayBuffer(data, 'utf-8');
-    napi.send(buffer)
+    napi.sendInput(buffer)
 
     if (this.ctrlPressed) {
       this.toggleCtrl()

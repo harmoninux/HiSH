@@ -198,14 +198,6 @@ static int getArgc(const char **args) {
     return argc;
 }
 
-std::string getPathString(napi_env env, napi_value value) {
-    char buf[PATH_MAX];
-    size_t size;
-    napi_get_value_string_utf8(env, value, buf, PATH_MAX, &size);
-    buf[size] = 0;
-    return buf;
-}
-
 std::string getString(napi_env env, napi_value value) {
     
     size_t size;
@@ -215,7 +207,10 @@ std::string getString(napi_env env, napi_value value) {
     napi_get_value_string_utf8(env, value, buf, size + 1, &size);
     buf[size] = 0;
 
-    return buf;
+    std::string result = buf;
+    delete [] buf;
+
+    return result;
 }
 
 static napi_value startVM(napi_env env, napi_callback_info info) {
@@ -258,17 +253,14 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "onExit", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_on_exit_cb);
     
-    std::string bundleCodeDir = getPathString(env, nv_bundle_code_dir);
-    std::string tempDir = getPathString(env, nv_temp_dir);
-    std::string bundleFileDir = getPathString(env, nv_files_dir);
+    std::string bundleCodeDir = getString(env, nv_bundle_code_dir);
+    std::string tempDir = getString(env, nv_temp_dir);
+    std::string bundleFileDir = getString(env, nv_files_dir);
     std::string portMapping = getString(env, nv_port_mapping);
     
-    double d_cpu_count, d_mem_size;
     int cpuCount, memSize;
-    napi_get_value_double(env, nv_cpu_count, &d_cpu_count);
-    cpuCount = d_cpu_count;
-    napi_get_value_double(env, nv_mem_size, &d_mem_size);
-    memSize = d_mem_size;
+    napi_get_value_int32(env, nv_cpu_count, &cpuCount);
+    napi_get_value_int32(env, nv_mem_size, &memSize);
 
     napi_value data_cb_name;
     napi_create_string_utf8(env, "data_callback", NAPI_AUTO_LENGTH, &data_cb_name);
@@ -343,7 +335,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
-static napi_value send(napi_env env, napi_callback_info info) {
+static napi_value sendInput(napi_env env, napi_callback_info info) {
 
     if (stdin_pipe_fd < 0) {
         return nullptr;
@@ -375,7 +367,7 @@ static napi_value send(napi_env env, napi_callback_info info) {
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {{"startVM", nullptr, startVM, nullptr, nullptr, nullptr, napi_default, nullptr},
-                                       {"send", nullptr, send, nullptr, nullptr, nullptr, napi_default, nullptr}};
+                                       {"sendInput", nullptr, sendInput, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
 }
