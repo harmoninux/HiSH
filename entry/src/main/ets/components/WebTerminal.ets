@@ -176,6 +176,8 @@ export default struct WebTerminal {
   getFontSize(): number | null {
     if (deviceInfo.deviceType === 'phone'
       || deviceInfo.deviceType === 'default') {
+      return 11;
+    } else if(deviceInfo.deviceType === 'tablet') {
       return 13;
     }
     return null;
