@@ -4,6 +4,10 @@ Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com
 
 You can install from [Invite Test of AppGallery](https://appgallery.huawei.com/link/invite-test-wap?taskId=7dd1e118ab11367c6f26b55bb989bbc5&invitationCode=2ByVRjHk2fg)
 
+This is screenshot of HiSH on multiple devices(PC/Tablet/Phone):
+
+![On multiple devices](docs/images/devices.png)
+
 ## Core Features
 
 - Complete arm64 Linux kernel
@@ -11,10 +15,6 @@ You can install from [Invite Test of AppGallery](https://appgallery.huawei.com/l
 - Alpine Linux rootfs
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
 - JIT (Only available for developer)
-
-This is screenshot of HiSH on emulators:
-
-![On multiple devices](docs/images/devices.png)
 
 # How to use
 
