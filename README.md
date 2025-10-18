@@ -12,9 +12,9 @@ You can install from [Invite Test of AppGallery](https://appgallery.huawei.com/l
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
 - JIT (Only available for developer)
 
-This is screenshot of HiSH on Tablet emulator:
+This is screenshot of HiSH on emulators:
 
-<img src="docs/images/Screenshot_2025-09-16T002114.png" width="800" alt="On Tablet"/>
+![On multiple devices](docs/images/devices.png)
 
 # How to use
 
@@ -127,15 +127,15 @@ Screenshots of HiSH running on various HarmonyOS devices.
 
 ### 2in1(PC)
 
-![On 2in1(PC)](docs/images/Screenshot_2025-09-16T002149.png)
+![On 2in1(PC)](docs/images/Screenshot_2025-10-18T211856.png)
 
 ### Tablet
 
-![On 2in1(PC)](docs/images/Screenshot_2025-09-16T002114.png)
+![On Tablet](docs/images/Screenshot_2025-10-18T212000.png)
 
 ### Phone
 
-<img src="docs/images/Screenshot_2025-09-16T002251.png" width="400" alt="On Phone"/>
+<img src="docs/images/Screenshot_2025-10-18T212024.png" width="400" alt="On Phone"/>
 
 # Star History
 
