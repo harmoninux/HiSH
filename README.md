@@ -1,5 +1,7 @@
 # HiSH
 
+[中文](README_CN.md)
+
 Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com/hackeris/harmony-qemu), both 2in1(PC), Tablet and Phone are supported.
 
 You can install from [Invite Test of AppGallery](https://appgallery.huawei.com/link/invite-test-wap?taskId=7dd1e118ab11367c6f26b55bb989bbc5&invitationCode=2ByVRjHk2fg)
@@ -23,8 +25,8 @@ Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) a
 # How to build
 
 - HAP bundle
-- Linux kernel (optional)
 - libqemu-system (optional)
+- Linux kernel (optional)
 - rootfs (optional)
 
 ## Build HAP
