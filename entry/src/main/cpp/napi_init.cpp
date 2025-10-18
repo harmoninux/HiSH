@@ -1,12 +1,10 @@
 #include "napi/native_api.h"
-#include <AbilityKit/ability_runtime/application_context.h>
 #include <assert.h>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <deviceinfo.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -28,13 +26,13 @@ struct data_buffer {
     size_t size;
 };
 
-int stdin_pipe_fd = -1;
+int serial_input_fd = -1;
 napi_threadsafe_function on_data_callback = nullptr;
 napi_threadsafe_function on_exit_callback = nullptr;
 
 typedef int (*QemuSystemEntry)(int, const char **);
 
-static QemuSystemEntry getQemuSystemEntry(const std::string &bundleCodeDir) {
+static QemuSystemEntry getQemuSystemEntry() {
 
     static QemuSystemEntry qemuSystemEntry = nullptr;
 
@@ -42,19 +40,8 @@ static QemuSystemEntry getQemuSystemEntry(const std::string &bundleCodeDir) {
         return qemuSystemEntry;
     }
 
-    const char *abiList = OH_GetAbiList();
-    OH_LOG_INFO(LOG_APP, "abiList: %{public}s", abiList);
+    const char *libQemuPath = "libqemu-system-aarch64.so";
 
-    OH_LOG_INFO(LOG_APP, "bundleCodeDir: %{public}s", bundleCodeDir.c_str());
-
-    char libQemuPath[PATH_MAX];
-    snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir.c_str(), abiList);
-
-    if (strcmp(abiList, "arm64-v8a") == 0 && access(libQemuPath, F_OK) != 0) {
-        snprintf(libQemuPath, PATH_MAX, "%s/libs/%s/libqemu-system-aarch64.so", bundleCodeDir.c_str(), "arm64");
-    }
-
-    OH_LOG_INFO(LOG_APP, "path of libqemu.so: %{public}s", libQemuPath);
     void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
 
     if (!libQemuHandle) {
@@ -123,7 +110,7 @@ void call_data_callback(const std::string &hex) {
     }
 }
 
-void terminal_worker(const char *unix_socket_path) {
+void serial_output_worker(const char *unix_socket_path) {
 
     while (true) {
         int acc = access(unix_socket_path, F_OK);
@@ -153,7 +140,7 @@ void terminal_worker(const char *unix_socket_path) {
         return;
     }
 
-    stdin_pipe_fd = client_fd;
+    serial_input_fd = client_fd;
 
     while (true) {
 
@@ -220,7 +207,6 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     
     napi_value key_name;
-    napi_value nv_bundle_code_dir;
     napi_value nv_temp_dir;
     napi_value nv_files_dir;
     napi_value nv_cpu_count;
@@ -228,9 +214,6 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_value nv_port_mapping;
     napi_value nv_on_data_cb;
     napi_value nv_on_exit_cb;
-
-    napi_create_string_utf8(env, "bundleCodeDir", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_bundle_code_dir);
 
     napi_create_string_utf8(env, "tempDir", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_temp_dir);
@@ -253,7 +236,6 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "onExit", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_on_exit_cb);
     
-    std::string bundleCodeDir = getString(env, nv_bundle_code_dir);
     std::string tempDir = getString(env, nv_temp_dir);
     std::string bundleFileDir = getString(env, nv_files_dir);
     std::string portMapping = getString(env, nv_port_mapping);
@@ -272,7 +254,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_threadsafe_function(env, nv_on_exit_cb, nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
                                     call_on_exit_callback, &on_exit_callback);
 
-    auto qemuEntry = getQemuSystemEntry(bundleCodeDir);
+    auto qemuEntry = getQemuSystemEntry();
 
     auto vmFilesDir = bundleFileDir + "/vm";
     std::string unixSocketPath = tempDir + "/serial_socket";
@@ -329,7 +311,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     });
     vm_loop.detach();
 
-    std::thread worker([=]() { terminal_worker(unixSocketPath.c_str()); });
+    std::thread worker([=]() { serial_output_worker(unixSocketPath.c_str()); });
     worker.detach();
 
     return nullptr;
@@ -337,7 +319,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
 static napi_value sendInput(napi_env env, napi_callback_info info) {
 
-    if (stdin_pipe_fd < 0) {
+    if (serial_input_fd < 0) {
         return nullptr;
     }
 
@@ -353,10 +335,9 @@ static napi_value sendInput(napi_env env, napi_callback_info info) {
     std::string hex = convert_to_hex(data, ret);
     OH_LOG_INFO(LOG_APP, "Send, data: %{public}s", hex.c_str());
 
-    int fd = stdin_pipe_fd;
     int written = 0;
     while (written < length) {
-        int size = write(fd, (uint8_t *)data + written, length - written);
+        int size = write(serial_input_fd, (uint8_t *)data + written, length - written);
         assert(size >= 0);
         written += size;
     }

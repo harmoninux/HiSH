@@ -13,4 +13,4 @@ include_directories(${NATIVERENDER_ROOT_PATH}
 
 add_library(entry SHARED napi_init.cpp)
 
-target_link_libraries(entry PUBLIC libace_napi.z.so libdeviceinfo_ndk.z.so libhilog_ndk.z.so libability_runtime.so)
+target_link_libraries(entry PUBLIC libace_napi.z.so libhilog_ndk.z.so)
