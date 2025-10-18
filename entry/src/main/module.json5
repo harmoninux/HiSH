@@ -7,7 +7,8 @@
     "deviceTypes": [
       "phone",
       "tablet",
-      "2in1"
+      "2in1",
+      "tv"
     ],
     "requestPermissions": [
       {
