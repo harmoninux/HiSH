@@ -12,6 +12,8 @@ export default struct SettingsContent {
   @Watch('saveVmCpuCount') @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
   @Watch('saveVmMemSize') @StorageProp(appOption.memSizeName) vmMemSize: number = 512
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
+  @StorageProp('versionName') versionName: string = ''
+  @StorageProp('versionCode') versionCode: number = 0
   @State vmPortMappingEnabled: boolean = false
   @State portMappings: PortMapping[] = [{ guest: 22, host: 2222 }]
   webController: webview.WebviewController = new webview.WebviewController()
@@ -412,6 +414,11 @@ export default struct SettingsContent {
 
       Text($r('app.string.app_name'))
         .margin({ top: 10 })
+
+      Text(`${this.versionName}(${this.versionCode})`)
+        .fontSize(14)
+        .fontColor('#ccc')
+        .margin({ top: 5 })
     }
     .width('100%')
   }

@@ -6,6 +6,7 @@ import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
+import bundleManager from '@ohos.bundle.bundleManager';
 
 import appOption, { PortMapping } from '../model/appOption'
 
@@ -29,17 +30,11 @@ export default class EntryAbility extends UIAbility {
 
     this.extractResources(appContext);
 
-    const appPref = await preference.getPreferences(appContext, appOption.preferenceName)
-    const vmCpuCount = await appPref.get(appOption.cpuCountName, 1);
-    const vmMemSize = await appPref.get(appOption.memSizeName, 512);
-    const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean
-    const portMappingEnabled = await appPref.get(appOption.portMappingEnabled, false) as boolean
-    const portMapping = JSON.parse(await appPref.get(appOption.portMapping, '[]') as string) as PortMapping[]
-    AppStorage.setOrCreate(appOption.cpuCountName, vmCpuCount)
-    AppStorage.setOrCreate(appOption.memSizeName, vmMemSize)
-    AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn)
-    AppStorage.setOrCreate(appOption.portMappingEnabled, portMappingEnabled)
-    AppStorage.setOrCreate(appOption.portMapping, portMapping)
+    await this.loadPreferences(appContext);
+
+    const bundleInfo = await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
+    AppStorage.setOrCreate('versionCode', bundleInfo.versionCode)
+    AppStorage.setOrCreate('versionName', bundleInfo.versionName)
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
@@ -50,7 +45,7 @@ export default class EntryAbility extends UIAbility {
 
       let mainWindow = windowStage.getMainWindowSync();
       mainWindow.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
-      mainWindow.setWindowKeepScreenOn(keepScreenOn);
+      mainWindow.setWindowKeepScreenOn(AppStorage.get(appOption.keepScreenOn) as boolean);
 
       AppStorage.setOrCreate('mainWindow', mainWindow)
 
@@ -60,6 +55,20 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorHeight(48);
       }
     });
+  }
+
+  private async loadPreferences(appContext: common.ApplicationContext) {
+    const appPref = await preference.getPreferences(appContext, appOption.preferenceName);
+    const vmCpuCount = await appPref.get(appOption.cpuCountName, 1);
+    const vmMemSize = await appPref.get(appOption.memSizeName, 512);
+    const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
+    const portMappingEnabled = await appPref.get(appOption.portMappingEnabled, false) as boolean;
+    const portMapping = JSON.parse(await appPref.get(appOption.portMapping, '[]') as string) as PortMapping[];
+    AppStorage.setOrCreate(appOption.cpuCountName, vmCpuCount);
+    AppStorage.setOrCreate(appOption.memSizeName, vmMemSize);
+    AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
+    AppStorage.setOrCreate(appOption.portMappingEnabled, portMappingEnabled);
+    AppStorage.setOrCreate(appOption.portMapping, portMapping);
   }
 
   private extractResources(appContext: common.ApplicationContext) {
