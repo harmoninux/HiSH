@@ -99,6 +99,30 @@
     {
       "name": "setting_keep_screen_on_desc",
       "value": "开启后，应用在前台时保持屏幕常亮"
+    },
+    {
+      "name": "setting_reset_linux",
+      "value": "重置Linux"
+    },
+    {
+      "name": "setting_reset_linux_desc",
+      "value": "将Linux系统重置为初始状态"
+    },
+    {
+      "name": "setting_reset_linux_title",
+      "value": "确认是否重置Linux"
+    },
+    {
+      "name": "setting_reset_linux_content",
+      "value": "重置Linux会清除Linux环境中的数据并立即重启HiSH，是否继续？"
+    },
+    {
+      "name": "setting_reset_linux_reset",
+      "value": "重置"
+    },
+    {
+      "name": "setting_generic_cancel",
+      "value": "取消"
     }
   ]
 }

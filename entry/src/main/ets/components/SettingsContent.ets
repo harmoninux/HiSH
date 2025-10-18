@@ -77,7 +77,7 @@ export default struct SettingsContent {
     this.preferences!.flush()
 
     const mainWindow = AppStorage.get('mainWindow') as window.Window
-    if(mainWindow) {
+    if (mainWindow) {
       mainWindow.setWindowKeepScreenOn(this.keepScreenOn)
     }
   }
@@ -157,6 +157,28 @@ export default struct SettingsContent {
           .onClick(async () => {
             await this.loadAndOpenPortMapping()
           })
+
+          Row() {
+            Column() {
+              Text($r('app.string.setting_reset_linux'))
+                .fontSize($r('sys.float.Body_L'))
+                .fontColor($r('sys.color.font_primary'))
+              Text($r('app.string.setting_port_mapping_desc'))
+                .fontSize($r('sys.float.Body_M'))
+                .fontColor($r('sys.color.font_tertiary'))
+            }
+            .flexGrow(1)
+            .alignItems(HorizontalAlign.Start)
+
+            SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+              .fontColor([$r('sys.color.icon_secondary')])
+              .fontSize('24vp')
+          }
+          .alignItems(VerticalAlign.Center)
+          .width('100%')
+          .height(56)
+          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+          .onClick(() => this.openResetLinuxDialog())
         }
         .borderRadius(20)
         .backgroundColor($r('app.color.setting_block_background'))
@@ -391,6 +413,33 @@ export default struct SettingsContent {
     return undefined
   }
 
+  private openResetLinuxDialog() {
+    this.getUIContext().showAlertDialog({
+      title: $r('app.string.setting_reset_linux_title'),
+      message: $r('app.string.setting_reset_linux_content'),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      buttons: [
+        {
+          value: $r('app.string.setting_generic_cancel'),
+          action: () => {
+          }
+        },
+        {
+          enabled: true,
+          style: DialogButtonStyle.HIGHLIGHT,
+          backgroundColor: $r('sys.color.warning'),
+          value: $r('app.string.setting_reset_linux_reset'),
+          action: async () => {
+            await this.preferences?.put(appOption.resetLinuxFlag, true)
+            await this.preferences?.flush()
+            this.restartApp();
+          }
+        }
+      ],
+    });
+  }
+
   @Builder
   buildOpenSourceView() {
     Web({ src: $rawfile('pages/osl.html'), controller: this.webController })
@@ -434,5 +483,14 @@ export default struct SettingsContent {
       }
     };
     await context.startAbility(want);
+  }
+
+  async restartApp() {
+    let applicationContext = this.context.getApplicationContext();
+    let want: Want = {
+      bundleName: 'app.hackeris.hish',
+      abilityName: 'EntryAbility'
+    };
+    applicationContext.restartApp(want);
   }
 }

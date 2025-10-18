@@ -7,7 +7,6 @@ import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
-
 import appOption, { PortMapping } from '../model/appOption'
 
 const DOMAIN = 0x0000;
@@ -27,10 +26,11 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
     const appContext = this.context.getApplicationContext();
+    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
 
-    this.extractResources(appContext);
+    await this.extractResourcesForVM(appContext, appPref);
 
-    await this.loadPreferences(appContext);
+    await this.loadPreferences(appPref);
 
     const bundleInfo = await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
     AppStorage.setOrCreate('versionCode', bundleInfo.versionCode)
@@ -57,8 +57,7 @@ export default class EntryAbility extends UIAbility {
     });
   }
 
-  private async loadPreferences(appContext: common.ApplicationContext) {
-    const appPref = await preference.getPreferences(appContext, appOption.preferenceName);
+  private async loadPreferences(appPref: preference.Preferences) {
     const vmCpuCount = await appPref.get(appOption.cpuCountName, 1);
     const vmMemSize = await appPref.get(appOption.memSizeName, 512);
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
@@ -71,10 +70,13 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.portMapping, portMapping);
   }
 
-  private extractResources(appContext: common.ApplicationContext) {
+  private async extractResourcesForVM(appContext: common.ApplicationContext, appPref: preference.Preferences) : Promise<void> {
 
-    hilog.info(DOMAIN, 'testTag', 'filesDir: %{public}s', appContext.filesDir);
-    hilog.info(DOMAIN, 'testTag', 'tempDir: %{public}s', appContext.tempDir);
+    const reset: boolean = await this.getResetFlag(appPref)
+
+    hilog.info(DOMAIN, 'testTag',
+      'extractResourcesForVM, filesDir: %{public}s, tempDir: %{public}s, reset: %{public}s',
+      appContext.filesDir, appContext.tempDir, reset);
 
     let bundleVmDir = appContext.filesDir + "/vm";
     if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
@@ -83,7 +85,7 @@ export default class EntryAbility extends UIAbility {
     for (let filename of ["vm/rootfs_aarch64.qcow2", "vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
 
       let filePath = appContext.filesDir + "/" + filename;
-      if (fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
+      if (fs.accessSync(filePath, fs.AccessModeType.EXIST) && !reset) {
         continue;
       }
 
@@ -93,6 +95,13 @@ export default class EntryAbility extends UIAbility {
       fs.closeSync(file);
       hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
     }
+  }
+
+  private async getResetFlag(appPref: preference.Preferences): Promise<boolean> {
+    const flag = await appPref.get(appOption.resetLinuxFlag, false) as boolean
+    await appPref.delete(appOption.resetLinuxFlag)
+    await appPref.flush()
+    return flag
   }
 
   onWindowStageDestroy(): void {

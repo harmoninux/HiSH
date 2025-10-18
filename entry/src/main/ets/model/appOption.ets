@@ -5,6 +5,7 @@ class appOption {
   static portMappingEnabled = 'vmPortMappingEnabled'
   static portMapping = 'vmPortMapping'
   static keepScreenOn = 'appKeepScreenOn'
+  static resetLinuxFlag = 'resetLinuxAtStart'
 }
 
 interface PortMapping {

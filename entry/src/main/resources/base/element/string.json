@@ -93,12 +93,36 @@
       "value": "The host port of %d should larger than 1000"
     },
     {
+      "name": "setting_reset_linux",
+      "value": "Reset Linux"
+    },
+    {
+      "name": "setting_reset_linux_desc",
+      "value": "Reset linux system to initial"
+    },
+    {
       "name": "setting_keep_screen_on",
       "value": "Keep screen on"
     },
     {
       "name": "setting_keep_screen_on_desc",
       "value": "To keep screen on"
+    },
+    {
+      "name": "setting_reset_linux_content",
+      "value": "Data in Linux will be cleared and HiSH will restart, continue?"
+    },
+    {
+      "name": "setting_reset_linux_title",
+      "value": "Are you sure to reset Linux?"
+    },
+    {
+      "name": "setting_reset_linux_reset",
+      "value": "Reset"
+    },
+    {
+      "name": "setting_generic_cancel",
+      "value": "Cancel"
     }
   ]
 }
