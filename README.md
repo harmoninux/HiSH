@@ -16,6 +16,7 @@ This is screenshot of HiSH on multiple devices(PC/Tablet/Phone):
 - Networking with port forwarding
 - Alpine Linux rootfs
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
+- Shared Folder (Experimental)
 - JIT (Only available for developer)
 
 # How to use
