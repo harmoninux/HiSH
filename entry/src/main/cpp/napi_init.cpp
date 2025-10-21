@@ -11,6 +11,8 @@
 #include <poll.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <thread>
 #include <unistd.h>
@@ -256,16 +258,22 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
     auto qemuEntry = getQemuSystemEntry();
 
-    auto vmFilesDir = bundleFileDir + "/vm";
     std::string unixSocketPath = tempDir + "/serial_socket";
-
     OH_LOG_INFO(LOG_APP, "serial unix socket: %{public}s", unixSocketPath.c_str());
     if (access(unixSocketPath.c_str(), F_OK) == 0) {
         OH_LOG_INFO(LOG_APP, "remove exist unix socket: %{public}s", unixSocketPath.c_str());
         unlink(unixSocketPath.c_str());
     }
 
-    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir, cpuCount, memSize, portMapping]() {
+    auto vmFilesDir = bundleFileDir + "/vm";
+
+    auto shareFilesDir = bundleFileDir + "/share";
+    OH_LOG_INFO(LOG_APP, "shared folder from host to guest: %{public}s", shareFilesDir.c_str());
+    if (access(shareFilesDir.c_str(), F_OK) != 0) {
+        mkdir(shareFilesDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    }
+
+    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir, cpuCount, memSize, portMapping, shareFilesDir]() {
         std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
         std::string kernelPath = vmFilesDir + "/kernel_aarch64";
         std::string rootFsImgPath = vmFilesDir + "/rootfs_aarch64.qcow2";
@@ -273,6 +281,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         std::string cpu = std::to_string(cpuCount);
         std::string mem = std::to_string(memSize) + "M";
         std::string portMappingOption = portMapping.empty() ? "user,id=eth0" : "user,id=eth0," + portMapping;
+        std::string fsDev0Option = "local,security_model=none,id=fsdev0,path=" + shareFilesDir;
         const char *args[] = {"qemu-system-aarch64",
                               "-machine",
                               "virt",
@@ -299,6 +308,10 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                               portMappingOption.c_str(),
                               "-device",
                               "virtio-net-device,netdev=eth0",
+                              "-fsdev",
+                              fsDev0Option.c_str(),
+                              "-device",
+                              "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare",
                               nullptr};
 
         int argc = getArgc(args);
