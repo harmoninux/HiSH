@@ -19,6 +19,9 @@
       },
       {
         "name": "ohos.permission.INTERNET"
+      },
+      {
+        "name": "ohos.permission.READ_WRITE_USER_FILE"
       }
     ],
     "deliveryWithInstall": true,

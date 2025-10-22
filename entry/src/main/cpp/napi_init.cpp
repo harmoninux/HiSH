@@ -216,6 +216,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_value nv_port_mapping;
     napi_value nv_on_data_cb;
     napi_value nv_on_exit_cb;
+    napi_value nv_is_pc;
 
     napi_create_string_utf8(env, "tempDir", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_temp_dir);
@@ -232,6 +233,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "portMapping", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_port_mapping);
     
+    napi_create_string_utf8(env, "isPc", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_is_pc);
+    
     napi_create_string_utf8(env, "onData", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_on_data_cb);
     
@@ -245,6 +249,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     int cpuCount, memSize;
     napi_get_value_int32(env, nv_cpu_count, &cpuCount);
     napi_get_value_int32(env, nv_mem_size, &memSize);
+    
+    bool isPc;
+    napi_get_value_bool(env, nv_is_pc, &isPc);
 
     napi_value data_cb_name;
     napi_create_string_utf8(env, "data_callback", NAPI_AUTO_LENGTH, &data_cb_name);
@@ -273,7 +280,8 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         mkdir(shareFilesDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
 
-    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir, cpuCount, memSize, portMapping, shareFilesDir]() {
+    std::thread vm_loop([qemuEntry, unixSocketPath, vmFilesDir, cpuCount, memSize, portMapping, shareFilesDir, isPc]() {
+       
         std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
         std::string kernelPath = vmFilesDir + "/kernel_aarch64";
         std::string rootFsImgPath = vmFilesDir + "/rootfs_aarch64.qcow2";
@@ -282,37 +290,50 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         std::string mem = std::to_string(memSize) + "M";
         std::string portMappingOption = portMapping.empty() ? "user,id=eth0" : "user,id=eth0," + portMapping;
         std::string fsDev0Option = "local,security_model=none,id=fsdev0,path=" + shareFilesDir;
-        const char *args[] = {"qemu-system-aarch64",
+        std::vector<std::string> argsVector = {"qemu-system-aarch64",
                               "-machine",
                               "virt",
                               "-cpu",
                               "cortex-a53",
                               "-smp",
-                              cpu.c_str(),
+                              cpu,
                               "-m",
-                              mem.c_str(),
+                              mem,
                               "-kernel",
-                              kernelPath.c_str(),
+                              kernelPath,
                               "-drive",
-                              driveOption.c_str(),
+                              driveOption,
                               "-device",
                               "virtio-blk-device,drive=hd0",
                               "-append",
                               "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi",
                               "-nographic",
                               "-L",
-                              vmFilesDir.c_str(),
+                              vmFilesDir,
                               "-serial",
-                              unixSocketSerial.c_str(),
+                              unixSocketSerial,
                               "-netdev",
-                              portMappingOption.c_str(),
+                              portMappingOption,
                               "-device",
                               "virtio-net-device,netdev=eth0",
                               "-fsdev",
-                              fsDev0Option.c_str(),
+                              fsDev0Option,
                               "-device",
-                              "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare",
-                              nullptr};
+                              "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"
+        };
+
+        if (isPc) {
+            argsVector.push_back("-fsdev");
+            argsVector.push_back("local,security_model=none,id=fsdev1,path=/storage/Users/currentUser");
+            argsVector.push_back("-device");
+            argsVector.push_back("virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare");
+        }
+
+        const char **args = new const char *[argsVector.size() + 1];
+        for(auto i = 0; i < argsVector.size(); i += 1) {
+            args[i] = argsVector[i].c_str();
+        }
+        args[argsVector.size()] = nullptr;
 
         int argc = getArgc(args);
         
@@ -321,6 +342,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFsImgPath.c_str());
 
         qemuEntry(argc, args);
+
+        //  cannot reach here
+        delete[] args;
     });
     vm_loop.detach();
 

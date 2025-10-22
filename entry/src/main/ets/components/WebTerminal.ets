@@ -164,6 +164,7 @@ export default struct WebTerminal {
       cpuCount: this.vmCpuCount,
       memSize: this.vmMemSize,
       portMapping: portMapping,
+      isPc: deviceInfo.deviceType === '2in1',
       onData: (d: ArrayBuffer) => this.onData(d),
       onExit: () => this.onClose()
     }
