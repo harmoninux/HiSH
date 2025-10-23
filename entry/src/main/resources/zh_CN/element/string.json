@@ -123,6 +123,14 @@
     {
       "name": "setting_generic_cancel",
       "value": "取消"
+    },
+    {
+      "name": "setting_shared_folder",
+      "value": "共享文件夹"
+    },
+    {
+      "name": "setting_shared_folder_desc",
+      "value": "在设备和Linux之间传输文件"
     }
   ]
 }

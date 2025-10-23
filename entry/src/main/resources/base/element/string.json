@@ -123,6 +123,14 @@
     {
       "name": "setting_generic_cancel",
       "value": "Cancel"
+    },
+    {
+      "name": "setting_shared_folder",
+      "value": "Shared folder"
+    },
+    {
+      "name": "setting_shared_folder_desc",
+      "value": "Transferring files between host and guest"
     }
   ]
 }

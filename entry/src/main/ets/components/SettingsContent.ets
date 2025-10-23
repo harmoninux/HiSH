@@ -6,6 +6,7 @@ import preference from '@ohos.data.preferences';
 import { PortMapping } from '../model/appOption'
 import { JSON, util } from '@kit.ArkTS';
 import appOption from '../model/appOption';
+import { SharedFolderContent } from './SharedFolderContent';
 
 @Component
 export default struct SettingsContent {
@@ -22,6 +23,14 @@ export default struct SettingsContent {
       primaryTitle: $r('app.string.setting_port_mapping'),
       contentBuilder: () => {
         this.buildPortMapping();
+      }
+    })
+  })
+  sharedFolderController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.setting_shared_folder'),
+      contentBuilder: () => {
+        this.buildSharedFolder();
       }
     })
   })
@@ -183,6 +192,37 @@ export default struct SettingsContent {
         .borderRadius(20)
         .backgroundColor($r('app.color.setting_block_background'))
 
+        Text($r("app.string.setting_shared_folder"))
+          .margin({ top: 20, bottom: 10, left: 20 })
+          .width('100%')
+        Column() {
+          Row() {
+            Column() {
+              Text($r('app.string.setting_shared_folder'))
+                .fontSize($r('sys.float.Body_L'))
+                .fontColor($r('sys.color.font_primary'))
+              Text($r('app.string.setting_shared_folder_desc'))
+                .fontSize($r('sys.float.Body_M'))
+                .fontColor($r('sys.color.font_tertiary'))
+            }
+            .flexGrow(1)
+            .alignItems(HorizontalAlign.Start)
+
+            SymbolGlyph($r('sys.symbol.chevron_right'))
+              .fontColor([$r('sys.color.icon_secondary')])
+              .fontSize('24vp')
+          }
+          .alignItems(VerticalAlign.Center)
+          .width('100%')
+          .height(56)
+          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+          .onClick(async () => {
+            this.openSharedFolder()
+          })
+        }
+        .borderRadius(20)
+        .backgroundColor($r('app.color.setting_block_background'))
+
         Text($r("app.string.setting_block_display"))
           .margin({ top: 20, bottom: 10, left: 20 })
           .width('100%')
@@ -248,6 +288,10 @@ export default struct SettingsContent {
     .scrollable(ScrollDirection.Vertical)
     .scrollBar(BarState.Auto)
     .scrollBarWidth(1)
+  }
+
+  private openSharedFolder() {
+    this.sharedFolderController.open();
   }
 
   async loadAndOpenPortMapping() {
@@ -373,6 +417,11 @@ export default struct SettingsContent {
       }
       .margin({ top: 30 })
     }
+  }
+
+  @Builder
+  buildSharedFolder() {
+    SharedFolderContent()
   }
 
   private replacePortMapping(index: number, up: PortMapping) {
