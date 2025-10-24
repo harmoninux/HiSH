@@ -40,7 +40,7 @@ export struct SharedFolderContent {
   build() {
     Column() {
       // 路径栏增强
-      Text(['/mnt/host', ...this.current.slice(1)].join('/'))
+      Text(['/mnt/share', ...this.current.slice(1)].join('/'))
         .fontSize(16)
         .padding({ left: 8, right: 8, bottom: 8 })
         .width('100%')
