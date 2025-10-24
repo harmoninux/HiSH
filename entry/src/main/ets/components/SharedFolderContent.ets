@@ -42,10 +42,10 @@ export struct SharedFolderContent {
         if (this.current.length > 1) {
           ListItem() {
             Row() {
-              SymbolGlyph($r('sys.symbol.chevron_up'))
+              SymbolGlyph($r('sys.symbol.arrowshape_turn_up_left'))
                 .fontSize(20)
                 .fontColor([$r('sys.color.icon_secondary')])
-                .margin({ right: 12 })
+                .margin({ right: 8 })
 
               Text('..')
                 .fontSize(16)
@@ -63,7 +63,7 @@ export struct SharedFolderContent {
                 $r('sys.symbol.folder_fill') : $r('sys.symbol.doc'))
                 .fontSize(20)
                 .fontColor([$r('sys.color.icon_secondary')])
-                .margin({ right: 12 })
+                .margin({ right: 8 })
 
               Text(item.name)
                 .fontSize(16)
