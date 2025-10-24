@@ -8,6 +8,70 @@ import { PortMappingContent } from './PortMappingContent';
 import { OpenSourceContent } from './OpenSourceContent';
 
 @Component
+struct BlockTitle {
+  content?: string | Resource
+
+  build() {
+    Text(this.content)
+      .margin({ bottom: 10, left: 20 })
+      .width('100%')
+  }
+}
+
+@Extend(Column)
+function settingBlockStyle() {
+  .borderRadius(20)
+  .backgroundColor($r('app.color.setting_block_background'))
+  .margin({ bottom: 20 })
+}
+
+@Component
+struct ItemTitle {
+  @Prop title: string | Resource
+  @Prop subTitle: string | Resource
+
+  build() {
+    Column() {
+      Text(this.title).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
+      Text(this.subTitle).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+    }
+    .flexGrow(1)
+    .alignItems(HorizontalAlign.Start)
+  }
+}
+
+@Component
+struct SettingItem {
+  @Prop title: string | Resource
+  @Prop subTitle: string | Resource
+  @Prop icon: Resource | undefined
+  @BuilderParam content?: () => void
+
+  build() {
+
+    Row() {
+      ItemTitle({
+        title: this.title,
+        subTitle: this.subTitle
+      })
+
+      if (this.content) {
+        this.content()
+      }
+      if (this.icon) {
+        SymbolGlyph(this.icon)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .fontSize('24vp')
+      }
+    }
+    .alignItems(VerticalAlign.Center)
+    .width('100%')
+    .height(56)
+    .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+  }
+}
+
+@Component
 export default struct SettingsContent {
   @Watch('saveVmCpuCount') @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
   @Watch('saveVmMemSize') @StorageProp(appOption.memSizeName) vmMemSize: number = 512
@@ -87,171 +151,96 @@ export default struct SettingsContent {
     }
   }
 
+  @Builder
+  private cpuSetting() {
+    Select([{ value: '1' }, { value: '2' }, { value: '4' }])
+      .width(100)
+      .value(this.vmCpuCount.toString())
+      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.cpuCountName, parseInt(value)))
+  }
+
+  @Builder
+  private memorySetting() {
+    Select([{ value: '512' }, { value: '1024' }, { value: '2048' }, { value: '4096' }])
+      .width(100)
+      .value(this.vmMemSize.toString())
+      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.memSizeName, parseInt(value)))
+  }
+
+  @Builder
+  private keepScreenSetting() {
+    Checkbox()
+      .select(this.keepScreenOn)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.keepScreenOn, value)
+      })
+  }
+
   build() {
     Scroll() {
       Column() {
 
-        Text($r("app.string.setting_block_system"))
-          .margin({ bottom: 10, left: 20 })
-          .width('100%')
+        BlockTitle({ content: $r("app.string.setting_block_system") })
         Column() {
-          Row() {
-            Column() {
-              Text($r('app.string.setting_cpu'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_cpu_desc'))
-                .fontSize($r('sys.float.Body_M'))
-                .fontColor($r('sys.color.font_tertiary'))
+          SettingItem({
+            title: $r('app.string.setting_cpu'),
+            subTitle: $r('app.string.setting_cpu_desc'),
+            content: () => {
+              this.cpuSetting()
             }
-            .flexGrow(1)
-            .alignItems(HorizontalAlign.Start)
+          })
 
-            Select([{ value: '1' }, { value: '2' }, { value: '4' }])
-              .width(100)
-              .value(this.vmCpuCount.toString())
-              .onSelect((_i, value) => AppStorage.setOrCreate(appOption.cpuCountName, parseInt(value)))
-          }
-          .alignItems(VerticalAlign.Center)
-          .width('100%')
-          .height(56)
-          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-
-          Row() {
-            Column() {
-              Text($r('app.string.setting_mem_size'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_mem_size_desc'))
-                .fontSize($r('sys.float.Body_M'))
-                .fontColor($r('sys.color.font_tertiary'))
+          SettingItem({
+            title: $r('app.string.setting_mem_size'),
+            subTitle: $r('app.string.setting_mem_size_desc'),
+            content: () => {
+              this.memorySetting()
             }
-            .flexGrow(1)
-            .alignItems(HorizontalAlign.Start)
+          })
 
-            Select([{ value: '512' }, { value: '1024' }, { value: '2048' }, { value: '4096' }])
-              .width(100)
-              .value(this.vmMemSize.toString())
-              .onSelect((_i, value) => AppStorage.setOrCreate(appOption.memSizeName, parseInt(value)))
-          }
-          .alignItems(VerticalAlign.Center)
-          .width('100%')
-          .height(56)
-          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-
-          Row() {
-            Column() {
-              Text($r('app.string.setting_port_mapping'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_port_mapping_desc'))
-                .fontSize($r('sys.float.Body_M'))
-                .fontColor($r('sys.color.font_tertiary'))
-            }
-            .flexGrow(1)
-            .alignItems(HorizontalAlign.Start)
-
-            SymbolGlyph($r('sys.symbol.chevron_right'))
-              .fontColor([$r('sys.color.icon_secondary')])
-              .fontSize('24vp')
-          }
-          .alignItems(VerticalAlign.Center)
-          .width('100%')
-          .height(56)
-          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-          .onClick(async () => {
+          SettingItem({
+            title: $r('app.string.setting_port_mapping'),
+            subTitle: $r('app.string.setting_port_mapping_desc'),
+            icon: $r('sys.symbol.chevron_right')
+          }).onClick(async () => {
             this.portMappingController.open()
           })
 
-          Row() {
-            Column() {
-              Text($r('app.string.setting_reset_linux'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_port_mapping_desc'))
-                .fontSize($r('sys.float.Body_M'))
-                .fontColor($r('sys.color.font_tertiary'))
-            }
-            .flexGrow(1)
-            .alignItems(HorizontalAlign.Start)
-
-            SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-              .fontColor([$r('sys.color.icon_secondary')])
-              .fontSize('24vp')
-          }
-          .alignItems(VerticalAlign.Center)
-          .width('100%')
-          .height(56)
-          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-          .onClick(() => this.openResetLinuxDialog())
+          SettingItem({
+            title: $r('app.string.setting_reset_linux'),
+            subTitle: $r('app.string.setting_reset_linux_desc'),
+            icon: $r('sys.symbol.arrow_clockwise')
+          }).onClick(async () => {
+            this.openResetLinuxDialog()
+          })
         }
-        .borderRadius(20)
-        .backgroundColor($r('app.color.setting_block_background'))
+        .settingBlockStyle()
 
-        Text($r("app.string.setting_shared_folder"))
-          .margin({ top: 20, bottom: 10, left: 20 })
-          .width('100%')
+        BlockTitle({ content: $r("app.string.setting_shared_folder") })
         Column() {
-          Row() {
-            Column() {
-              Text($r('app.string.setting_shared_folder'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_shared_folder_desc'))
-                .fontSize($r('sys.float.Body_M'))
-                .fontColor($r('sys.color.font_tertiary'))
-            }
-            .flexGrow(1)
-            .alignItems(HorizontalAlign.Start)
-
-            SymbolGlyph($r('sys.symbol.chevron_right'))
-              .fontColor([$r('sys.color.icon_secondary')])
-              .fontSize('24vp')
-          }
-          .alignItems(VerticalAlign.Center)
-          .width('100%')
-          .height(56)
-          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-          .onClick(async () => {
+          SettingItem({
+            title: $r('app.string.setting_shared_folder'),
+            subTitle: $r('app.string.setting_shared_folder_desc'),
+            icon: $r('sys.symbol.chevron_right')
+          }).onClick(async () => {
             this.sharedFolderController.open()
           })
         }
-        .borderRadius(20)
-        .backgroundColor($r('app.color.setting_block_background'))
+        .settingBlockStyle()
 
-        Text($r("app.string.setting_block_display"))
-          .margin({ top: 20, bottom: 10, left: 20 })
-          .width('100%')
+        BlockTitle({ content: $r("app.string.setting_block_display") })
         Column() {
-          Row() {
-            Column() {
-              Text($r('app.string.setting_keep_screen_on'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
-              Text($r('app.string.setting_keep_screen_on_desc'))
-                .fontSize($r('sys.float.Body_M'))
-                .fontColor($r('sys.color.font_tertiary'))
+          SettingItem({
+            title: $r('app.string.setting_keep_screen_on'),
+            subTitle: $r('app.string.setting_keep_screen_on_desc'),
+            content: () => {
+              this.keepScreenSetting()
             }
-            .flexGrow(1)
-            .alignItems(HorizontalAlign.Start)
-
-            Checkbox()
-              .select(this.keepScreenOn)
-              .onChange((value: boolean) => {
-                AppStorage.setOrCreate(appOption.keepScreenOn, value)
-              })
-          }
-          .alignItems(VerticalAlign.Center)
-          .width('100%')
-          .height(56)
-          .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+          })
         }
-        .borderRadius(20)
-        .backgroundColor($r('app.color.setting_block_background'))
+        .settingBlockStyle()
 
-        Text($r('app.string.setting_block_about'))
-          .margin({ top: 20, bottom: 10, left: 20 })
-          .width('100%')
+        BlockTitle({ content: $r('app.string.setting_block_about') })
         Column() {
           LinkItem({
             icon: $r('sys.symbol.house'),
@@ -277,8 +266,7 @@ export default struct SettingsContent {
             }
           })
         }
-        .borderRadius(20)
-        .backgroundColor($r('app.color.setting_block_background'))
+        .settingBlockStyle()
       }
     }
     .scrollable(ScrollDirection.Vertical)
