@@ -34,7 +34,7 @@ export struct SharedFolderContent {
       // 路径栏增强
       Text(['/mnt/host', ...this.current.slice(1)].join('/'))
         .fontSize(16)
-        .padding({left: 8, right: 8, bottom: 8})
+        .padding({ left: 8, right: 8, bottom: 8 })
         .width('100%')
 
       // 文件列表区域
@@ -108,18 +108,23 @@ export struct SharedFolderContent {
   private async refreshFileList() {
     const dir = this.current.join('/');
     const names = await fs.listFile(dir);
-    this.files = names.map((it) => {
-      const full = dir + '/' + it;
-      const stat = fs.statSync(full);
-      let type: Type;
-      if (stat.isDirectory()) {
-        type = Type.Folder
-      } else if (stat.isFile()) {
-        type = Type.File
-      } else {
-        type = Type.Unknown
-      }
-      return { name: it, type } as Entry;
-    }).sort((a, b) => comparator(a, b));
+    this.files = names
+      .filter(it => {
+        return it !== '.virtfs_metadata' && it !== '.virtfs_metadata_root'
+      })
+      .map((it) => {
+        const full = dir + '/' + it;
+        const stat = fs.statSync(full);
+        let type: Type;
+        if (stat.isDirectory()) {
+          type = Type.Folder
+        } else if (stat.isFile()) {
+          type = Type.File
+        } else {
+          type = Type.Unknown
+        }
+        return { name: it, type } as Entry;
+      })
+      .sort((a, b) => comparator(a, b));
   }
 }

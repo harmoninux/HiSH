@@ -289,7 +289,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         std::string cpu = std::to_string(cpuCount);
         std::string mem = std::to_string(memSize) + "M";
         std::string portMappingOption = portMapping.empty() ? "user,id=eth0" : "user,id=eth0," + portMapping;
-        std::string fsDev0Option = "local,security_model=none,id=fsdev0,path=" + shareFilesDir;
+        std::string fsDev0Option = "local,security_model=mapped-file,id=fsdev0,path=" + shareFilesDir;
         std::vector<std::string> argsVector = {"qemu-system-aarch64",
                               "-machine",
                               "virt",
@@ -324,7 +324,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
         if (isPc) {
             argsVector.push_back("-fsdev");
-            argsVector.push_back("local,security_model=none,id=fsdev1,path=/storage/Users/currentUser");
+            argsVector.push_back("local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser");
             argsVector.push_back("-device");
             argsVector.push_back("virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare");
         }
