@@ -35,10 +35,10 @@ HiSH在多种设备(PC/平板/手机)上的运行的截图如下：
 * 克隆本仓库到本地
 * 复制`build-profile.template.json5`为`build-profile.json5`
 * 下载以下文件到指定位置：
-    - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/arm64-v8a.libqemu-system-aarch64.so)
-    - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/x86_64.libqemu-system-aarch64.so)
-    - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/HiSH/releases/download/release-20251022/kernel_aarch64)
-    - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/HiSH/releases/download/v0.0.13/rootfs_aarch64.qcow2)
+  - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/arm64-v8a.libqemu-system-aarch64.so)
+  - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/x86_64.libqemu-system-aarch64.so)
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/HiSH/releases/download/release-20251022/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/HiSH/releases/download/release-20251025/rootfs_aarch64.qcow2)
 * 在DevEco Studio中构建项目
 * 签名后在设备或模拟器上运行
 
