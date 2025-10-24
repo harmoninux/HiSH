@@ -131,6 +131,14 @@
     {
       "name": "setting_shared_folder_desc",
       "value": "Transferring files between host and guest"
+    },
+    {
+      "name": "import_file_to_shared_folder",
+      "value": "Import file"
+    },
+    {
+      "name": "importing_file_to_shared_folder",
+      "value": "Importing file to shared folder"
     }
   ]
 }

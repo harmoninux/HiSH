@@ -131,6 +131,14 @@
     {
       "name": "setting_shared_folder_desc",
       "value": "在设备和Linux之间传输文件"
+    },
+    {
+      "name": "import_file_to_shared_folder",
+      "value": "导入文件"
+    },
+    {
+      "name": "importing_file_to_shared_folder",
+      "value": "正在导入文件..."
     }
   ]
 }

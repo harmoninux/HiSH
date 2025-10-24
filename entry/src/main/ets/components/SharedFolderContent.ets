@@ -1,5 +1,7 @@
 import { common } from "@kit.AbilityKit"
+import { picker } from '@kit.CoreFileKit';
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { LoadingDialog } from "@kit.ArkUI";
 
 enum Type {
   Folder = 0,
@@ -22,6 +24,12 @@ function comparator(a: Entry, b: Entry): number {
 export struct SharedFolderContent {
   @State files: Entry[] = []
   @State current: string[] = []
+
+  dialogControllerProgress: CustomDialogController = new CustomDialogController({
+    builder: LoadingDialog({
+      content: $r('app.string.importing_file_to_shared_folder'),
+    }),
+  })
 
   async aboutToAppear() {
     const appCtx = (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext()
@@ -67,6 +75,9 @@ export struct SharedFolderContent {
 
               Text(item.name)
                 .fontSize(16)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .ellipsisMode(EllipsisMode.END)
+                .maxLines(1);
             }
             .height(48)
             .width('100%')
@@ -84,13 +95,56 @@ export struct SharedFolderContent {
       .borderRadius(12)
       .margin({ left: 8, right: 8, bottom: 8 })
 
-      // Column() {
-      //   Button('Add New')
-      //     .width('60%')
-      // }
-      // .width('100%')
+      Column() {
+        Button($r('app.string.import_file_to_shared_folder'))
+          .width('60%')
+          .onClick(() => {
+            this.importFileToCurrent()
+          })
+      }
+      .width('100%')
     }
     .width('100%')
+  }
+
+  async importFileToCurrent() {
+    let context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+
+    let options = new picker.DocumentSelectOptions();
+    options.maxSelectNumber = 1;
+
+    let documentPicker = new picker.DocumentViewPicker(context);
+    let uris = await documentPicker.select(options);
+
+    if (uris.length == 0) {
+      return
+    }
+
+    this.dialogControllerProgress.open()
+
+    try {
+      const uri = uris[0]
+      const name = uri.split('/').reverse()[0]
+      const destPath = [...this.current, decodeURI(name)].join('/')
+
+      const srcFile = await fs.open(uri, fs.OpenMode.READ_ONLY);
+      const destFile = await fs.open(destPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE);
+
+      const bufferSize = 4096;
+      const buffer = new ArrayBuffer(bufferSize);
+
+      let readSize = 0;
+      while ((readSize = await fs.read(srcFile.fd, buffer)) > 0) {
+        await fs.write(destFile.fd, buffer);
+      }
+
+      await fs.close(srcFile.fd);
+      await fs.close(destFile.fd);
+
+      this.refreshFileList()
+    } finally {
+      this.dialogControllerProgress.close()
+    }
   }
 
   private async openFileEntry(e: Entry) {
