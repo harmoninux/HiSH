@@ -1,6 +1,5 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 import { window, KeyboardAvoidMode } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
@@ -8,6 +7,13 @@ import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
 import appOption, { PortMapping } from '../model/appOption'
+import {
+  File,
+  InputStream,
+  OutputStream,
+  TarArchiveEntry,
+  TarArchiveInputStream
+} from '@ohos/commons-compress';
 
 const DOMAIN = 0x0000;
 
@@ -70,7 +76,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.portMapping, portMapping);
   }
 
-  private async extractResourcesForVM(appContext: common.ApplicationContext, appPref: preference.Preferences) : Promise<void> {
+  private async extractResourcesForVM(appContext: common.ApplicationContext,
+    appPref: preference.Preferences): Promise<void> {
 
     const reset: boolean = await this.getResetFlag(appPref)
 
@@ -82,18 +89,102 @@ export default class EntryAbility extends UIAbility {
     if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
       fs.mkdirSync(bundleVmDir);
     }
-    for (let filename of ["vm/rootfs_aarch64.qcow2", "vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
 
-      let filePath = appContext.filesDir + "/" + filename;
-      if (fs.accessSync(filePath, fs.AccessModeType.EXIST) && !reset) {
-        continue;
+    for (let filename of ["vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
+      this.extractVmResourceFile(appContext, filename, reset);
+    }
+
+    const use9pRootFs = false
+    AppStorage.setOrCreate(appOption.use9pRootFs, use9pRootFs)
+
+    if (!use9pRootFs) {
+      this.extractQcow2RootFs(appContext, reset);
+    } else {
+      await this.extractTarRootFs(appContext, reset);
+    }
+  }
+
+  private extractQcow2RootFs(appContext: common.ApplicationContext, reset: boolean) {
+    this.extractVmResourceFile(appContext, "vm/rootfs_aarch64.qcow2", reset);
+  }
+
+  private async extractTarRootFs(appContext: common.ApplicationContext, reset: boolean) {
+    let completeMark: string = appContext.filesDir + '/vm/.rootfs_complete';
+    if (reset) {
+      //  TODO: reset folder
+      await this.extractRootFsTar(appContext);
+      fs.openSync(completeMark, fs.OpenMode.CREATE);
+    } else {
+      if (!fs.accessSync(completeMark, fs.AccessModeType.EXIST)) {
+        await this.extractRootFsTar(appContext);
+        fs.openSync(completeMark, fs.OpenMode.CREATE);
       }
+    }
+  }
 
+  private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, reset: boolean) {
+    let filePath = appContext.filesDir + "/" + filename;
+    if (!fs.accessSync(filePath, fs.AccessModeType.EXIST) || reset) {
       let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
       let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
       fs.writeSync(file.fd, value.buffer);
       fs.closeSync(file);
       hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
+    }
+  }
+
+  private async extractRootFsTar(appContext: common.ApplicationContext) {
+    try {
+      const value = appContext.resourceManager.getRawFileContentSync("vm/rootfs_aarch64.tar");
+      const tar = appContext.tempDir + '/rootfs_aarch64.tar';
+      let file = fs.openSync(tar, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+      fs.writeSync(file.fd, value.buffer);
+      fs.closeSync(file);
+
+      const target = appContext.filesDir + '/vm/rootfs';
+      if (!fs.accessSync(target, fs.AccessModeType.EXIST)) {
+        fs.mkdirSync(target, true);
+      }
+
+      let input: File = new File(appContext.tempDir, 'rootfs_aarch64.tar');
+      let inputFileStream: InputStream = new InputStream();
+      inputFileStream.setFilePath(input.getPath());
+      let fileTarInputStream: TarArchiveInputStream =
+        new TarArchiveInputStream(inputFileStream, 512 * 20, 512, '', false);
+      let tarArchiveEntry: TarArchiveEntry;
+      while ((tarArchiveEntry = fileTarInputStream.getNextTarEntry()) !== null) {
+
+        let name: string = tarArchiveEntry.getName();
+        if (name.startsWith('./')) {
+          name = name.substring(2)
+        }
+
+        if (tarArchiveEntry.isDirectory()) {
+          const dir = target + '/' + name
+          let acc = fs.accessSync(dir, fs.AccessModeType.EXIST);
+          if (!acc) {
+            fs.mkdirSync(dir, true);
+          }
+        } else if (tarArchiveEntry.isFile()) {
+          let tarFile: File = new File(target, name);
+          let fos: OutputStream | null = null;
+          try {
+            fos = new OutputStream();
+            fos!.setFilePath(tarFile.getPath());
+            let read: number = -1;
+            let buffer: Int8Array = new Int8Array(tarArchiveEntry.getRealSize().toNumber());
+            while ((read = fileTarInputStream.readBytes(buffer)) > 0) {
+              fos!.writeBytesOffset(buffer, 0, read);
+            }
+          } catch (e) {
+            console.log('error extract file', e);
+          } finally {
+            fos!.close();
+          }
+        }
+      }
+    } catch (e) {
+      console.log('error extract rootfs', e);
     }
   }
 

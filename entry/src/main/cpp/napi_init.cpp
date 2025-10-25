@@ -300,23 +300,18 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         [qemuEntry, unixSocketPath, vmBaseDir, cpuCount, memSize, portMapping, shareFilesDir, isPc, rootFs]() {
             std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
             std::string kernelPath = vmBaseDir + "/kernel_aarch64";
-            std::string rootFsImgPath = vmBaseDir + "/" + rootFs;
-            std::string driveOption = "if=none,format=qcow2,file=" + rootFsImgPath + ",id=hd0";
+            std::string rootFsPath = vmBaseDir + "/" + rootFs;
+            std::string driveOption = "if=none,format=qcow2,file=" + rootFsPath + ",id=hd0";
             std::string cpu = std::to_string(cpuCount);
             std::string mem = std::to_string(memSize) + "M";
             std::string portMappingOption = portMapping.empty() ? "user,id=eth0" : "user,id=eth0," + portMapping;
             std::string fsDev0Option = "local,security_model=mapped-file,id=fsdev0,path=" + shareFilesDir;
 
-            std::vector<std::string> basic = {"-machine",   "virt", "-cpu",     "cortex-a53", "-smp",
-                                              cpu,          "-m",   mem,        "-kernel",    kernelPath,
+            std::vector<std::string> basic = {"-machine",   "virt", "-cpu",    "cortex-a53", "-smp",
+                                              cpu,          "-m",   mem,       "-kernel",    kernelPath,
                                               "-nographic", "-L",   vmBaseDir, "-serial",    unixSocketSerial};
 
             std::vector<std::string> net = {"-netdev", portMappingOption};
-
-            std::vector<std::string> drive = {"-drive", driveOption, "-device", "virtio-blk-device,drive=hd0"};
-
-            std::vector<std::string> kernelParam = {"-append",
-                                                    "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi"};
 
             std::vector<std::string> shared = {"-device", "virtio-net-device,netdev=eth0",
                                                "-fsdev",  fsDev0Option,
@@ -325,9 +320,19 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             std::vector<std::string> argsVector = {"qemu-system-aarch64"};
             append_args(argsVector, basic);
             append_args(argsVector, net);
-            append_args(argsVector, drive);
-            append_args(argsVector, kernelParam);
             append_args(argsVector, shared);
+
+            if (rootFsPath != shareFilesDir) {
+                std::vector<std::string> drive = {"-drive", driveOption, "-device", "virtio-blk-device,drive=hd0"};
+                std::vector<std::string> kernelParam = {"-append",
+                                                        "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi"};
+                append_args(argsVector, drive);
+                append_args(argsVector, kernelParam);
+            } else {
+                std::vector<std::string> kernelParam = {"-append",
+                                                        "root=hostshare rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L console=ttyAMA0 TERM=asni"};
+                append_args(argsVector, kernelParam);
+            }
 
             if (isPc) {
                 std::vector<std::string> userShared = {
@@ -346,7 +351,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
             OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}d", argc);
             OH_LOG_INFO(LOG_APP, "linux kernel: %{public}s", kernelPath.c_str());
-            OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFsImgPath.c_str());
+            OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFsPath.c_str());
 
             qemuEntry(argc, args);
 

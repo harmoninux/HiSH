@@ -6,11 +6,15 @@ import WebTerminal from '../components/WebTerminal'
 import SettingsContent from '../components/SettingsContent';
 import { SharedFolderContent } from '../components/SharedFolderContent';
 import { PortMappingContent } from "../components/PortMappingContent";
+import appOption from "../model/appOption";
 
 @Component
 struct PcIndex {
   @Require rootFs: string
-  @Require sharedFolder: string
+  @Require sharedHost: string
+  @Require sharedGuest: string
+  private appContext: common.ApplicationContext =
+    (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext()
   settingController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.Setting_title'),
@@ -96,7 +100,7 @@ struct PcIndex {
         right: 150,
       })
 
-      WebTerminal({ showVirtKey: false, sharedFolder: this.sharedFolder, rootFs: this.rootFs })
+      WebTerminal({ showVirtKey: false, sharedFolder: this.sharedHost, rootFs: this.rootFs })
         .layoutWeight(1)
     }
     .width("100%")
@@ -116,9 +120,8 @@ struct PcIndex {
   @Builder
   buildSharedFolder() {
     SharedFolderContent({
-      host: (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext().filesDir +
-        '/share',
-      guest: '/mnt/share'
+      host: this.appContext.filesDir + '/' + this.sharedHost,
+      guest: this.sharedGuest
     })
   }
 }
@@ -126,7 +129,8 @@ struct PcIndex {
 @Component
 struct PhoneOrTablet {
   @Require rootFs: string
-  @Require sharedFolder: string
+  @Require sharedHost: string
+  @Require sharedGuest: string
   @State currentIndex: number = 0;
   private tabsController: TabsController = new TabsController();
   private appContext: common.ApplicationContext =
@@ -162,15 +166,15 @@ struct PhoneOrTablet {
     }) {
       TabContent() {
         WebTerminal({
-          showVirtKey: true, sharedFolder: this.sharedFolder, rootFs: this.rootFs
+          showVirtKey: true, sharedFolder: this.sharedHost, rootFs: this.rootFs
         })
       }
       .tabBar(this.tabBuilder($r('app.string.shell'), 0, $r('sys.symbol.house')))
 
       TabContent() {
         SharedFolderContent({
-          host: this.appContext.filesDir + '/share',
-          guest: '/mnt/share'
+          host: this.appContext.filesDir + '/' + this.sharedHost,
+          guest: this.sharedGuest
         })
       }
       .tabBar(this.tabBuilder($r('app.string.setting_shared_folder'), 1, $r('sys.symbol.folder')))
@@ -198,6 +202,7 @@ struct PhoneOrTablet {
 @Component
 struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
+  @StorageProp(appOption.use9pRootFs) use9pRootFs: boolean = false
 
   aboutToAppear(): void {
     // webview.WebviewController.setWebDebuggingAccess(true)
@@ -205,9 +210,21 @@ struct Index {
 
   build() {
     if (this.isPc) {
-      PcIndex({ rootFs: 'rootfs_aarch64.qcow2', sharedFolder: 'share' })
+      PcIndex({ rootFs: this.rootFs(), sharedHost: this.sharedHost(), sharedGuest: this.sharedGuest() })
     } else {
-      PhoneOrTablet({ rootFs: 'rootfs_aarch64.qcow2', sharedFolder: 'share' })
+      PhoneOrTablet({ rootFs: this.rootFs(), sharedHost: this.sharedHost(), sharedGuest: this.sharedGuest() })
     }
+  }
+
+  private sharedGuest() {
+    return this.use9pRootFs ? '/' : '/mnt/share'
+  }
+
+  private sharedHost() {
+    return this.use9pRootFs ? 'vm/rootfs' : 'share'
+  }
+
+  private rootFs() {
+    return this.use9pRootFs ? 'rootfs' : 'rootfs_aarch64.qcow2'
   }
 }
