@@ -48,7 +48,7 @@ export struct SharedFolderContent {
           .fontColor([$r('sys.color.icon_secondary')])
           .margin({ left: 4 })
 
-        Text([this.guest, ...this.current.slice(1)].join('/'))
+        Text(this.getGuestPath())
           .fontSize(16)
           .padding({ left: 4, right: 8 })
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -139,6 +139,16 @@ export struct SharedFolderContent {
       .scrollBarWidth(1)
     }
     .margin({ left: 5, right: 5 })
+  }
+
+  private getGuestPath() {
+    let parts = [this.guest, ...this.current.slice(1)];
+    let path = parts.join('/');
+    if (path.startsWith('//')) {
+      return path.substring(1)
+    } else {
+      return path
+    }
   }
 
   private async saveFile(name: string) {
