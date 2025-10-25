@@ -5,6 +5,8 @@ export type appOptions = {
   cpuCount: number
   memSize: number
   portMapping: string,
+  rootFs: string,
+  sharedFolder: string,
   isPc: boolean,
   onData: (ArrayBuffer) => void
   onExit: () => void

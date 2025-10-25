@@ -85,10 +85,10 @@ export struct PortMappingContent {
         .justifyContent(FlexAlign.SpaceBetween)
         .alignItems(VerticalAlign.Center)
         .padding({
-          left: $r('sys.float.padding_level6'),
-          right: $r('sys.float.padding_level4'),
-          top: $r('sys.float.padding_level2'),
-          bottom: $r('sys.float.padding_level2')
+          left: 15,
+          right: 15,
+          top: 10,
+          bottom: 10
         })
         .width('100%')
       }

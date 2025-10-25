@@ -9,6 +9,8 @@ import { PortMappingContent } from "../components/PortMappingContent";
 
 @Component
 struct PcIndex {
+  @Require rootFs: string
+  @Require sharedFolder: string
   settingController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.Setting_title'),
@@ -94,7 +96,7 @@ struct PcIndex {
         right: 150,
       })
 
-      WebTerminal({ showVirtKey: false })
+      WebTerminal({ showVirtKey: false, sharedFolder: this.sharedFolder, rootFs: this.rootFs })
         .layoutWeight(1)
     }
     .width("100%")
@@ -123,6 +125,8 @@ struct PcIndex {
 
 @Component
 struct PhoneOrTablet {
+  @Require rootFs: string
+  @Require sharedFolder: string
   @State currentIndex: number = 0;
   private tabsController: TabsController = new TabsController();
   private appContext: common.ApplicationContext =
@@ -158,7 +162,7 @@ struct PhoneOrTablet {
     }) {
       TabContent() {
         WebTerminal({
-          showVirtKey: true
+          showVirtKey: true, sharedFolder: this.sharedFolder, rootFs: this.rootFs
         })
       }
       .tabBar(this.tabBuilder($r('app.string.shell'), 0, $r('sys.symbol.house')))
@@ -201,9 +205,9 @@ struct Index {
 
   build() {
     if (this.isPc) {
-      PcIndex()
+      PcIndex({ rootFs: 'rootfs_aarch64.qcow2', sharedFolder: 'share' })
     } else {
-      PhoneOrTablet()
+      PhoneOrTablet({ rootFs: 'rootfs_aarch64.qcow2', sharedFolder: 'share' })
     }
   }
 }

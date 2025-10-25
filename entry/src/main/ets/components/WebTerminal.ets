@@ -19,7 +19,9 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 
 @Component
 export default struct WebTerminal {
-  @Require showVirtKey: boolean = false
+  @Require showVirtKey: boolean
+  @Require rootFs: string
+  @Require sharedFolder: string
   @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
   @StorageProp(appOption.memSizeName) vmMemSize: number = 512
   @StorageProp(appOption.portMappingEnabled) portMappingEnabled: boolean = false
@@ -151,6 +153,8 @@ export default struct WebTerminal {
       cpuCount: this.vmCpuCount,
       memSize: this.vmMemSize,
       portMapping: portMapping,
+      rootFs: this.rootFs,
+      sharedFolder: this.sharedFolder,
       isPc: deviceInfo.deviceType === '2in1',
       onData: (d: ArrayBuffer) => this.onData(d),
       onExit: () => this.onClose()
