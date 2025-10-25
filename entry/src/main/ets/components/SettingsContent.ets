@@ -227,7 +227,10 @@ export default struct SettingsContent {
 
   @Builder
   buildSharedFolder() {
-    SharedFolderContent()
+    SharedFolderContent({
+      host: (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext().filesDir + '/share',
+      guest: '/mnt/share'
+    })
   }
 
   @Builder

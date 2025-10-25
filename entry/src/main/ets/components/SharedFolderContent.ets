@@ -12,16 +12,15 @@ enum Type {
 interface Entry {
   name: string
   type: Type
-}
-
-function comparator(a: Entry, b: Entry): number {
-  const ka = a.type + '-' + a.name;
-  const kb = b.type + '-' + b.name;
-  return ka.localeCompare(kb)
+  size: number
+  mtime: number
+  detail: string
 }
 
 @Component
 export struct SharedFolderContent {
+  @Require @Prop host: string
+  @Require @Prop guest: string
   @State files: Entry[] = []
   @State current: string[] = []
   importProgress: CustomDialogController = new CustomDialogController({
@@ -36,8 +35,7 @@ export struct SharedFolderContent {
   })
 
   async aboutToAppear() {
-    const appCtx = (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext()
-    this.current = [appCtx.filesDir + '/share']
+    this.current = [this.host];
     await this.refreshFileList();
   }
 
@@ -45,9 +43,14 @@ export struct SharedFolderContent {
     Column() {
       // 路径栏增强
       Row() {
-        Text(['/mnt/share', ...this.current.slice(1)].join('/'))
+        SymbolGlyph($r('sys.symbol.folder_fill'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .margin({ left: 4 })
+
+        Text([this.guest, ...this.current.slice(1)].join('/'))
           .fontSize(16)
-          .padding({ left: 8, right: 8, bottom: 8 })
+          .padding({ left: 8, right: 8 })
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .ellipsisMode(EllipsisMode.END)
           .maxLines(1)
@@ -88,12 +91,18 @@ export struct SharedFolderContent {
                 .fontColor([$r('sys.color.icon_secondary')])
                 .margin({ right: 8 })
 
-              Text(item.name)
-                .fontSize(16)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .ellipsisMode(EllipsisMode.END)
-                .maxLines(1)
-                .layoutWeight(1)
+              Column() {
+                Text(item.name)
+                  .fontSize(16)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .ellipsisMode(EllipsisMode.END)
+                  .maxLines(1)
+                Text(item.detail)
+                  .fontSize(11)
+                  .margin({ top: 4 })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
 
               if (item.type === Type.File) {
                 SymbolGlyph($r('sys.symbol.save'))
@@ -206,9 +215,57 @@ export struct SharedFolderContent {
         } else {
           type = Type.Unknown
         }
-        return { name: it, type } as Entry;
+        const e = {
+          name: it,
+          type,
+          size: stat.size,
+          mtime: stat.mtime
+        } as Entry;
+        e.detail = formatDetail(e)
+        return e
       })
       .sort((a, b) => comparator(a, b));
+  }
+}
+
+function formatSize(entry: Entry) {
+  let size: string;
+  if (entry.size > 1024 * 1024 * 1024) {
+    size = (entry.size / 1024 * 1024 * 1024).toFixed(1) + 'GB';
+  } else if (entry.size > 1024 * 1024) {
+    size = (entry.size / 1024 * 1024).toFixed(1) + 'MB';
+  } else if (entry.size > 1024) {
+    size = (entry.size / 1024).toFixed(1) + 'KB';
+  } else {
+    size = entry.size.toString() + 'B';
+  }
+  return size;
+}
+
+function comparator(a: Entry, b: Entry): number {
+  const ka = a.type + '-' + a.name;
+  const kb = b.type + '-' + b.name;
+  return ka.localeCompare(kb)
+}
+
+function formatTimestamp(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function formatDetail(entry: Entry): string {
+  try {
+    let size: string = formatSize(entry);
+    let mtime = formatTimestamp(entry.mtime * 1000)
+    return `${mtime} - ${size}`
+  } catch (e) {
+    return '--'
   }
 }
 
