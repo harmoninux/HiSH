@@ -143,6 +143,10 @@
     {
       "name": "exporting_file_to_shared_folder",
       "value": "正在导出文件..."
+    },
+    {
+      "name": "setting_networking",
+      "value": "网络"
     }
   ]
 }

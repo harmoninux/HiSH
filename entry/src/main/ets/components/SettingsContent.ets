@@ -1,75 +1,11 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
-import { LinkItem } from "./LinkItem"
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import appOption from '../model/appOption';
 import { SharedFolderContent } from './SharedFolderContent';
 import { PortMappingContent } from './PortMappingContent';
 import { OpenSourceContent } from './OpenSourceContent';
-
-@Component
-struct BlockTitle {
-  content?: string | Resource
-
-  build() {
-    Text(this.content)
-      .margin({ bottom: 10, left: 20 })
-      .width('100%')
-  }
-}
-
-@Extend(Column)
-function settingBlockStyle() {
-  .borderRadius(20)
-  .backgroundColor($r('app.color.setting_block_background'))
-  .margin({ bottom: 20 })
-}
-
-@Component
-struct ItemTitle {
-  @Prop title: string | Resource
-  @Prop subTitle: string | Resource
-
-  build() {
-    Column() {
-      Text(this.title).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
-      Text(this.subTitle).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
-    }
-    .flexGrow(1)
-    .alignItems(HorizontalAlign.Start)
-  }
-}
-
-@Component
-struct SettingItem {
-  @Prop title: string | Resource
-  @Prop subTitle: string | Resource
-  @Prop icon: Resource | undefined
-  @BuilderParam content?: () => void
-
-  build() {
-
-    Row() {
-      ItemTitle({
-        title: this.title,
-        subTitle: this.subTitle
-      })
-
-      if (this.content) {
-        this.content()
-      }
-      if (this.icon) {
-        SymbolGlyph(this.icon)
-          .fontColor([$r('sys.color.icon_secondary')])
-          .fontSize('24vp')
-      }
-    }
-    .alignItems(VerticalAlign.Center)
-    .width('100%')
-    .height(56)
-    .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
-  }
-}
+import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 
 @Component
 export default struct SettingsContent {
@@ -126,6 +62,7 @@ export default struct SettingsContent {
   })
   context = this.getUIContext().getHostContext() as common.UIAbilityContext
   preferences?: preference.Preferences
+  blockStyle: SettingBlockStyle = new SettingBlockStyle()
 
   async aboutToAppear(): Promise<void> {
     this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
@@ -199,22 +136,14 @@ export default struct SettingsContent {
           })
 
           SettingItem({
-            title: $r('app.string.setting_port_mapping'),
-            subTitle: $r('app.string.setting_port_mapping_desc'),
-            icon: $r('sys.symbol.chevron_right')
-          }).onClick(async () => {
-            this.portMappingController.open()
-          })
-
-          SettingItem({
             title: $r('app.string.setting_reset_linux'),
             subTitle: $r('app.string.setting_reset_linux_desc'),
             icon: $r('sys.symbol.arrow_clockwise')
-          }).onClick(async () => {
+          }).onClick(() => {
             this.openResetLinuxDialog()
           })
         }
-        .settingBlockStyle()
+        .attributeModifier(this.blockStyle)
 
         BlockTitle({ content: $r("app.string.setting_shared_folder") })
         Column() {
@@ -222,11 +151,23 @@ export default struct SettingsContent {
             title: $r('app.string.setting_shared_folder'),
             subTitle: $r('app.string.setting_shared_folder_desc'),
             icon: $r('sys.symbol.chevron_right')
-          }).onClick(async () => {
+          }).onClick(() => {
             this.sharedFolderController.open()
           })
         }
-        .settingBlockStyle()
+        .attributeModifier(this.blockStyle)
+
+        BlockTitle({ content: $r("app.string.setting_networking") })
+        Column() {
+          SettingItem({
+            title: $r('app.string.setting_port_mapping'),
+            subTitle: $r('app.string.setting_port_mapping_desc'),
+            icon: $r('sys.symbol.chevron_right')
+          }).onClick(() => {
+            this.portMappingController.open()
+          })
+        }
+        .attributeModifier(this.blockStyle)
 
         BlockTitle({ content: $r("app.string.setting_block_display") })
         Column() {
@@ -238,7 +179,7 @@ export default struct SettingsContent {
             }
           })
         }
-        .settingBlockStyle()
+        .attributeModifier(this.blockStyle)
 
         BlockTitle({ content: $r('app.string.setting_block_about') })
         Column() {
@@ -266,7 +207,7 @@ export default struct SettingsContent {
             }
           })
         }
-        .settingBlockStyle()
+        .attributeModifier(this.blockStyle)
       }
     }
     .scrollable(ScrollDirection.Vertical)

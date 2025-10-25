@@ -143,6 +143,10 @@
     {
       "name": "exporting_file_to_shared_folder",
       "value": "Exporting file from shared folder"
+    },
+    {
+      "name": "setting_networking",
+      "value": "Networking"
     }
   ]
 }
