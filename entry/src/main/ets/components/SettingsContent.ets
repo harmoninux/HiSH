@@ -209,6 +209,7 @@ export default struct SettingsContent {
         }
         .attributeModifier(this.blockStyle)
       }
+      .margin({ left: 20, right: 20, bottom: 50 })
     }
     .scrollable(ScrollDirection.Vertical)
     .scrollBar(BarState.Auto)

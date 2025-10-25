@@ -12,7 +12,6 @@ struct Index {
       Column() {
         SettingsContent()
       }
-      .margin({ left: 20, right: 20 })
     }
     .width('100%')
     .height('100%')
