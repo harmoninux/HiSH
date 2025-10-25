@@ -240,9 +240,9 @@ export struct SharedFolderContent {
 function formatSize(entry: Entry) {
   let size: string;
   if (entry.size > 1024 * 1024 * 1024) {
-    size = (entry.size / 1024 * 1024 * 1024).toFixed(1) + 'GB';
+    size = (entry.size / 1024 / 1024 / 1024).toFixed(1) + 'GB';
   } else if (entry.size > 1024 * 1024) {
-    size = (entry.size / 1024 * 1024).toFixed(1) + 'MB';
+    size = (entry.size / 1024 / 1024).toFixed(1) + 'MB';
   } else if (entry.size > 1024) {
     size = (entry.size / 1024).toFixed(1) + 'KB';
   } else {
