@@ -25,6 +25,10 @@
       "value": "Save"
     },
     {
+      "name": "shell",
+      "value": "Shell"
+    },
+    {
       "name": "code_repository",
       "value": "Code repository"
     },

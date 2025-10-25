@@ -1,14 +1,14 @@
+import { common } from "@kit.AbilityKit"
 import { CustomContentDialog } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import WebTerminal from '../components/WebTerminal'
 import SettingsContent from '../components/SettingsContent';
+import { SharedFolderContent } from '../components/SharedFolderContent';
+import { PortMappingContent } from "../components/PortMappingContent";
 
-@Entry
 @Component
-struct Index {
-  isPc: boolean = deviceInfo.deviceType === '2in1'
-  isPhone: boolean = deviceInfo.deviceType === 'phone'
+struct PcIndex {
   settingController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.Setting_title'),
@@ -26,9 +26,79 @@ struct Index {
     autoCancel: true,
     alignment: DialogAlignment.Center
   })
+  portMappingController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.setting_port_mapping'),
+      contentBuilder: () => {
+        this.buildPortMapping();
+      }
+    })
+  })
+  sharedFolderController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.setting_shared_folder'),
+      contentBuilder: () => {
+        this.buildSharedFolder();
+      }
+    })
+  })
 
-  aboutToAppear(): void {
-    // webview.WebviewController.setWebDebuggingAccess(true)
+  build() {
+    Column() {
+      Row() {
+        Row() {
+          Image($r('app.media.startIcon'))
+            .width(20)
+          Text($r('app.string.app_name'))
+            .margin({ left: 10 })
+        }
+
+        Blank()
+
+        Row() {
+          Image($r('app.media.folder'))
+            .width(28)
+            .aspectRatio(1)
+            .padding(4)
+            .margin({ right: 10 })
+            .borderRadius(4)
+            .hoverEffect(HoverEffect.Highlight)
+            .onClick(() => {
+              this.sharedFolderController.open()
+            })
+          Image($r('app.media.reverse_order'))
+            .width(28)
+            .aspectRatio(1)
+            .padding(4)
+            .margin({ right: 10 })
+            .borderRadius(4)
+            .hoverEffect(HoverEffect.Highlight)
+            .onClick(() => {
+              this.portMappingController.open()
+            })
+          Image($r('app.media.gearshape'))
+            .width(28)
+            .aspectRatio(1)
+            .padding(4)
+            .borderRadius(4)
+            .hoverEffect(HoverEffect.Highlight)
+            .onClick(() => {
+              this.settingController.open()
+            })
+        }
+      }
+      .width('100%')
+      .height(48)
+      .padding({
+        left: 15,
+        right: 150,
+      })
+
+      WebTerminal({ showVirtKey: false })
+        .layoutWeight(1)
+    }
+    .width("100%")
+    .height('100%')
   }
 
   @Builder
@@ -36,60 +106,104 @@ struct Index {
     SettingsContent()
   }
 
-  openSettings() {
-    if (this.isPhone) {
-      this.getUIContext().getRouter().pushUrl({
-        url: 'pages/SettingsPage'
-      })
-    } else {
-      this.settingController.open()
+  @Builder
+  buildPortMapping() {
+    PortMappingContent()
+  }
+
+  @Builder
+  buildSharedFolder() {
+    SharedFolderContent({
+      host: (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext().filesDir +
+        '/share',
+      guest: '/mnt/share'
+    })
+  }
+}
+
+@Component
+struct PhoneOrTablet {
+  @State currentIndex: number = 0;
+  private tabsController: TabsController = new TabsController();
+  private appContext: common.ApplicationContext =
+    (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext()
+
+  @Builder
+  tabBuilder(title: Resource | string, index: number, selectedImg: Resource) {
+    Column() {
+      SymbolGlyph(selectedImg)
+        .fontSize('24vp')
+        .width(24)
+        .height(24)
+        .fontColor([this.currentIndex === index ? '#3388ff' : '#777777'])
+      Text(title)
+        .margin({ top: 4 })
+        .fontSize(10)
+        .fontColor(this.currentIndex === index ? '#3388ff' : '#777777')
     }
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .height(52)
+    .width('100%')
+    .onClick(() => {
+      this.currentIndex = index;
+      this.tabsController.changeIndex(this.currentIndex);
+    })
   }
 
   build() {
-    Column() {
-      if (this.isPc) {
-        Row() {
-          Row() {
-            Image($r('app.media.startIcon'))
-              .width(20)
-            Text($r('app.string.app_name'))
-              .margin({ left: 10 })
-          }
-
-          Blank()
-
-          Row() {
-            Image($r('app.media.gearshape'))
-              .width(28)
-              .aspectRatio(1)
-              .padding(4)
-              .borderRadius(4)
-              .hoverEffect(HoverEffect.Highlight)
-              .onClick(() => {
-                this.openSettings()
-              })
-          }
-        }
-        .width('100%')
-        .height(48)
-        .padding({
-          left: 15,
-          right: 150,
-        })
-
-        WebTerminal({ showVirtKey: false })
-          .layoutWeight(1)
-      } else {
+    Tabs({
+      barPosition: BarPosition.End,
+      controller: this.tabsController
+    }) {
+      TabContent() {
         WebTerminal({
-          showVirtKey: true,
-          openSettings: () => {
-            this.openSettings()
-          }
+          showVirtKey: true
         })
       }
+      .tabBar(this.tabBuilder($r('app.string.shell'), 0, $r('sys.symbol.house')))
+
+      TabContent() {
+        SharedFolderContent({
+          host: this.appContext.filesDir + '/share',
+          guest: '/mnt/share'
+        })
+      }
+      .tabBar(this.tabBuilder($r('app.string.setting_shared_folder'), 1, $r('sys.symbol.folder')))
+
+      TabContent() {
+        PortMappingContent()
+      }
+      .tabBar(this.tabBuilder($r('app.string.setting_port_mapping'), 2, $r('sys.symbol.reverse_order')))
+
+      TabContent() {
+        SettingsContent()
+      }
+      .tabBar(this.tabBuilder($r('app.string.Setting_title'), 3, $r('sys.symbol.gearshape')))
     }
-    .width("100%")
-    .height('100%')
+    .width('100%')
+    .barHeight(52)
+    .barMode(BarMode.Fixed)
+    .onAnimationStart((index: number, targetIndex: number) => {
+      this.currentIndex = targetIndex;
+    })
+  }
+}
+
+@Entry
+@Component
+struct Index {
+  isPc: boolean = deviceInfo.deviceType === '2in1'
+
+  aboutToAppear(): void {
+    // webview.WebviewController.setWebDebuggingAccess(true)
+  }
+
+  build() {
+    if (this.isPc) {
+      PcIndex()
+    } else {
+      PhoneOrTablet()
+    }
   }
 }

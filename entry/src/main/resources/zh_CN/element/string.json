@@ -25,6 +25,10 @@
       "value": "保存"
     },
     {
+      "name": "shell",
+      "value": "Shell"
+    },
+    {
       "name": "code_repository",
       "value": "项目仓库"
     },

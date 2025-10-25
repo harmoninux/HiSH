@@ -43,25 +43,34 @@ export struct SharedFolderContent {
     Column() {
       // 路径栏增强
       Row() {
-        SymbolGlyph($r('sys.symbol.folder_fill'))
-          .fontSize(20)
+        SymbolGlyph($r('sys.symbol.externaldrive_fill'))
+          .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
           .margin({ left: 4 })
 
         Text([this.guest, ...this.current.slice(1)].join('/'))
           .fontSize(16)
-          .padding({ left: 8, right: 8 })
+          .padding({ left: 4, right: 8 })
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .ellipsisMode(EllipsisMode.END)
           .maxLines(1)
           .layoutWeight(1)
 
-        SymbolGlyph($r('sys.symbol.plus'))
-          .fontSize(20)
+        SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+          .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
-          .margin({ right: 4 })
+          .padding(4)
+          .margin({ right: 5 })
+          .onClick(() => this.refreshFileList())
+
+        SymbolGlyph($r('sys.symbol.plus'))
+          .fontSize(24)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .padding(4)
+          .margin({ right: 5 })
           .onClick(() => this.importFileToCurrent())
       }
+      .margin({ top: 5 })
 
       // 文件列表区域
       List() {
@@ -69,7 +78,7 @@ export struct SharedFolderContent {
           ListItem() {
             Row() {
               SymbolGlyph($r('sys.symbol.arrowshape_turn_up_left'))
-                .fontSize(20)
+                .fontSize(24)
                 .fontColor([$r('sys.color.icon_secondary')])
                 .margin({ right: 4 })
 
@@ -87,7 +96,7 @@ export struct SharedFolderContent {
             Row() {
               SymbolGlyph(item.type === Type.Folder ?
                 $r('sys.symbol.folder_fill') : $r('sys.symbol.doc'))
-                .fontSize(20)
+                .fontSize(24)
                 .fontColor([$r('sys.color.icon_secondary')])
                 .margin({ right: 8 })
 
@@ -106,7 +115,7 @@ export struct SharedFolderContent {
 
               if (item.type === Type.File) {
                 SymbolGlyph($r('sys.symbol.save'))
-                  .fontSize(20)
+                  .fontSize(24)
                   .fontColor([$r('sys.color.icon_secondary')])
                   .margin({ right: 8 })
                   .onClick(() => this.saveFile(item.name))
@@ -129,7 +138,7 @@ export struct SharedFolderContent {
       .margin({ left: 8, right: 4, bottom: 8 })
       .scrollBarWidth(1)
     }
-    .width('100%')
+    .margin({ left: 5, right: 5 })
   }
 
   private async saveFile(name: string) {

@@ -20,7 +20,6 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 @Component
 export default struct WebTerminal {
   @Require showVirtKey: boolean = false
-  openSettings?: () => void
   @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
   @StorageProp(appOption.memSizeName) vmMemSize: number = 512
   @StorageProp(appOption.portMappingEnabled) portMappingEnabled: boolean = false
@@ -112,20 +111,8 @@ export default struct WebTerminal {
             .onClick(() => {
               this.sendInput('\x1b[C');
             })
-          if (this.openSettings) {
-            Button() {
-              Image($r('app.media.gearshape'))
-                .width(16)
-            }
-            .height(VKeyHeight)
-            .margin({ right: VKeyMargin })
-            .padding({ left: VKeyPadding, right: VKeyPadding })
-            .onClick(() => {
-              this.openSettings!()
-            })
-          }
         }
-        .margin(5)
+        .margin({ left: 5, right: 5 })
       }
     }
     .height('100%')

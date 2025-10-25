@@ -2,8 +2,6 @@ import { CustomContentDialog, window } from '@kit.ArkUI';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import appOption from '../model/appOption';
-import { SharedFolderContent } from './SharedFolderContent';
-import { PortMappingContent } from './PortMappingContent';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 
@@ -14,22 +12,6 @@ export default struct SettingsContent {
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
-  portMappingController: CustomDialogController = new CustomDialogController({
-    builder: CustomContentDialog({
-      primaryTitle: $r('app.string.setting_port_mapping'),
-      contentBuilder: () => {
-        this.buildPortMapping();
-      }
-    })
-  })
-  sharedFolderController: CustomDialogController = new CustomDialogController({
-    builder: CustomContentDialog({
-      primaryTitle: $r('app.string.setting_shared_folder'),
-      contentBuilder: () => {
-        this.buildSharedFolder();
-      }
-    })
-  })
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -114,123 +96,86 @@ export default struct SettingsContent {
   }
 
   build() {
-    Scroll() {
-      Column() {
-
-        BlockTitle({ content: $r("app.string.setting_block_system") })
+    Column() {
+      Scroll() {
         Column() {
-          SettingItem({
-            title: $r('app.string.setting_cpu'),
-            subTitle: $r('app.string.setting_cpu_desc'),
-            content: () => {
-              this.cpuSetting()
-            }
-          })
 
-          SettingItem({
-            title: $r('app.string.setting_mem_size'),
-            subTitle: $r('app.string.setting_mem_size_desc'),
-            content: () => {
-              this.memorySetting()
-            }
-          })
+          BlockTitle({ content: $r("app.string.setting_block_system") })
+          Column() {
+            SettingItem({
+              title: $r('app.string.setting_cpu'),
+              subTitle: $r('app.string.setting_cpu_desc'),
+              content: () => {
+                this.cpuSetting()
+              }
+            })
 
-          SettingItem({
-            title: $r('app.string.setting_reset_linux'),
-            subTitle: $r('app.string.setting_reset_linux_desc'),
-            icon: $r('sys.symbol.arrow_clockwise')
-          }).onClick(() => {
-            this.openResetLinuxDialog()
-          })
+            SettingItem({
+              title: $r('app.string.setting_mem_size'),
+              subTitle: $r('app.string.setting_mem_size_desc'),
+              content: () => {
+                this.memorySetting()
+              }
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_reset_linux'),
+              subTitle: $r('app.string.setting_reset_linux_desc'),
+              icon: $r('sys.symbol.arrow_clockwise')
+            }).onClick(() => {
+              this.openResetLinuxDialog()
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: $r("app.string.setting_block_display") })
+          Column() {
+            SettingItem({
+              title: $r('app.string.setting_keep_screen_on'),
+              subTitle: $r('app.string.setting_keep_screen_on_desc'),
+              content: () => {
+                this.keepScreenSetting()
+              }
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: $r('app.string.setting_block_about') })
+          Column() {
+            LinkItem({
+              icon: $r('sys.symbol.house'),
+              title: $r('app.string.code_repository'),
+              click: () => {
+                this.toWebBrowser('https://github.com/harmoninux/hish')
+              }
+            })
+
+            LinkItem({
+              icon: $r('sys.symbol.doc_text_badge_checkmark'),
+              title: $r('app.string.open_source_license'),
+              click: () => {
+                this.openSourceController.open();
+              }
+            })
+
+            LinkItem({
+              icon: $r('sys.symbol.info_circle'),
+              title: $r('app.string.about_me'),
+              click: () => {
+                this.aboutController.open();
+              }
+            })
+          }
+          .attributeModifier(this.blockStyle)
         }
-        .attributeModifier(this.blockStyle)
-
-        BlockTitle({ content: $r("app.string.setting_shared_folder") })
-        Column() {
-          SettingItem({
-            title: $r('app.string.setting_shared_folder'),
-            subTitle: $r('app.string.setting_shared_folder_desc'),
-            icon: $r('sys.symbol.chevron_right')
-          }).onClick(() => {
-            this.sharedFolderController.open()
-          })
-        }
-        .attributeModifier(this.blockStyle)
-
-        BlockTitle({ content: $r("app.string.setting_networking") })
-        Column() {
-          SettingItem({
-            title: $r('app.string.setting_port_mapping'),
-            subTitle: $r('app.string.setting_port_mapping_desc'),
-            icon: $r('sys.symbol.chevron_right')
-          }).onClick(() => {
-            this.portMappingController.open()
-          })
-        }
-        .attributeModifier(this.blockStyle)
-
-        BlockTitle({ content: $r("app.string.setting_block_display") })
-        Column() {
-          SettingItem({
-            title: $r('app.string.setting_keep_screen_on'),
-            subTitle: $r('app.string.setting_keep_screen_on_desc'),
-            content: () => {
-              this.keepScreenSetting()
-            }
-          })
-        }
-        .attributeModifier(this.blockStyle)
-
-        BlockTitle({ content: $r('app.string.setting_block_about') })
-        Column() {
-          LinkItem({
-            icon: $r('sys.symbol.house'),
-            title: $r('app.string.code_repository'),
-            click: () => {
-              this.toWebBrowser('https://github.com/harmoninux/hish')
-            }
-          })
-
-          LinkItem({
-            icon: $r('sys.symbol.doc_text_badge_checkmark'),
-            title: $r('app.string.open_source_license'),
-            click: () => {
-              this.openSourceController.open();
-            }
-          })
-
-          LinkItem({
-            icon: $r('sys.symbol.info_circle'),
-            title: $r('app.string.about_me'),
-            click: () => {
-              this.aboutController.open();
-            }
-          })
-        }
-        .attributeModifier(this.blockStyle)
+        .margin(10)
       }
-      .margin({ left: 20, right: 20, bottom: 50 })
+      .scrollable(ScrollDirection.Vertical)
+      .scrollBar(BarState.Auto)
+      .scrollBarWidth(1)
+      .layoutWeight(1)
+      .align(Alignment.Top)
     }
-    .scrollable(ScrollDirection.Vertical)
-    .scrollBar(BarState.Auto)
-    .scrollBarWidth(1)
-  }
-
-  @Builder
-  buildPortMapping() {
-    PortMappingContent({
-      onSaved: () => {
-        this.portMappingController.close()
-      }
-    })
-  }
-
-  @Builder
-  buildSharedFolder() {
-    SharedFolderContent({
-      host: (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext().filesDir + '/share',
-      guest: '/mnt/share'
-    })
   }
 
   @Builder

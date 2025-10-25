@@ -6,9 +6,8 @@ import appOption from '../model/appOption';
 
 @Component
 export struct PortMappingContent {
-  @State vmPortMappingEnabled: boolean = false
-  @State portMappings: PortMapping[] = [{ guest: 22, host: 2222 }]
-  onSaved?: () => void
+  @Watch('savePortMapping') @State vmPortMappingEnabled: boolean = false
+  @Watch('savePortMapping') @State portMappings: PortMapping[] = []
   context = this.getUIContext().getHostContext() as common.UIAbilityContext
   preferences?: preference.Preferences
 
@@ -20,42 +19,50 @@ export struct PortMappingContent {
     this.portMappings = JSON.parse(json) as PortMapping[]
   }
 
+  private addPortMapping() {
+    this.portMappings.push({});
+  }
+
   build() {
     Column() {
 
       Row() {
-        Text($r('app.string.setting_enable_port_mapping'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.font_primary'))
-        Checkbox()
-          .select(this.vmPortMappingEnabled)
-          .onChange((value: boolean) => {
-            this.vmPortMappingEnabled = value
+        Blank().layoutWeight(1)
+
+        SymbolGlyph($r('sys.symbol.plus'))
+          .fontSize(24)
+          .fontColor([!this.portMappingError() ? $r('sys.color.icon_secondary') : '#555555'])
+          .aspectRatio(1)
+          .padding(4)
+          .margin({ right: 5 })
+          .borderRadius(4)
+          .hoverEffect(HoverEffect.Highlight)
+          .onClick(() => {
+            if (!this.portMappingError()) {
+              this.addPortMapping();
+            }
           })
       }
-      .justifyContent(FlexAlign.SpaceBetween)
-      .alignItems(VerticalAlign.Center)
-      .padding({
-        left: $r('sys.float.padding_level6'),
-        right: $r('sys.float.padding_level4'),
-        top: $r('sys.float.padding_level2'),
-        bottom: $r('sys.float.padding_level2')
-      })
-      .width('100%')
 
-      ForEach(this.portMappings, (item: PortMapping, index) => {
-        this.buildPortMappingItem(item, (host) => {
-          const it = this.portMappings[index]
-          this.replacePortMapping(index, { host, guest: it.guest })
-        }, (guest) => {
-          const it = this.portMappings[index]
-          this.replacePortMapping(index, { guest, host: it.host });
-        }, () => {
-          const copy = [...this.portMappings]
-          copy.splice(index, 1)
-          this.portMappings = copy
-        })
-      }, (_item: PortMapping, index) => 'port-mapping-' + index)
+      Scroll() {
+        Column() {
+          ForEach(this.portMappings, (item: PortMapping, index) => {
+            this.buildPortMappingItem(item, (host) => {
+              const it = this.portMappings[index]
+              this.replacePortMapping(index, { host, guest: it.guest })
+            }, (guest) => {
+              const it = this.portMappings[index]
+              this.replacePortMapping(index, { guest, host: it.host });
+            }, () => {
+              const copy = [...this.portMappings]
+              copy.splice(index, 1)
+              this.portMappings = copy
+            })
+          }, (_item: PortMapping, index) => 'port-mapping-' + index)
+        }
+      }
+      .layoutWeight(1)
+      .align(Alignment.Top)
 
       Column() {
 
@@ -65,23 +72,27 @@ export struct PortMappingContent {
             .fontColor($r('sys.color.alert'))
         }
 
-        Button($r('app.string.setting_add'), { buttonStyle: ButtonStyleMode.NORMAL })
-          .enabled(this.addPortMappingEnabled() && !this.portMappingError())
-          .width('100%')
-          .margin({ top: 10 })
-          .onClick(() => {
-            this.portMappings.push({})
-          })
-
-        Button($r('app.string.SettingSave_label'))
-          .enabled(!this.portMappingError())
-          .width('100%')
-          .margin({ top: 10 })
-          .onClick(() => {
-            this.savePortMapping()
-          })
+        Row() {
+          Text($r('app.string.setting_enable_port_mapping'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontColor($r('sys.color.font_primary'))
+          Checkbox()
+            .select(this.vmPortMappingEnabled)
+            .onChange((value: boolean) => {
+              this.vmPortMappingEnabled = value
+            })
+        }
+        .justifyContent(FlexAlign.SpaceBetween)
+        .alignItems(VerticalAlign.Center)
+        .padding({
+          left: $r('sys.float.padding_level6'),
+          right: $r('sys.float.padding_level4'),
+          top: $r('sys.float.padding_level2'),
+          bottom: $r('sys.float.padding_level2')
+        })
+        .width('100%')
       }
-      .margin({ top: 30 })
+      .margin({ top: 5 })
     }
   }
 
@@ -130,13 +141,11 @@ export struct PortMappingContent {
   }
 
   async savePortMapping() {
-    const json = JSON.stringify(this.portMappings)
-    await this.preferences!.put(appOption.portMappingEnabled, this.vmPortMappingEnabled)
-    await this.preferences!.put(appOption.portMapping, json)
-    await this.preferences!.flush()
-
-    if (this.onSaved) {
-      this.onSaved()
+    if (!this.portMappingError()) {
+      const json = JSON.stringify(this.portMappings)
+      await this.preferences!.put(appOption.portMappingEnabled, this.vmPortMappingEnabled)
+      await this.preferences!.put(appOption.portMapping, json)
+      await this.preferences!.flush()
     }
   }
 
