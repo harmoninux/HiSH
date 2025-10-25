@@ -44,10 +44,21 @@ export struct SharedFolderContent {
   build() {
     Column() {
       // 路径栏增强
-      Text(['/mnt/share', ...this.current.slice(1)].join('/'))
-        .fontSize(16)
-        .padding({ left: 8, right: 8, bottom: 8 })
-        .width('100%')
+      Row() {
+        Text(['/mnt/share', ...this.current.slice(1)].join('/'))
+          .fontSize(16)
+          .padding({ left: 8, right: 8, bottom: 8 })
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .ellipsisMode(EllipsisMode.END)
+          .maxLines(1)
+          .layoutWeight(1)
+
+        SymbolGlyph($r('sys.symbol.plus'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .margin({ right: 4 })
+          .onClick(() => this.importFileToCurrent())
+      }
 
       // 文件列表区域
       List() {
@@ -108,15 +119,6 @@ export struct SharedFolderContent {
       .borderRadius(12)
       .margin({ left: 8, right: 4, bottom: 8 })
       .scrollBarWidth(1)
-
-      Column() {
-        Button($r('app.string.import_file_to_shared_folder'))
-          .width('60%')
-          .onClick(() => {
-            this.importFileToCurrent()
-          })
-      }
-      .width('100%')
     }
     .width('100%')
   }
