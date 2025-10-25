@@ -109,16 +109,36 @@ export default class EntryAbility extends UIAbility {
   }
 
   private async extractTarRootFs(appContext: common.ApplicationContext, reset: boolean) {
+    const target = appContext.filesDir + '/vm/rootfs';
     let completeMark: string = appContext.filesDir + '/vm/.rootfs_complete';
     if (reset) {
-      //  TODO: reset folder
-      await this.extractRootFsTar(appContext);
+      await this.deleteDirectoryRecursive(target)
+      await this.extractRootFsTar(appContext, target);
       fs.openSync(completeMark, fs.OpenMode.CREATE);
     } else {
       if (!fs.accessSync(completeMark, fs.AccessModeType.EXIST)) {
-        await this.extractRootFsTar(appContext);
+        await this.extractRootFsTar(appContext, target);
         fs.openSync(completeMark, fs.OpenMode.CREATE);
       }
+    }
+  }
+
+  async deleteDirectoryRecursive(dirPath: string) {
+    try {
+      const dirEntries = await fs.listFile(dirPath, { recursion: false });
+      for (const entry of dirEntries) {
+        const fullPath = `${dirPath}/${entry}`;
+        const stat = await fs.stat(fullPath);
+
+        if (stat.isDirectory()) {
+          await this.deleteDirectoryRecursive(fullPath);
+        } else {
+          await fs.unlink(fullPath);
+        }
+      }
+      await fs.rmdir(dirPath);
+    } catch (err) {
+      console.error(`failed to remove directory: ${JSON.stringify(err)}`);
     }
   }
 
@@ -133,7 +153,7 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
-  private async extractRootFsTar(appContext: common.ApplicationContext) {
+  private async extractRootFsTar(appContext: common.ApplicationContext, target: string) {
     try {
       const value = appContext.resourceManager.getRawFileContentSync("vm/rootfs_aarch64.tar");
       const tar = appContext.tempDir + '/rootfs_aarch64.tar';
@@ -141,7 +161,6 @@ export default class EntryAbility extends UIAbility {
       fs.writeSync(file.fd, value.buffer);
       fs.closeSync(file);
 
-      const target = appContext.filesDir + '/vm/rootfs';
       if (!fs.accessSync(target, fs.AccessModeType.EXIST)) {
         fs.mkdirSync(target, true);
       }
