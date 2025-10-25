@@ -139,6 +139,10 @@
     {
       "name": "importing_file_to_shared_folder",
       "value": "Importing file to shared folder"
+    },
+    {
+      "name": "exporting_file_to_shared_folder",
+      "value": "Exporting file from shared folder"
     }
   ]
 }

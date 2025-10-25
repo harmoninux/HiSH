@@ -24,10 +24,14 @@ function comparator(a: Entry, b: Entry): number {
 export struct SharedFolderContent {
   @State files: Entry[] = []
   @State current: string[] = []
-
-  dialogControllerProgress: CustomDialogController = new CustomDialogController({
+  importProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.importing_file_to_shared_folder'),
+    }),
+  })
+  exportProgress: CustomDialogController = new CustomDialogController({
+    builder: LoadingDialog({
+      content: $r('app.string.exporting_file_to_shared_folder'),
     }),
   })
 
@@ -53,7 +57,7 @@ export struct SharedFolderContent {
               SymbolGlyph($r('sys.symbol.arrowshape_turn_up_left'))
                 .fontSize(20)
                 .fontColor([$r('sys.color.icon_secondary')])
-                .margin({ right: 8 })
+                .margin({ right: 4 })
 
               Text('..')
                 .fontSize(16)
@@ -77,7 +81,16 @@ export struct SharedFolderContent {
                 .fontSize(16)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
                 .ellipsisMode(EllipsisMode.END)
-                .maxLines(1);
+                .maxLines(1)
+                .layoutWeight(1)
+
+              if (item.type === Type.File) {
+                SymbolGlyph($r('sys.symbol.save'))
+                  .fontSize(20)
+                  .fontColor([$r('sys.color.icon_secondary')])
+                  .margin({ right: 8 })
+                  .onClick(() => this.saveFile(item.name))
+              }
             }
             .height(48)
             .width('100%')
@@ -93,7 +106,8 @@ export struct SharedFolderContent {
       })
       .layoutWeight(1)
       .borderRadius(12)
-      .margin({ left: 8, right: 8, bottom: 8 })
+      .margin({ left: 8, right: 4, bottom: 8 })
+      .scrollBarWidth(1)
 
       Column() {
         Button($r('app.string.import_file_to_shared_folder'))
@@ -105,6 +119,32 @@ export struct SharedFolderContent {
       .width('100%')
     }
     .width('100%')
+  }
+
+  private async saveFile(name: string) {
+
+    let context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+
+    const options = new picker.DocumentSaveOptions()
+    options.newFileNames = [name];
+
+    const savePicker = new picker.DocumentViewPicker(context)
+    const uris = await savePicker.save(options)
+
+    if (uris.length == 0) {
+      return
+    }
+
+    const srcPath = [...this.current, decodeURI(name)].join('/')
+    const destUri = uris[0]
+    this.exportProgress.open()
+    try {
+      await copyFile(srcPath, destUri);
+    } catch (e) {
+      console.log('error copy file', srcPath, destUri, e)
+    } finally {
+      this.exportProgress.close()
+    }
   }
 
   async importFileToCurrent() {
@@ -120,30 +160,17 @@ export struct SharedFolderContent {
       return
     }
 
-    this.dialogControllerProgress.open()
+    const srcUri = uris[0]
+    const destPath = [...this.current, decodeURI(srcUri.split('/').reverse()[0])].join('/')
 
+    this.importProgress.open()
     try {
-      const uri = uris[0]
-      const name = uri.split('/').reverse()[0]
-      const destPath = [...this.current, decodeURI(name)].join('/')
-
-      const srcFile = await fs.open(uri, fs.OpenMode.READ_ONLY);
-      const destFile = await fs.open(destPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE);
-
-      const bufferSize = 4096;
-      const buffer = new ArrayBuffer(bufferSize);
-
-      let readSize = 0;
-      while ((readSize = await fs.read(srcFile.fd, buffer)) > 0) {
-        await fs.write(destFile.fd, buffer);
-      }
-
-      await fs.close(srcFile.fd);
-      await fs.close(destFile.fd);
-
+      await copyFile(srcUri, destPath);
       this.refreshFileList()
+    } catch (e) {
+      console.log('error copy file', srcUri, destPath, e)
     } finally {
-      this.dialogControllerProgress.close()
+      this.importProgress.close()
     }
   }
 
@@ -181,4 +208,15 @@ export struct SharedFolderContent {
       })
       .sort((a, b) => comparator(a, b));
   }
+}
+
+async function copyFile(srcPathOrUri: string, destPathOrUri: string) {
+
+  const srcFile = await fs.open(srcPathOrUri, fs.OpenMode.READ_ONLY);
+  const destFile = await fs.open(destPathOrUri, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE);
+
+  await fs.copyFile(srcFile.fd, destFile.fd)
+
+  await fs.close(srcFile.fd);
+  await fs.close(destFile.fd);
 }
