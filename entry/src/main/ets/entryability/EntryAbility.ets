@@ -117,6 +117,7 @@ export default class EntryAbility extends UIAbility {
       fs.openSync(completeMark, fs.OpenMode.CREATE);
     } else {
       if (!fs.accessSync(completeMark, fs.AccessModeType.EXIST)) {
+        await this.deleteDirectoryRecursive(target)
         await this.extractRootFsTar(appContext, target);
         fs.openSync(completeMark, fs.OpenMode.CREATE);
       }
