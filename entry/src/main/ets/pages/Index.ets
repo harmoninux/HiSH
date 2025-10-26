@@ -185,7 +185,16 @@ struct PhoneOrTablet {
       .tabBar(this.tabBuilder($r('app.string.setting_port_mapping'), 2, $r('sys.symbol.reverse_order')))
 
       TabContent() {
-        SettingsContent()
+        Column() {
+          Text($r('app.string.Setting_title'))
+            .fontSize(23)
+            .height(56)
+            .width('100%')
+            .padding({left: 20, right: 20})
+          SettingsContent()
+        }
+        .width('100%')
+        .height('100%')
       }
       .tabBar(this.tabBuilder($r('app.string.Setting_title'), 3, $r('sys.symbol.gearshape')))
     }

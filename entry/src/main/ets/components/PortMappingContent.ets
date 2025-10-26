@@ -43,6 +43,7 @@ export struct PortMappingContent {
             }
           })
       }
+      .height(56)
 
       Scroll() {
         Column() {

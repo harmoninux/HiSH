@@ -33,6 +33,7 @@ export struct SharedFolderContent {
       content: $r('app.string.exporting_file_to_shared_folder'),
     }),
   })
+  scroller: Scroller = new ListScroller()
 
   async aboutToAppear() {
     this.current = [this.host];
@@ -70,10 +71,10 @@ export struct SharedFolderContent {
           .margin({ right: 5 })
           .onClick(() => this.importFileToCurrent())
       }
-      .margin({ top: 5 })
+      .height(56)
 
       // 文件列表区域
-      List() {
+      List({scroller: this.scroller}) {
         if (this.current.length > 1) {
           ListItem() {
             Row() {
@@ -85,7 +86,7 @@ export struct SharedFolderContent {
               Text('..')
                 .fontSize(16)
             }
-            .height(48)
+            .height(56)
             .width('100%')
             .onClick(() => this.backToParent())
           }
@@ -121,7 +122,7 @@ export struct SharedFolderContent {
                   .onClick(() => this.saveFile(item.name))
               }
             }
-            .height(48)
+            .height(56)
             .width('100%')
             .onClick(() => this.openFileEntry(item))
           }
@@ -244,6 +245,7 @@ export struct SharedFolderContent {
         return e
       })
       .sort((a, b) => comparator(a, b));
+    this.scroller.scrollTo({ yOffset: 0, xOffset: 0 })
   }
 }
 
