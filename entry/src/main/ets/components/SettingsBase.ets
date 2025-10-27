@@ -59,6 +59,7 @@ export struct SettingItem {
     .alignItems(VerticalAlign.Center)
     .width('100%')
     .height(56)
+    .clickEffect({ level: ClickEffectLevel.MIDDLE })
     .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
   }
 }
@@ -94,6 +95,7 @@ export struct LinkItem {
         this.click();
       }
     })
+    .clickEffect({ level: ClickEffectLevel.MIDDLE })
     .alignItems(VerticalAlign.Center)
     .width('100%')
     .height(56)

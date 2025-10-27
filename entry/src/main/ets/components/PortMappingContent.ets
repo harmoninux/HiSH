@@ -37,6 +37,7 @@ export struct PortMappingContent {
           .margin({ right: 5 })
           .borderRadius(4)
           .hoverEffect(HoverEffect.Highlight)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .onClick(() => {
             if (!this.portMappingError()) {
               this.addPortMapping();

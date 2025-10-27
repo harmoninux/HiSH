@@ -61,6 +61,9 @@ export struct SharedFolderContent {
           .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
           .padding(4)
+          .borderRadius(4)
+          .hoverEffect(HoverEffect.Highlight)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .margin({ right: 5 })
           .onClick(() => this.refreshFileList())
 
@@ -68,6 +71,9 @@ export struct SharedFolderContent {
           .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
           .padding(4)
+          .borderRadius(4)
+          .hoverEffect(HoverEffect.Highlight)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .margin({ right: 5 })
           .onClick(() => this.importFileToCurrent())
       }
@@ -88,6 +94,7 @@ export struct SharedFolderContent {
             }
             .height(56)
             .width('100%')
+            .clickEffect({ level: ClickEffectLevel.MIDDLE })
             .onClick(() => this.backToParent())
           }
         }
@@ -119,11 +126,13 @@ export struct SharedFolderContent {
                   .fontSize(24)
                   .fontColor([$r('sys.color.icon_secondary')])
                   .margin({ right: 8 })
+                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
                   .onClick(() => this.saveFile(item.name))
               }
             }
             .height(56)
             .width('100%')
+            .clickEffect(item.type !== Type.File ? { level: ClickEffectLevel.MIDDLE } : null)
             .onClick(() => this.openFileEntry(item))
           }
         }, (item: Entry) => item.name)
