@@ -151,6 +151,18 @@
     {
       "name": "setting_networking",
       "value": "网络"
+    },
+    {
+      "name": "guest_port",
+      "value": "客户机端口"
+    },
+    {
+      "name": "host_port",
+      "value": "主机端口"
+    },
+    {
+      "name": "empty_shared_folder_prompt",
+      "value": "点击右上角添加文件至共享文件夹\n即可在HiSH的 /mnt/share 下进行访问"
     }
   ]
 }

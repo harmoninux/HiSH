@@ -4,6 +4,8 @@ import { PortMapping } from '../model/appOption'
 import { JSON, util } from '@kit.ArkTS';
 import appOption from '../model/appOption';
 
+const DEFAULT_MAPPING: PortMapping[] = [{ host: 2222, guest: 22 }, { host: 8080, guest: 80 }]
+
 @Component
 export struct PortMappingContent {
   @Watch('savePortMapping') @State vmPortMappingEnabled: boolean = false
@@ -14,7 +16,7 @@ export struct PortMappingContent {
   async aboutToAppear() {
     this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
 
-    const json = await this.preferences!.get(appOption.portMapping, '[]') as string;
+    const json = await this.preferences!.get(appOption.portMapping, JSON.stringify(DEFAULT_MAPPING)) as string;
     this.vmPortMappingEnabled = await this.preferences!.get(appOption.portMappingEnabled, false) as boolean
     this.portMappings = JSON.parse(json) as PortMapping[]
   }
@@ -27,6 +29,21 @@ export struct PortMappingContent {
     Column() {
 
       Row() {
+        Row() {
+          Text($r('app.string.guest_port'))
+            .textAlign(TextAlign.Center)
+            .width(100)
+          Divider().vertical(true)
+          Text($r('app.string.host_port'))
+            .textAlign(TextAlign.Center)
+            .width(100)
+        }
+        .height(48)
+        .padding({
+          left: $r('sys.float.padding_level6'),
+          right: $r('sys.float.padding_level6')
+        })
+
         Blank().layoutWeight(1)
 
         SymbolGlyph($r('sys.symbol.plus'))
@@ -46,25 +63,29 @@ export struct PortMappingContent {
       }
       .height(56)
 
-      Scroll() {
-        Column() {
-          ForEach(this.portMappings, (item: PortMapping, index) => {
-            this.buildPortMappingItem(item, (host) => {
-              const it = this.portMappings[index]
-              this.replacePortMapping(index, { host, guest: it.guest })
-            }, (guest) => {
-              const it = this.portMappings[index]
-              this.replacePortMapping(index, { guest, host: it.host });
-            }, () => {
-              const copy = [...this.portMappings]
-              copy.splice(index, 1)
-              this.portMappings = copy
-            })
-          }, (_item: PortMapping, index) => 'port-mapping-' + index)
-        }
+      List() {
+        ForEach(this.portMappings, (item: PortMapping, index) => {
+          this.buildPortMappingItem(item, (host) => {
+            const it = this.portMappings[index]
+            this.replacePortMapping(index, { host, guest: it.guest })
+          }, (guest) => {
+            const it = this.portMappings[index]
+            this.replacePortMapping(index, { guest, host: it.host });
+          }, () => {
+            const copy = [...this.portMappings]
+            copy.splice(index, 1)
+            this.portMappings = copy
+          })
+        }, (_item: PortMapping, index) => 'port-mapping-' + index)
       }
       .layoutWeight(1)
-      .align(Alignment.Top)
+      .divider({
+        strokeWidth: 0.1,
+        color: $r('sys.color.icon_secondary'),
+        startMargin: 5,
+        endMargin: 5
+      })
+      .scrollBarWidth(1)
 
       Column() {
 
@@ -75,23 +96,30 @@ export struct PortMappingContent {
         }
 
         Row() {
-          Text($r('app.string.setting_enable_port_mapping'))
-            .fontSize($r('sys.float.Body_L'))
-            .fontColor($r('sys.color.font_primary'))
-          Checkbox()
-            .select(this.vmPortMappingEnabled)
-            .onChange((value: boolean) => {
-              this.vmPortMappingEnabled = value
-            })
+          Blank().layoutWeight(1)
+          Row() {
+            Text($r('app.string.setting_enable_port_mapping'))
+              .fontSize($r('sys.float.Body_L'))
+              .fontColor($r('sys.color.font_primary'))
+            Checkbox()
+              .select(this.vmPortMappingEnabled)
+              .onChange((value: boolean) => {
+                this.vmPortMappingEnabled = value
+              })
+          }
+          .justifyContent(FlexAlign.SpaceBetween)
+          .alignItems(VerticalAlign.Center)
+          .padding({
+            left: 15,
+            right: 15,
+            top: 10,
+            bottom: 10
+          })
+          .onClick(() => {
+            this.vmPortMappingEnabled = !this.vmPortMappingEnabled
+          })
+          .clickEffect({ level: ClickEffectLevel.LIGHT })
         }
-        .justifyContent(FlexAlign.SpaceBetween)
-        .alignItems(VerticalAlign.Center)
-        .padding({
-          left: 15,
-          right: 15,
-          top: 10,
-          bottom: 10
-        })
         .width('100%')
       }
       .margin({ top: 5 })
@@ -105,41 +133,46 @@ export struct PortMappingContent {
     updateGuest: (port: number | undefined) => void,
     remove: () => void
   ) {
-    Row() {
+    ListItem() {
       Row() {
-        TextInput({ text: item.guest?.toString(), placeholder: 'Guest' })
-          .type(InputType.Number)
-          .width(80)
-          .onChange((value) => {
-            const guest = value ? parseInt(value) : undefined;
-            updateGuest(guest)
-          })
-        Text(':').margin({ left: 5, right: 5 })
-        TextInput({ text: item.host?.toString(), placeholder: 'Host' })
-          .type(InputType.Number)
-          .width(80)
-          .onChange((value) => {
-            const host = value ? parseInt(value) : undefined;
-            updateHost(host)
-          })
+        Row() {
+          TextInput({ text: item.guest?.toString(), placeholder: 'Guest' })
+            .type(InputType.Number)
+            .width(90)
+            .margin({ left: 5, right: 5 })
+            .onChange((value) => {
+              const guest = value ? parseInt(value) : undefined;
+              updateGuest(guest)
+            })
+          Divider().vertical(true)
+          TextInput({ text: item.host?.toString(), placeholder: 'Host' })
+            .type(InputType.Number)
+            .width(90)
+            .margin({ left: 5, right: 5 })
+            .onChange((value) => {
+              const host = value ? parseInt(value) : undefined;
+              updateHost(host)
+            })
+        }
+        .justifyContent(FlexAlign.SpaceBetween)
+        .alignItems(VerticalAlign.Center)
+
+        SymbolGlyph($r('sys.symbol.minus_circle'))
+          .fontColor([$r('sys.color.alert')])
+          .fontSize('24vp')
+          .onClick(() => remove())
       }
       .justifyContent(FlexAlign.SpaceBetween)
       .alignItems(VerticalAlign.Center)
-
-      SymbolGlyph($r('sys.symbol.minus_circle'))
-        .fontColor([$r('sys.color.alert')])
-        .fontSize('24vp')
-        .onClick(() => remove())
+      .padding({
+        left: $r('sys.float.padding_level6'),
+        right: $r('sys.float.padding_level6'),
+        top: $r('sys.float.padding_level2'),
+        bottom: $r('sys.float.padding_level2')
+      })
+      .height(48)
+      .width('100%')
     }
-    .justifyContent(FlexAlign.SpaceBetween)
-    .alignItems(VerticalAlign.Center)
-    .padding({
-      left: $r('sys.float.padding_level6'),
-      right: $r('sys.float.padding_level6'),
-      top: $r('sys.float.padding_level2'),
-      bottom: $r('sys.float.padding_level2')
-    })
-    .width('100%')
   }
 
   async savePortMapping() {

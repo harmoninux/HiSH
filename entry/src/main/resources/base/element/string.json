@@ -151,6 +151,18 @@
     {
       "name": "setting_networking",
       "value": "Networking"
+    },
+    {
+      "name": "guest_port",
+      "value": "Guest port"
+    },
+    {
+      "name": "host_port",
+      "value": "Host port"
+    },
+    {
+      "name": "empty_shared_folder_prompt",
+      "value": "Click the Add at top right to add files to shared folder\nThen you can access it in /mnt/share of HiSH"
     }
   ]
 }

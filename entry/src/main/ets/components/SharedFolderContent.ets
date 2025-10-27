@@ -40,6 +40,77 @@ export struct SharedFolderContent {
     await this.refreshFileList();
   }
 
+  @Builder
+  buildFileList() {
+    List({ scroller: this.scroller }) {
+      if (this.current.length > 1) {
+        ListItem() {
+          Row() {
+            SymbolGlyph($r('sys.symbol.arrowshape_turn_up_left'))
+              .fontSize(24)
+              .fontColor([$r('sys.color.icon_secondary')])
+              .margin({ right: 4 })
+
+            Text('..')
+              .fontSize(16)
+          }
+          .height(56)
+          .width('100%')
+          .clickEffect({ level: ClickEffectLevel.MIDDLE })
+          .onClick(() => this.backToParent())
+        }
+      }
+
+      ForEach(this.files, (item: Entry) => {
+        ListItem() {
+          Row() {
+            SymbolGlyph(item.type === Type.Folder ?
+              $r('sys.symbol.folder_fill') : $r('sys.symbol.doc'))
+              .fontSize(24)
+              .fontColor([$r('sys.color.icon_secondary')])
+              .margin({ right: 8 })
+
+            Column() {
+              Text(item.name)
+                .fontSize(16)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .ellipsisMode(EllipsisMode.END)
+                .maxLines(1)
+              Text(item.detail)
+                .fontSize(11)
+                .margin({ top: 4 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            if (item.type === Type.File) {
+              SymbolGlyph($r('sys.symbol.save'))
+                .fontSize(24)
+                .fontColor([$r('sys.color.icon_secondary')])
+                .margin({ right: 8 })
+                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
+                .onClick(() => this.saveFile(item.name))
+            }
+          }
+          .height(56)
+          .width('100%')
+          .clickEffect(item.type !== Type.File ? { level: ClickEffectLevel.MIDDLE } : null)
+          .onClick(() => this.openFileEntry(item))
+        }
+      }, (item: Entry) => item.name)
+    }
+    .divider({
+      strokeWidth: 0.1,
+      color: $r('sys.color.icon_secondary'),
+      startMargin: 5,
+      endMargin: 5
+    })
+    .layoutWeight(1)
+    .borderRadius(12)
+    .margin({ left: 8, right: 4, bottom: 8 })
+    .scrollBarWidth(1)
+  }
+
   build() {
     Column() {
       // 路径栏增强
@@ -80,73 +151,17 @@ export struct SharedFolderContent {
       .height(56)
 
       // 文件列表区域
-      List({scroller: this.scroller}) {
-        if (this.current.length > 1) {
-          ListItem() {
-            Row() {
-              SymbolGlyph($r('sys.symbol.arrowshape_turn_up_left'))
-                .fontSize(24)
-                .fontColor([$r('sys.color.icon_secondary')])
-                .margin({ right: 4 })
-
-              Text('..')
-                .fontSize(16)
-            }
-            .height(56)
-            .width('100%')
-            .clickEffect({ level: ClickEffectLevel.MIDDLE })
-            .onClick(() => this.backToParent())
-          }
+      if (this.current.length === 1 && this.files.length === 0) {
+        Column() {
+          Text($r('app.string.empty_shared_folder_prompt'))
+            .textAlign(TextAlign.Center)
+            .fontColor('#555555')
+            .height('100%')
         }
-
-        ForEach(this.files, (item: Entry) => {
-          ListItem() {
-            Row() {
-              SymbolGlyph(item.type === Type.Folder ?
-                $r('sys.symbol.folder_fill') : $r('sys.symbol.doc'))
-                .fontSize(24)
-                .fontColor([$r('sys.color.icon_secondary')])
-                .margin({ right: 8 })
-
-              Column() {
-                Text(item.name)
-                  .fontSize(16)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .ellipsisMode(EllipsisMode.END)
-                  .maxLines(1)
-                Text(item.detail)
-                  .fontSize(11)
-                  .margin({ top: 4 })
-              }
-              .alignItems(HorizontalAlign.Start)
-              .layoutWeight(1)
-
-              if (item.type === Type.File) {
-                SymbolGlyph($r('sys.symbol.save'))
-                  .fontSize(24)
-                  .fontColor([$r('sys.color.icon_secondary')])
-                  .margin({ right: 8 })
-                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
-                  .onClick(() => this.saveFile(item.name))
-              }
-            }
-            .height(56)
-            .width('100%')
-            .clickEffect(item.type !== Type.File ? { level: ClickEffectLevel.MIDDLE } : null)
-            .onClick(() => this.openFileEntry(item))
-          }
-        }, (item: Entry) => item.name)
+        .layoutWeight(1)
+      } else {
+        this.buildFileList()
       }
-      .divider({
-        strokeWidth: 0.1,
-        color: $r('sys.color.icon_secondary'),
-        startMargin: 5,
-        endMargin: 5
-      })
-      .layoutWeight(1)
-      .borderRadius(12)
-      .margin({ left: 8, right: 4, bottom: 8 })
-      .scrollBarWidth(1)
     }
     .margin({ left: 5, right: 5 })
   }
