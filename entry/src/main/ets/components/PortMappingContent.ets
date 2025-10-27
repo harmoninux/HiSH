@@ -93,6 +93,10 @@ export struct PortMappingContent {
           Text(this.portMappingError())
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.alert'))
+        } else {
+          Text($r('app.string.restart_hish_to_apply_changes'))
+            .fontSize($r('sys.float.Body_M'))
+            .fontColor($r('sys.color.icon_secondary'))
         }
 
         Row() {

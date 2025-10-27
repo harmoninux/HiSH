@@ -163,6 +163,10 @@
     {
       "name": "empty_shared_folder_prompt",
       "value": "点击右上角添加文件至共享文件夹\n即可在HiSH的 /mnt/share 下进行访问"
+    },
+    {
+      "name": "restart_hish_to_apply_changes",
+      "value": "重启HiSH后生效"
     }
   ]
 }
