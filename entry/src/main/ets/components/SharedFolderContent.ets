@@ -155,7 +155,8 @@ export struct SharedFolderContent {
         Column() {
           Text($r('app.string.empty_shared_folder_prompt'))
             .textAlign(TextAlign.Center)
-            .fontColor('#555555')
+            .fontColor($r('sys.color.icon_secondary'))
+            .fontSize($r('sys.float.Body_M'))
             .height('100%')
         }
         .layoutWeight(1)
