@@ -330,11 +330,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                 append_args(argsVector, kernelParam);
             } else {
                 std::vector<std::string> kernelParam = {"-append",
-<<<<<<< Updated upstream
-                                                        "root=hostshare rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L console=ttyAMA0 TERM=asni"};
-=======
-                                                        "root=hostshare rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L console=ttyAMA0 TERM=ansi init=/init"};
->>>>>>> Stashed changes
+                                                        "root=hostshare rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L console=ttyAMA0 TERM=ansi"};
                 append_args(argsVector, kernelParam);
             }
 
