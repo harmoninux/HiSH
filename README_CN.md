@@ -4,7 +4,7 @@
 
 在HarmonyOS设备上运行Linux Shell。基于[harmony-qemu](https://github.com/hackeris/harmony-qemu)，支持2in1(PC)、平板和手机。
 
-可通过[内测邀请链接](https://appgallery.huawei.com/link/invite-test-wap?taskId=7dd1e118ab11367c6f26b55bb989bbc5&invitationCode=2ByVRjHk2fg)安装。
+可通过[内测邀请链接](https://appgallery.huawei.com/link/invite-test-wap?taskId=7dd1e118ab11367c6f26b55bb989bbc5&invitationCode=A2w5fWZD2Wf)安装。
 
 HiSH在多种设备(PC/平板/手机)上的运行的截图如下：
 
