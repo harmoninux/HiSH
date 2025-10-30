@@ -143,10 +143,12 @@ void serial_output_worker(const char *unix_socket_path) {
     }
 
     serial_input_fd = client_fd;
+    
+    OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd);
 
     while (true) {
 
-        bool broken;
+        bool broken = false;
 
         struct pollfd fds[2];
         fds[0].fd = client_fd;
@@ -173,6 +175,8 @@ void serial_output_worker(const char *unix_socket_path) {
             break;
         }
     }
+    
+    OH_LOG_INFO(LOG_APP, "Serial unix socket broken: %{public}d", errno);
 
     if (on_exit_callback) {
         napi_call_threadsafe_function(on_exit_callback, nullptr, napi_tsfn_nonblocking);
@@ -298,7 +302,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
     std::thread vm_loop(
         [qemuEntry, unixSocketPath, vmBaseDir, cpuCount, memSize, portMapping, shareFilesDir, isPc, rootFs]() {
-            std::string unixSocketSerial = "unix:" + unixSocketPath + ",server";
+            std::string unixSocketSerial = "unix:" + unixSocketPath + ",server,nowait";
             std::string kernelPath = vmBaseDir + "/kernel_aarch64";
             std::string rootFsPath = vmBaseDir + "/" + rootFs;
             std::string driveOption = "if=none,format=qcow2,file=" + rootFsPath + ",id=hd0";
