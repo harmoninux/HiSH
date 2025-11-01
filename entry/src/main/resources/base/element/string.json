@@ -167,6 +167,10 @@
     {
       "name": "restart_hish_to_apply_changes",
       "value": "You should restart HiSH to apply changes"
+    },
+    {
+      "name": "copy_text",
+      "value": "Copy text"
     }
   ]
 }

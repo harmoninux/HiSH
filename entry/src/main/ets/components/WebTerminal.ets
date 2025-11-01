@@ -5,6 +5,7 @@ import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import appOption, { PortMapping } from '../model/appOption'
+import { pasteboard } from '@kit.BasicServicesKit'
 
 const DOMAIN = 0x0000;
 
@@ -29,6 +30,42 @@ export default struct WebTerminal {
   @State ctrlPressed: boolean = false
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
+
+  @Builder
+  contextMenu(webController: WebviewController) {
+    Flex({
+      direction: FlexDirection.Column
+    }) {
+      MenuItem({ content: $r('app.string.copy_text') })
+        .width('100%')
+        .onClick(async () => {
+          const selection = await webController.runJavaScript('exports.copy()')
+          if (selection !== '""') {
+            let text: string = JSON.parse(selection);
+            const board = pasteboard.getSystemPasteboard()
+            const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
+            board.setData(pasteData)
+          }
+        })
+      MenuItem() {
+        PasteButton({ buttonType: ButtonType.ROUNDED_RECTANGLE })
+          .onClick(async (event: ClickEvent, result: PasteButtonOnClickResult) => {
+            if (PasteButtonOnClickResult.SUCCESS === result) {
+              let board = pasteboard.getSystemPasteboard();
+              const data = await board.getData()
+              const text = data.getPrimaryText()
+              const array = util.TextEncoder.create().encodeInto(text)
+              const base64 = new util.Base64Helper().encodeToStringSync(array)
+              webController.runJavaScript(`exports.paste(atob('${base64}'))`)
+            }
+          })
+          .width('100%')
+          .align(Alignment.Start)
+          .backgroundColor('#292b2e')
+      }
+    }
+    .width('160vp')
+  }
 
   build() {
     Column() {
@@ -57,6 +94,7 @@ export default struct WebTerminal {
         })
         .backgroundColor('#000')
         .layoutWeight(1)
+        .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.showVirtKey) {
         Row() {
           Button('Tab')
@@ -169,7 +207,7 @@ export default struct WebTerminal {
     if (deviceInfo.deviceType === 'phone'
       || deviceInfo.deviceType === 'default') {
       return 11;
-    } else if(deviceInfo.deviceType === 'tablet') {
+    } else if (deviceInfo.deviceType === 'tablet') {
       return 13;
     }
     return null;
