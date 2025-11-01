@@ -4,6 +4,59 @@ import preference from '@ohos.data.preferences';
 import appOption from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { ListFileOptions } from '@kit.CoreFileKit';
+
+const cpuOptions: number[] = [1, 2, 4, 6, 8, 10, 16, 24, 32]
+const memOptions: number[] = [512, 1024, 2 * 1024, 4 * 1024, 6 * 1024, 8 * 1024, 12 * 1024, 16 * 1024]
+
+function getCpuCount(): number {
+  try {
+    let filesDir = "/sys/devices/system/cpu";
+    let listFileOption: ListFileOptions = {
+      recursion: false,
+      listNum: 0,
+      filter: {}
+    };
+    if (listFileOption.filter != undefined) {
+      listFileOption.filter.displayName = ['cpu*'];
+    }
+
+    let files = fs.listFileSync(filesDir, listFileOption);
+    let count = 0;
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].toString().length > 3 && !isNaN(parseInt(files[i].toString()[3]))) {
+        count++;
+      }
+    }
+    return count
+  } catch (e) {
+    return 4
+  }
+}
+
+function getMemSize(): number {
+
+  try {
+    const info = fs.readLinesSync('/proc/meminfo')
+    let item = info.next()
+    do {
+      if (item.value.indexOf('MemTotal') >= 0) {
+        //  parse mem
+        const line = item.value.trim().toUpperCase()
+        const match = line.match(/MEMTOTAL.*?(\d+)/i)
+        if (match) {
+          return Math.max(parseInt(match[1]) / 1024, 4 * 1024)
+        }
+        break
+      }
+      item = info.next();
+    } while (!item.done);
+    return 8 * 1024
+  } catch (e) {
+    return 8 * 1024
+  }
+}
 
 @Component
 export default struct SettingsContent {
@@ -12,6 +65,8 @@ export default struct SettingsContent {
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
+  @State cpuOptions: SelectOption[] = []
+  @State memOptions: SelectOption[] = []
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -48,6 +103,12 @@ export default struct SettingsContent {
 
   async aboutToAppear(): Promise<void> {
     this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
+
+    const cpuCount = getCpuCount()
+    this.cpuOptions = cpuOptions.filter(c => c <= cpuCount).map(c => ({ value: c.toString() } as SelectOption))
+
+    const memSize = getMemSize()
+    this.memOptions = memOptions.filter(c => c < memSize).map(c => ({ value: c.toString() } as SelectOption))
   }
 
   saveVmCpuCount() {
@@ -72,7 +133,7 @@ export default struct SettingsContent {
 
   @Builder
   private cpuSetting() {
-    Select([{ value: '1' }, { value: '2' }, { value: '4' }])
+    Select(this.cpuOptions)
       .width(100)
       .value(this.vmCpuCount.toString())
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.cpuCountName, parseInt(value)))
@@ -80,7 +141,7 @@ export default struct SettingsContent {
 
   @Builder
   private memorySetting() {
-    Select([{ value: '512' }, { value: '1024' }, { value: '2048' }, { value: '4096' }])
+    Select(this.memOptions)
       .width(100)
       .value(this.vmMemSize.toString())
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.memSizeName, parseInt(value)))
