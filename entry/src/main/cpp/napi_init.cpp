@@ -30,7 +30,9 @@ struct data_buffer {
 
 int serial_input_fd = -1;
 napi_threadsafe_function on_data_callback = nullptr;
-napi_threadsafe_function on_exit_callback = nullptr;
+
+std::mutex buffer_mtx;
+std::string temp_buffer = "";
 
 typedef int (*QemuSystemEntry)(int, const char **);
 
@@ -76,16 +78,6 @@ static void call_on_data_callback(napi_env env, napi_value js_callback, void *co
     delete buffer;
 }
 
-static void call_on_exit_callback(napi_env env, napi_value js_callback, void *context, void *data) {
-
-    napi_value global;
-    napi_get_global(env, &global);
-
-    napi_value result;
-    napi_value args[1] = {};
-    napi_call_function(env, global, js_callback, 0, args, &result);
-}
-
 std::string convert_to_hex(const uint8_t *buffer, int r) {
     std::string hex;
     for (int i = 0; i < r; i++) {
@@ -104,11 +96,20 @@ std::string convert_to_hex(const uint8_t *buffer, int r) {
     return hex;
 }
 
-void call_data_callback(const std::string &hex) {
-    if (hex.length() > 0 && on_data_callback != nullptr) {
-        data_buffer *pbuf = new data_buffer{.buf = new char[hex.length()], .size = (size_t)hex.length()};
-        memcpy(pbuf->buf, &hex[0], hex.length());
-        napi_call_threadsafe_function(on_data_callback, pbuf, napi_tsfn_nonblocking);
+void send_data_to_callback(const std::string &hex, napi_threadsafe_function callback) {
+    data_buffer *pbuf = new data_buffer{.buf = new char[hex.length()], .size = (size_t)hex.length()};
+    memcpy(pbuf->buf, &hex[0], hex.length());
+    napi_call_threadsafe_function(callback, pbuf, napi_tsfn_nonblocking);
+}
+
+void on_serial_data_received(const std::string &hex) {
+    if (hex.length() > 0) {
+        std::lock_guard<std::mutex> lk(buffer_mtx);
+        if (on_data_callback != nullptr) {
+            send_data_to_callback(hex, on_data_callback);
+        } else {
+            temp_buffer.append(hex);
+        }
     }
 }
 
@@ -143,7 +144,7 @@ void serial_output_worker(const char *unix_socket_path) {
     }
 
     serial_input_fd = client_fd;
-    
+
     OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd);
 
     while (true) {
@@ -163,7 +164,7 @@ void serial_output_worker(const char *unix_socket_path) {
                 // pretty print
                 auto hex = convert_to_hex(buffer, r);
                 //  call callback registered by ArkTS
-                call_data_callback(hex);
+                on_serial_data_received(hex);
                 OH_LOG_INFO(LOG_APP, "Received, data: %{public}s", hex.c_str());
             } else if (r < 0) {
                 OH_LOG_INFO(LOG_APP, "Program exited, %{public}ld %{public}d", r, errno);
@@ -175,12 +176,8 @@ void serial_output_worker(const char *unix_socket_path) {
             break;
         }
     }
-    
-    OH_LOG_INFO(LOG_APP, "Serial unix socket broken: %{public}d", errno);
 
-    if (on_exit_callback) {
-        napi_call_threadsafe_function(on_exit_callback, nullptr, napi_tsfn_nonblocking);
-    }
+    OH_LOG_INFO(LOG_APP, "Serial unix socket broken: %{public}d", errno);
 }
 
 static int getArgc(const char **args) {
@@ -224,11 +221,11 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_value nv_cpu_count;
     napi_value nv_mem_size;
     napi_value nv_port_mapping;
-    napi_value nv_on_data_cb;
-    napi_value nv_on_exit_cb;
     napi_value nv_is_pc;
     napi_value nv_root_fs;
     napi_value nv_shared_folder;
+    napi_value nv_vm_base;
+    napi_value nv_kernel;
 
     napi_create_string_utf8(env, "tempDir", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_temp_dir);
@@ -248,23 +245,24 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "isPc", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_is_pc);
 
-    napi_create_string_utf8(env, "onData", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_on_data_cb);
-
-    napi_create_string_utf8(env, "onExit", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_on_exit_cb);
-
-    napi_create_string_utf8(env, "rootFs", NAPI_AUTO_LENGTH, &key_name);
+    napi_create_string_utf8(env, "rootFilesystem", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_root_fs);
 
     napi_create_string_utf8(env, "sharedFolder", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_shared_folder);
 
+    napi_create_string_utf8(env, "vmBaseDir", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_vm_base);
+
+    napi_create_string_utf8(env, "kernel", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_kernel);
+
     std::string tempDir = getString(env, nv_temp_dir);
-    std::string bundleFileDir = getString(env, nv_files_dir);
     std::string portMapping = getString(env, nv_port_mapping);
-    std::string rootFs = getString(env, nv_root_fs);
+    std::string rootFilesystem = getString(env, nv_root_fs);
     std::string sharedFolder = getString(env, nv_shared_folder);
+    std::string vmBaseDir = getString(env, nv_vm_base);
+    std::string kernel = getString(env, nv_kernel);
 
     int cpuCount, memSize;
     napi_get_value_int32(env, nv_cpu_count, &cpuCount);
@@ -272,16 +270,6 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
     bool isPc;
     napi_get_value_bool(env, nv_is_pc, &isPc);
-
-    napi_value data_cb_name;
-    napi_create_string_utf8(env, "data_callback", NAPI_AUTO_LENGTH, &data_cb_name);
-    napi_create_threadsafe_function(env, nv_on_data_cb, nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
-                                    call_on_data_callback, &on_data_callback);
-
-    napi_value exit_cb_name;
-    napi_create_string_utf8(env, "exit_callback", NAPI_AUTO_LENGTH, &exit_cb_name);
-    napi_create_threadsafe_function(env, nv_on_exit_cb, nullptr, exit_cb_name, 0, 1, nullptr, nullptr, nullptr,
-                                    call_on_exit_callback, &on_exit_callback);
 
     auto qemuEntry = getQemuSystemEntry();
 
@@ -292,27 +280,21 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         unlink(unixSocketPath.c_str());
     }
 
-    auto vmBaseDir = bundleFileDir + "/vm";
-
-    auto shareFilesDir = bundleFileDir + "/" + sharedFolder;
-    OH_LOG_INFO(LOG_APP, "shared folder from host to guest: %{public}s", shareFilesDir.c_str());
-    if (access(shareFilesDir.c_str(), F_OK) != 0) {
-        mkdir(shareFilesDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    OH_LOG_INFO(LOG_APP, "shared folder from host to guest: %{public}s", sharedFolder.c_str());
+    if (access(sharedFolder.c_str(), F_OK) != 0) {
+        mkdir(sharedFolder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
 
     std::thread vm_loop(
-        [qemuEntry, unixSocketPath, vmBaseDir, cpuCount, memSize, portMapping, shareFilesDir, isPc, rootFs]() {
+        [qemuEntry, unixSocketPath, vmBaseDir, cpuCount, memSize, portMapping, sharedFolder, isPc, rootFilesystem, kernel]() {
             std::string unixSocketSerial = "unix:" + unixSocketPath + ",server,nowait";
-            std::string kernelPath = vmBaseDir + "/kernel_aarch64";
-            std::string rootFsPath = vmBaseDir + "/" + rootFs;
-            std::string driveOption = "if=none,format=qcow2,file=" + rootFsPath + ",id=hd0";
             std::string cpu = std::to_string(cpuCount);
             std::string mem = std::to_string(memSize) + "M";
             std::string portMappingOption = portMapping.empty() ? "user,id=eth0" : "user,id=eth0," + portMapping;
-            std::string fsDev0Option = "local,security_model=mapped-file,id=fsdev0,path=" + shareFilesDir;
+            std::string fsDev0Option = "local,security_model=mapped-file,id=fsdev0,path=" + sharedFolder;
 
             std::vector<std::string> basic = {"-machine",   "virt", "-cpu",    "cortex-a53", "-smp",
-                                              cpu,          "-m",   mem,       "-kernel",    kernelPath,
+                                              cpu,          "-m",   mem,       "-kernel",    kernel,
                                               "-nographic", "-L",   vmBaseDir, "-serial",    unixSocketSerial};
 
             std::vector<std::string> net = {"-netdev", portMappingOption};
@@ -326,7 +308,8 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             append_args(argsVector, net);
             append_args(argsVector, shared);
 
-            if (rootFsPath != shareFilesDir) {
+            if (rootFilesystem != sharedFolder) {
+                std::string driveOption = "if=none,format=qcow2,file=" + rootFilesystem + ",id=hd0";
                 std::vector<std::string> drive = {"-drive", driveOption, "-device", "virtio-blk-device,drive=hd0"};
                 std::vector<std::string> kernelParam = {"-append",
                                                         "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi"};
@@ -354,8 +337,8 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             int argc = getArgc(args);
 
             OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}d", argc);
-            OH_LOG_INFO(LOG_APP, "linux kernel: %{public}s", kernelPath.c_str());
-            OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFsPath.c_str());
+            OH_LOG_INFO(LOG_APP, "linux kernel: %{public}s", kernel.c_str());
+            OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFilesystem.c_str());
 
             qemuEntry(argc, args);
 
@@ -398,10 +381,36 @@ static napi_value sendInput(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
+static napi_value onData(napi_env env, napi_callback_info info) {
+
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    
+    napi_threadsafe_function data_callback;
+
+    napi_value data_cb_name;
+    napi_create_string_utf8(env, "data_callback", NAPI_AUTO_LENGTH, &data_cb_name);
+    napi_create_threadsafe_function(env, args[0], nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
+                                    call_on_data_callback, &data_callback);
+
+    {
+        std::lock_guard<std::mutex> lk(buffer_mtx);
+        if (!temp_buffer.empty()) {
+            send_data_to_callback(temp_buffer, data_callback);
+            temp_buffer.clear();
+        }
+        on_data_callback = data_callback;
+    }
+    
+    return nullptr;
+}
+
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
         {"startVM", nullptr, startVM, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onData", nullptr, onData, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"sendInput", nullptr, sendInput, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

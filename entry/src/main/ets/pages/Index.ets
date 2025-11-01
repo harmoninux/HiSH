@@ -1,6 +1,5 @@
 import { common } from "@kit.AbilityKit"
 import { CustomContentDialog } from '@kit.ArkUI';
-import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import WebTerminal from '../components/WebTerminal'
 import SettingsContent from '../components/SettingsContent';
@@ -10,9 +9,8 @@ import appOption from "../model/appOption";
 
 @Component
 struct PcIndex {
-  @Require rootFs: string
-  @Require sharedHost: string
-  @Require sharedGuest: string
+  @StorageProp(appOption.sharedHost) sharedHost: string = ''
+  @StorageProp(appOption.sharedGuest) sharedGuest: string = ''
   private appContext: common.ApplicationContext =
     (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext()
   settingController: CustomDialogController = new CustomDialogController({
@@ -100,7 +98,7 @@ struct PcIndex {
         right: 150,
       })
 
-      WebTerminal({ showVirtKey: false, sharedFolder: this.sharedHost, rootFs: this.rootFs })
+      WebTerminal({ showVirtKey: false })
         .layoutWeight(1)
     }
     .width("100%")
@@ -120,7 +118,7 @@ struct PcIndex {
   @Builder
   buildSharedFolder() {
     SharedFolderContent({
-      host: this.appContext.filesDir + '/' + this.sharedHost,
+      host: this.sharedHost,
       guest: this.sharedGuest
     })
   }
@@ -128,9 +126,8 @@ struct PcIndex {
 
 @Component
 struct PhoneOrTablet {
-  @Require rootFs: string
-  @Require sharedHost: string
-  @Require sharedGuest: string
+  @StorageProp(appOption.sharedHost) sharedHost: string = ''
+  @StorageProp(appOption.sharedGuest) sharedGuest: string = ''
   @State currentIndex: number = 0;
   private tabsController: TabsController = new TabsController();
   private appContext: common.ApplicationContext =
@@ -165,15 +162,13 @@ struct PhoneOrTablet {
       controller: this.tabsController
     }) {
       TabContent() {
-        WebTerminal({
-          showVirtKey: true, sharedFolder: this.sharedHost, rootFs: this.rootFs
-        })
+        WebTerminal({ showVirtKey: true })
       }
       .tabBar(this.tabBuilder($r('app.string.shell'), 0, $r('sys.symbol.house')))
 
       TabContent() {
         SharedFolderContent({
-          host: this.appContext.filesDir + '/' + this.sharedHost,
+          host: this.sharedHost,
           guest: this.sharedGuest
         })
       }
@@ -219,21 +214,9 @@ struct Index {
 
   build() {
     if (this.isPc) {
-      PcIndex({ rootFs: this.rootFs(), sharedHost: this.sharedHost(), sharedGuest: this.sharedGuest() })
+      PcIndex()
     } else {
-      PhoneOrTablet({ rootFs: this.rootFs(), sharedHost: this.sharedHost(), sharedGuest: this.sharedGuest() })
+      PhoneOrTablet()
     }
-  }
-
-  private sharedGuest() {
-    return this.use9pRootFs ? '/' : '/mnt/share'
-  }
-
-  private sharedHost() {
-    return this.use9pRootFs ? 'vm/rootfs' : 'share'
-  }
-
-  private rootFs() {
-    return this.use9pRootFs ? 'rootfs' : 'rootfs_aarch64.qcow2'
   }
 }

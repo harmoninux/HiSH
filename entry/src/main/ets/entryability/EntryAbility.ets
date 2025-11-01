@@ -7,6 +7,7 @@ import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
 import appOption, { PortMapping } from '../model/appOption'
+import napi from 'libentry.so';
 import {
   File,
   InputStream,
@@ -34,9 +35,11 @@ export default class EntryAbility extends UIAbility {
     const appContext = this.context.getApplicationContext();
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
 
-    await this.extractResourcesForVM(appContext, appPref);
+    await this.extractKernelAndRootFilesystem(appContext, appPref);
 
     await this.loadPreferences(appPref);
+
+    this.startVm(appContext);
 
     const bundleInfo =
       await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
@@ -63,6 +66,38 @@ export default class EntryAbility extends UIAbility {
     });
   }
 
+  private startVm(appContext: common.ApplicationContext) {
+
+    const cpuCount = AppStorage.get(appOption.cpuCountName) as number;
+    const memSize = AppStorage.get(appOption.memSizeName) as number;
+    const portMappingEnabled = AppStorage.get(appOption.portMappingEnabled) as boolean;
+    const portMapping = portMappingEnabled
+      ? JSON.parse(AppStorage.get(appOption.portMapping) as string) as PortMapping[]
+      : [];
+    const rootFilesystem = AppStorage.get(appOption.rootFilesystem) as string
+    const sharedFolder = AppStorage.get(appOption.sharedHost) as string
+    const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
+    const kernel = AppStorage.get(appOption.kernel) as string
+
+    hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
+      cpuCount, memSize, portMapping)
+
+    const options: napi.appOptions = {
+      bundleCodeDir: appContext.bundleCodeDir,
+      tempDir: appContext.tempDir,
+      filesDir: appContext.filesDir,
+      vmBaseDir: vmBaseDir,
+      cpuCount: cpuCount,
+      memSize: memSize,
+      portMapping: portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join(''),
+      rootFilesystem: rootFilesystem,
+      sharedFolder: sharedFolder,
+      kernel: kernel,
+      isPc: deviceInfo.deviceType === '2in1'
+    };
+    napi.startVM(options);
+  }
+
   private async loadPreferences(appPref: preference.Preferences) {
     const vmCpuCount = await appPref.get(appOption.cpuCountName, 1);
     const vmMemSize = await appPref.get(appOption.memSizeName, 512);
@@ -76,7 +111,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.portMapping, portMapping);
   }
 
-  private async extractResourcesForVM(appContext: common.ApplicationContext,
+  private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext,
     appPref: preference.Preferences): Promise<void> {
 
     const reset: boolean = await this.getResetFlag(appPref)
@@ -96,6 +131,16 @@ export default class EntryAbility extends UIAbility {
 
     const use9pRootFs = false
     AppStorage.setOrCreate(appOption.use9pRootFs, use9pRootFs)
+
+    const sharedGuest = use9pRootFs ? '/' : '/mnt/share'
+    const sharedHost = appContext.filesDir + '/' + (use9pRootFs ? 'vm/rootfs' : 'share')
+    const rootFilesystem = bundleVmDir + '/' + (use9pRootFs ? 'rootfs' : 'rootfs_aarch64.qcow2')
+    AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
+    AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
+    AppStorage.setOrCreate(appOption.rootFilesystem, rootFilesystem)
+
+    AppStorage.setOrCreate(appOption.vmBaseDir, bundleVmDir)
+    AppStorage.setOrCreate(appOption.kernel, bundleVmDir + '/kernel_aarch64')
 
     if (!use9pRootFs) {
       this.extractQcow2RootFs(appContext, reset);

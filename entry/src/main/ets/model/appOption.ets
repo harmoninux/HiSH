@@ -7,6 +7,12 @@ class appOption {
   static keepScreenOn = 'appKeepScreenOn'
   static resetLinuxFlag = 'resetLinuxAtStart'
   static use9pRootFs = 'use9pRootFs'
+
+  static vmBaseDir = 'vmBaseDir'
+  static sharedGuest = 'sharedGuest'
+  static sharedHost = 'sharedHost'
+  static rootFilesystem = 'rootFilesystem'
+  static kernel = 'kernel'
 }
 
 interface PortMapping {
