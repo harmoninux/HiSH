@@ -271,8 +271,6 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     bool isPc;
     napi_get_value_bool(env, nv_is_pc, &isPc);
 
-    auto qemuEntry = getQemuSystemEntry();
-
     std::string unixSocketPath = tempDir + "/serial_socket";
     OH_LOG_INFO(LOG_APP, "serial unix socket: %{public}s", unixSocketPath.c_str());
     if (access(unixSocketPath.c_str(), F_OK) == 0) {
@@ -286,7 +284,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     }
 
     std::thread vm_loop(
-        [qemuEntry, unixSocketPath, vmBaseDir, cpuCount, memSize, portMapping, sharedFolder, isPc, rootFilesystem, kernel]() {
+        [unixSocketPath, vmBaseDir, cpuCount, memSize, portMapping, sharedFolder, isPc, rootFilesystem, kernel]() {
             std::string unixSocketSerial = "unix:" + unixSocketPath + ",server,nowait";
             std::string cpu = std::to_string(cpuCount);
             std::string mem = std::to_string(memSize) + "M";
@@ -340,6 +338,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             OH_LOG_INFO(LOG_APP, "linux kernel: %{public}s", kernel.c_str());
             OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFilesystem.c_str());
 
+            auto qemuEntry = getQemuSystemEntry();
             qemuEntry(argc, args);
 
             //  cannot reach here
