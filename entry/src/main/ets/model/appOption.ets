@@ -13,6 +13,7 @@ class appOption {
   static sharedHost = 'sharedHost'
   static rootFilesystem = 'rootFilesystem'
   static kernel = 'kernel'
+  static portUsedByOthers = 'portUsedByOthers'
 }
 
 interface PortMapping {

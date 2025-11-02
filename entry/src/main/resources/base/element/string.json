@@ -171,6 +171,10 @@
     {
       "name": "copy_text",
       "value": "Copy text"
+    },
+    {
+      "name": "port_used_prompt",
+      "value": "Port %s used by other APPs, removed in port mapping"
     }
   ]
 }

@@ -171,6 +171,10 @@
     {
       "name": "copy_text",
       "value": "复制"
+    },
+    {
+      "name": "port_used_prompt",
+      "value": "端口%s被其它应用占用，已临时从端口映射中移除"
     }
   ]
 }

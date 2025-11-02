@@ -39,7 +39,7 @@ export default class EntryAbility extends UIAbility {
 
     await this.loadPreferences(appPref);
 
-    this.startVm(appContext);
+    await this.startVm(appContext);
 
     const bundleInfo =
       await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
@@ -66,18 +66,34 @@ export default class EntryAbility extends UIAbility {
     });
   }
 
-  private startVm(appContext: common.ApplicationContext) {
+  private async startVm(appContext: common.ApplicationContext) {
 
     const cpuCount = AppStorage.get(appOption.cpuCountName) as number;
     const memSize = AppStorage.get(appOption.memSizeName) as number;
     const portMappingEnabled = AppStorage.get(appOption.portMappingEnabled) as boolean;
-    const portMapping = portMappingEnabled
-      ? JSON.parse(AppStorage.get(appOption.portMapping) as string) as PortMapping[]
-      : [];
     const rootFilesystem = AppStorage.get(appOption.rootFilesystem) as string
     const sharedFolder = AppStorage.get(appOption.sharedHost) as string
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernel = AppStorage.get(appOption.kernel) as string
+
+    let portMapping: PortMapping[] = []
+    const portUsed: number[] = []
+    if (portMappingEnabled) {
+      const candidates = AppStorage.get(appOption.portMapping) as PortMapping[];
+      for (let i = 0; i < candidates.length; i++) {
+        let item = candidates[i];
+        let port: number = item.host!!;
+        const used = napi.checkPortUsed(port)
+        if (!used) {
+          portMapping.push(item)
+        } else {
+          portUsed.push(port)
+          hilog.info(DOMAIN, 'testTag', 'host port %{public}d of PortMapping is used by others', port)
+        }
+      }
+    }
+
+    AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed)
 
     hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
       cpuCount, memSize, portMapping)

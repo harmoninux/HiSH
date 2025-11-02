@@ -16,6 +16,9 @@
 #include <sys/un.h>
 #include <thread>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "hilog/log.h"
 #undef LOG_DOMAIN
@@ -288,7 +291,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             std::string unixSocketSerial = "unix:" + unixSocketPath + ",server,nowait";
             std::string cpu = std::to_string(cpuCount);
             std::string mem = std::to_string(memSize) + "M";
-            std::string portMappingOption = portMapping.empty() ? "user,id=eth0" : "user,id=eth0," + portMapping;
+            std::string portMappingOption = "user,id=eth0" + portMapping;
             std::string fsDev0Option = "local,security_model=mapped-file,id=fsdev0,path=" + sharedFolder;
 
             std::vector<std::string> basic = {"-machine",   "virt", "-cpu",    "cortex-a53", "-smp",
@@ -385,7 +388,7 @@ static napi_value onData(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value args[1] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-    
+
     napi_threadsafe_function data_callback;
 
     napi_value data_cb_name;
@@ -401,8 +404,78 @@ static napi_value onData(napi_env env, napi_callback_info info) {
         }
         on_data_callback = data_callback;
     }
-    
+
     return nullptr;
+}
+
+static napi_value bool_from_int(napi_env env, int v) {
+    napi_value result;
+    napi_get_boolean(env, v != 0, &result);
+    return result;
+}
+
+static napi_value checkPortUsed(napi_env env, napi_callback_info info) {
+
+    napi_status status;
+
+    size_t argc = 1;
+    napi_value argv[1];
+    status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+    if (status != napi_ok) {
+        return bool_from_int(env, 1);
+    }
+
+    if (argc < 1) {
+        return bool_from_int(env, 1);
+    }
+
+    // Ensure the argument is a number
+    napi_valuetype vt;
+    status = napi_typeof(env, argv[0], &vt);
+    if (status != napi_ok || (vt != napi_number)) {
+        return bool_from_int(env, 1);
+    }
+
+    double port_d;
+    status = napi_get_value_double(env, argv[0], &port_d);
+    if (status != napi_ok) {
+        return bool_from_int(env, 1);
+    }
+
+    if (!(port_d >= 0 && port_d <= 65535)) {
+        return bool_from_int(env, 1);
+    }
+
+    int port = (int)port_d;
+
+    // Create an IPv4 TCP socket
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return bool_from_int(env, 1);
+    }
+
+    // Prepare sockaddr_in for binding to INADDR_ANY:port
+    struct sockaddr_in sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = htonl(INADDR_ANY);
+    sa.sin_port = htons((uint16_t)port);
+
+    int bind_res = bind(sock, (struct sockaddr *)&sa, sizeof(sa));
+    if (bind_res == 0) {
+        close(sock);
+        return bool_from_int(env, 0);
+    } else {
+        int err = errno;
+        close(sock);
+        if (err == EADDRINUSE) {
+            return bool_from_int(env, 1);
+        } else if (err == EACCES) {
+            return bool_from_int(env, 1);
+        } else {
+            return bool_from_int(env, 1);
+        }
+    }
 }
 
 EXTERN_C_START
@@ -410,7 +483,8 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
         {"startVM", nullptr, startVM, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onData", nullptr, onData, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"sendInput", nullptr, sendInput, nullptr, nullptr, nullptr, napi_default, nullptr}};
+        {"sendInput", nullptr, sendInput, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"checkPortUsed", nullptr, checkPortUsed, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
 }

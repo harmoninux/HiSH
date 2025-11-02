@@ -1,11 +1,12 @@
 import { common } from "@kit.AbilityKit"
-import { CustomContentDialog } from '@kit.ArkUI';
+import { CustomContentDialog, PromptAction } from '@kit.ArkUI';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import WebTerminal from '../components/WebTerminal'
 import SettingsContent from '../components/SettingsContent';
 import { SharedFolderContent } from '../components/SharedFolderContent';
 import { PortMappingContent } from "../components/PortMappingContent";
 import appOption from "../model/appOption";
+import { util } from "@kit.ArkTS";
 
 @Component
 struct PcIndex {
@@ -185,7 +186,7 @@ struct PhoneOrTablet {
             .fontSize(23)
             .height(56)
             .width('100%')
-            .padding({left: 20, right: 20})
+            .padding({ left: 20, right: 20 })
           SettingsContent()
         }
         .width('100%')
@@ -207,9 +208,26 @@ struct PhoneOrTablet {
 struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
   @StorageProp(appOption.use9pRootFs) use9pRootFs: boolean = false
+  private uiContext: UIContext = this.getUIContext();
+  private promptAction: PromptAction = this.uiContext.getPromptAction();
 
   aboutToAppear(): void {
     // webview.WebviewController.setWebDebuggingAccess(true)
+    const promptFormat = this.uiContext
+      .getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt')
+    const portUsedByOthers = AppStorage.get(appOption.portUsedByOthers) as number[]
+    if (portUsedByOthers.length > 0) {
+      try {
+        const ports = portUsedByOthers.map(i => i.toString()).join(',')
+        const prompt = util.format(promptFormat, ports)
+        this.promptAction.showToast({
+          message: prompt,
+          duration: 4000
+        })
+      } catch (e) {
+        console.error(`showToast error`, e);
+      }
+    }
   }
 
   build() {
