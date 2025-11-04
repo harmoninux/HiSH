@@ -141,6 +141,10 @@
       "value": "导入文件"
     },
     {
+      "name": "export_file_from_shared_folder",
+      "value": "导出文件"
+    },
+    {
       "name": "importing_file_to_shared_folder",
       "value": "正在导入文件..."
     },
@@ -191,6 +195,22 @@
     {
       "name": "create_folder",
       "value": "新建文件夹"
+    },
+    {
+      "name": "input_folder_name",
+      "value": "输入文件夹名称"
+    },
+    {
+      "name": "copy_guest_path",
+      "value": "复制HiSH路径"
+    },
+    {
+      "name": "guest_path_copied_prompt",
+      "value": "路径 %s 已复制到剪贴板"
+    },
+    {
+      "name": "open_file",
+      "value": "打开文件"
     }
   ]
 }

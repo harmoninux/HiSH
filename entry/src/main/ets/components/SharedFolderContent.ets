@@ -1,8 +1,11 @@
-import { common } from "@kit.AbilityKit"
-import { picker } from '@kit.CoreFileKit';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { Want, common, wantConstant } from "@kit.AbilityKit"
+import { fileUri, picker } from '@kit.CoreFileKit';
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { CustomContentDialog, LoadingDialog } from "@kit.ArkUI";
+import { CustomContentDialog, LoadingDialog, PromptAction } from "@kit.ArkUI";
+import { pasteboard } from '@kit.BasicServicesKit'
 import validateFolderName from '../lib/validateFolderName'
+import { util } from "@kit.ArkTS";
 
 enum Type {
   Folder = 0,
@@ -44,6 +47,8 @@ export struct SharedFolderContent {
     })
   })
   scroller: Scroller = new ListScroller()
+  private uiContext: UIContext = this.getUIContext();
+  private promptAction: PromptAction = this.uiContext.getPromptAction();
 
   async aboutToAppear() {
     this.current = [this.host];
@@ -55,12 +60,12 @@ export struct SharedFolderContent {
     Column() {
       TextInput({
         text: this.tempFolderName,
-        placeholder: '输入文件夹名称'
+        placeholder: $r('app.string.input_folder_name')
       })
         .onChange((value) => {
           this.tempFolderName = value;
         })
-      Button('完成')
+      Button($r('app.string.SettingComplete_label'))
         .margin({ top: 10 })
         .width('100%')
         .enabled(validateFolderName(this.tempFolderName))
@@ -114,12 +119,31 @@ export struct SharedFolderContent {
             .layoutWeight(1)
 
             if (item.type === Type.File) {
-              SymbolGlyph($r('sys.symbol.save'))
+              SymbolGlyph($r('sys.symbol.dot_grid_1x2'))
                 .fontSize(24)
                 .fontColor([$r('sys.color.icon_secondary')])
                 .margin({ right: 8 })
                 .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
-                .onClick(() => this.saveFile(item.name))
+                .bindMenu([{
+                  value: $r('app.string.open_file'),
+                  action: () => this.openFile(item.name)
+                }, {
+                  value: $r('app.string.export_file_from_shared_folder'),
+                  action: () => this.saveFile(item.name)
+                }, {
+                  value: $r('app.string.copy_guest_path'),
+                  action: () => this.copyGuestPath(item.name)
+                }])
+            } else if (item.type == Type.Folder) {
+              SymbolGlyph($r('sys.symbol.dot_grid_1x2'))
+                .fontSize(24)
+                .fontColor([$r('sys.color.icon_secondary')])
+                .margin({ right: 8 })
+                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
+                .bindMenu([{
+                  value: $r('app.string.copy_guest_path'),
+                  action: () => this.copyGuestPath(item.name)
+                }])
             }
           }
           .height(56)
@@ -139,6 +163,43 @@ export struct SharedFolderContent {
     .borderRadius(12)
     .margin({ left: 8, right: 4, bottom: 8 })
     .scrollBarWidth(1)
+  }
+
+  openFile(name: string): void {
+    const srcPath = [...this.current, decodeURI(name)].join('/')
+    const uri = fileUri.getUriFromPath(srcPath)
+    let want: Want = {
+      action: 'ohos.want.action.viewData',
+      uri: uri,
+      flags: wantConstant.Flags.FLAG_AUTH_WRITE_URI_PERMISSION
+    }
+    let context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    context.startAbility(want)
+      .then(() => {
+        console.info('Succeed to invoke startAbility.');
+      })
+      .catch((err: BusinessError) => {
+        console.error(`Failed to invoke startAbility, code: ${err.code}, message: ${err.message}`);
+      });
+  }
+
+  async copyGuestPath(name: string): Promise<void> {
+    const guest = [this.guest, ...this.current.slice(1), name].join('/')
+    try {
+      const board = pasteboard.getSystemPasteboard()
+      const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, guest)
+      await board.setData(pasteData)
+
+      const promptFormat = this.uiContext
+        .getHostContext()?.resourceManager.getStringByNameSync('guest_path_copied_prompt')
+      const prompt = util.format(promptFormat, guest)
+      this.promptAction.showToast({
+        message: prompt,
+        duration: 4000
+      })
+    } catch (e) {
+      console.log('error copy to clipboard ' + guest, e)
+    }
   }
 
   build() {
@@ -168,7 +229,7 @@ export struct SharedFolderContent {
           .margin({ right: 5 })
           .onClick(() => this.refreshFileList())
 
-        SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+        SymbolGlyph($r('sys.symbol.dot_grid_1x2'))
           .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
           .padding(4)
@@ -176,20 +237,18 @@ export struct SharedFolderContent {
           .hoverEffect(HoverEffect.Highlight)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .margin({ right: 5 })
-          .onClick(() => {
-            this.tempFolderName = ''
-            this.createFolderController.open()
-          })
-
-        SymbolGlyph($r('sys.symbol.plus'))
-          .fontSize(24)
-          .fontColor([$r('sys.color.icon_secondary')])
-          .padding(4)
-          .borderRadius(4)
-          .hoverEffect(HoverEffect.Highlight)
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
-          .margin({ right: 5 })
-          .onClick(() => this.importFileToCurrent())
+          .bindMenu([{
+            value: $r('app.string.create_folder'),
+            action: () => {
+              this.tempFolderName = ''
+              this.createFolderController.open()
+            }
+          }, {
+            value: $r('app.string.import_file_to_shared_folder'),
+            action: () => {
+              this.importFileToCurrent()
+            }
+          }])
       }
       .height(56)
 

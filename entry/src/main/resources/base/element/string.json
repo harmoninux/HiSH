@@ -191,6 +191,26 @@
     {
       "name": "create_folder",
       "value": "New folder"
+    },
+    {
+      "name": "input_folder_name",
+      "value": "Input folder name"
+    },
+    {
+      "name": "export_file_from_shared_folder",
+      "value": "Export file"
+    },
+    {
+      "name": "copy_guest_path",
+      "value": "Copy guest path"
+    },
+    {
+      "name": "guest_path_copied_prompt",
+      "value": "Path %s is copied to clipboard"
+    },
+    {
+      "name": "open_file",
+      "value": "Open file"
     }
   ]
 }
