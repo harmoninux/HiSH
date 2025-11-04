@@ -349,6 +349,8 @@ export struct SharedFolderContent {
     if (e.type === Type.Folder) {
       this.current.push(e.name)
       await this.refreshFileList()
+    } else if(e.type == Type.File) {
+      this.openFile(e.name)
     }
   }
 
