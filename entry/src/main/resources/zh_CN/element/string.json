@@ -175,6 +175,22 @@
     {
       "name": "port_used_prompt",
       "value": "端口%s被其它应用占用，已临时从端口映射中移除"
+    },
+    {
+      "name": "confirm_remove",
+      "value": "确认删除"
+    },
+    {
+      "name": "confirm_remove_port_mapping",
+      "value": "确定移除该端口映射配置？"
+    },
+    {
+      "name": "setting_generic_confirm",
+      "value": "确认"
+    },
+    {
+      "name": "create_folder",
+      "value": "新建文件夹"
     }
   ]
 }

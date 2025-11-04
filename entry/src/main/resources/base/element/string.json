@@ -175,6 +175,22 @@
     {
       "name": "port_used_prompt",
       "value": "Port %s used by other APPs, removed in port mapping"
+    },
+    {
+      "name": "confirm_remove",
+      "value": "Confirm remove"
+    },
+    {
+      "name": "confirm_remove_port_mapping",
+      "value": "Confirm to remove this port mapping item?"
+    },
+    {
+      "name": "setting_generic_confirm",
+      "value": "Confirm"
+    },
+    {
+      "name": "create_folder",
+      "value": "New folder"
     }
   ]
 }

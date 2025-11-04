@@ -1,7 +1,8 @@
 import { common } from "@kit.AbilityKit"
 import { picker } from '@kit.CoreFileKit';
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { LoadingDialog } from "@kit.ArkUI";
+import { CustomContentDialog, LoadingDialog } from "@kit.ArkUI";
+import validateFolderName from '../lib/validateFolderName'
 
 enum Type {
   Folder = 0,
@@ -23,6 +24,7 @@ export struct SharedFolderContent {
   @Require @Prop guest: string
   @State files: Entry[] = []
   @State current: string[] = []
+  @State tempFolderName: string = ''
   importProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.importing_file_to_shared_folder'),
@@ -33,11 +35,39 @@ export struct SharedFolderContent {
       content: $r('app.string.exporting_file_to_shared_folder'),
     }),
   })
+  createFolderController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.create_folder'),
+      contentBuilder: () => {
+        this.buildNewFolderContent()
+      }
+    })
+  })
   scroller: Scroller = new ListScroller()
 
   async aboutToAppear() {
     this.current = [this.host];
     await this.refreshFileList();
+  }
+
+  @Builder
+  buildNewFolderContent() {
+    Column() {
+      TextInput({
+        text: this.tempFolderName,
+        placeholder: '输入文件夹名称'
+      })
+        .onChange((value) => {
+          this.tempFolderName = value;
+        })
+      Button('完成')
+        .margin({ top: 10 })
+        .width('100%')
+        .enabled(validateFolderName(this.tempFolderName))
+        .onClick(async () => {
+          await this.createFolderToCurrent()
+        })
+    }
   }
 
   @Builder
@@ -138,6 +168,19 @@ export struct SharedFolderContent {
           .margin({ right: 5 })
           .onClick(() => this.refreshFileList())
 
+        SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+          .fontSize(24)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .padding(4)
+          .borderRadius(4)
+          .hoverEffect(HoverEffect.Highlight)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
+          .margin({ right: 5 })
+          .onClick(() => {
+            this.tempFolderName = ''
+            this.createFolderController.open()
+          })
+
         SymbolGlyph($r('sys.symbol.plus'))
           .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
@@ -228,6 +271,19 @@ export struct SharedFolderContent {
     } finally {
       this.importProgress.close()
     }
+  }
+
+  async createFolderToCurrent() {
+    const name = this.tempFolderName
+    const destPath = [...this.current, name].join('/')
+    try {
+      fs.mkdirSync(destPath)
+    } catch (e) {
+      console.log('error creating folder ' + destPath, e)
+    }
+    this.tempFolderName = ''
+    this.createFolderController.close()
+    this.refreshFileList()
   }
 
   private async openFileEntry(e: Entry) {

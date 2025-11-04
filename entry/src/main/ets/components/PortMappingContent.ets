@@ -3,26 +3,60 @@ import preference from '@ohos.data.preferences';
 import { PortMapping } from '../model/appOption'
 import { JSON, util } from '@kit.ArkTS';
 import appOption from '../model/appOption';
+import { AlertDialog } from "@kit.ArkUI";
+
+interface PortMappingItem {
+  id: string
+  model: PortMapping
+}
 
 const DEFAULT_MAPPING: PortMapping[] = [{ host: 2222, guest: 22 }, { host: 8080, guest: 80 }]
 
 @Component
 export struct PortMappingContent {
   @Watch('savePortMapping') @State vmPortMappingEnabled: boolean = false
-  @Watch('savePortMapping') @State portMappings: PortMapping[] = []
+  @Watch('savePortMapping') @State portMappings: PortMappingItem[] = []
+  @State indexToRemove: number = -1
   context = this.getUIContext().getHostContext() as common.UIAbilityContext
   preferences?: preference.Preferences
+  confirmController: CustomDialogController = new CustomDialogController({
+    builder: AlertDialog({
+      primaryTitle: $r('app.string.confirm_remove'),
+      content: $r('app.string.confirm_remove_port_mapping'),
+      primaryButton: {
+        value: $r('app.string.setting_generic_cancel'),
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: $r('app.string.setting_generic_confirm'),
+        role: ButtonRole.ERROR,
+        action: () => {
+          if (this.indexToRemove >= 0) {
+            this.removePortMappingItem(this.indexToRemove)
+            this.indexToRemove = -1
+          }
+        }
+      }
+    })
+  })
 
   async aboutToAppear() {
     this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
 
     const json = await this.preferences!.get(appOption.portMapping, JSON.stringify(DEFAULT_MAPPING)) as string;
     this.vmPortMappingEnabled = await this.preferences!.get(appOption.portMappingEnabled, false) as boolean
-    this.portMappings = JSON.parse(json) as PortMapping[]
+    const parsed: PortMapping[] = JSON.parse(json) as PortMapping[];
+
+    this.portMappings = parsed.map(it => {
+      const id = util.generateRandomUUID()
+      return { id, model: it } as PortMappingItem
+    })
   }
 
   private addPortMapping() {
-    this.portMappings.push({});
+    const id = util.generateRandomUUID()
+    this.portMappings.push({ id, model: {} });
   }
 
   build() {
@@ -64,19 +98,18 @@ export struct PortMappingContent {
       .height(56)
 
       List() {
-        ForEach(this.portMappings, (item: PortMapping, index) => {
-          this.buildPortMappingItem(item, (host) => {
+        ForEach(this.portMappings, (item: PortMappingItem, index) => {
+          this.buildPortMappingItem(item.model, (host) => {
             const it = this.portMappings[index]
-            this.replacePortMapping(index, { host, guest: it.guest })
+            this.replacePortMapping(index, { id: it.id, model: { host, guest: it.model.guest } })
           }, (guest) => {
             const it = this.portMappings[index]
-            this.replacePortMapping(index, { guest, host: it.host });
+            this.replacePortMapping(index, { id: it.id, model: { guest, host: it.model.host } });
           }, () => {
-            const copy = [...this.portMappings]
-            copy.splice(index, 1)
-            this.portMappings = copy
+            this.indexToRemove = index
+            this.confirmController.open()
           })
-        }, (_item: PortMapping, index) => 'port-mapping-' + index)
+        }, (item: PortMappingItem, index) => 'pm-' + item.id)
       }
       .layoutWeight(1)
       .divider({
@@ -130,6 +163,12 @@ export struct PortMappingContent {
     }
   }
 
+  private removePortMappingItem(index: number) {
+    const copy = [...this.portMappings];
+    copy.splice(index, 1);
+    this.portMappings = copy;
+  }
+
   @Builder
   buildPortMappingItem(
     item: PortMapping,
@@ -181,25 +220,26 @@ export struct PortMappingContent {
 
   async savePortMapping() {
     if (!this.portMappingError()) {
-      const json = JSON.stringify(this.portMappings)
+      const json = JSON.stringify(this.portMappings.map(it => it.model))
       await this.preferences!.put(appOption.portMappingEnabled, this.vmPortMappingEnabled)
       await this.preferences!.put(appOption.portMapping, json)
       await this.preferences!.flush()
     }
   }
 
-  private replacePortMapping(index: number, up: PortMapping) {
+  private replacePortMapping(index: number, up: PortMappingItem) {
     const copy = this.portMappings.map((el, i) => i === index ? up : el);
     this.portMappings = copy;
   }
 
   addPortMappingEnabled(): boolean {
-    const invalid = this.portMappings.filter(it => !(it.guest && it.host));
+    const invalid = this.portMappings.map(it => it.model).filter(it => !(it.guest && it.host));
     return invalid.length === 0;
   }
 
   portMappingError(): string | Resource | undefined {
-    let i = this.portMappings
+    let mappings = this.portMappings.map(it => it.model);
+    let i = mappings
       .findIndex(it => {
         return !(it.guest && it.host)
       })
@@ -208,7 +248,7 @@ export struct PortMappingContent {
       return util.format(temp, (i + 1))
     }
 
-    i = this.portMappings
+    i = mappings
       .findIndex(it => {
         return (it.host || 0) <= 1000
       })
@@ -217,8 +257,8 @@ export struct PortMappingContent {
       return util.format(temp, (i + 1))
     }
 
-    const guestPorts = new Set(this.portMappings.map(it => it.guest))
-    const hostPorts = new Set(this.portMappings.map(it => it.host))
+    const guestPorts = new Set(mappings.map(it => it.guest))
+    const hostPorts = new Set(mappings.map(it => it.host))
     if (guestPorts.size < this.portMappings.length || hostPorts.size < this.portMappings.length) {
       return $r('app.string.setting_duplicated_port')
     }
