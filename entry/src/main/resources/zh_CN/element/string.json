@@ -211,6 +211,18 @@
     {
       "name": "open_file",
       "value": "打开文件"
+    },
+    {
+      "name": "add_freq_used_port",
+      "value": "添加常用端口"
+    },
+    {
+      "name": "select_freq_used_port",
+      "value": "选择常见端口"
+    },
+    {
+      "name": "fre_used_port_duplicated",
+      "value": "%s 与 %d:%d 冲突"
     }
   ]
 }

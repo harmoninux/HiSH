@@ -3,20 +3,64 @@ import preference from '@ohos.data.preferences';
 import { PortMapping } from '../model/appOption'
 import { JSON, util } from '@kit.ArkTS';
 import appOption from '../model/appOption';
-import { AlertDialog } from "@kit.ArkUI";
+import { AlertDialog, PromptAction, SelectDialog } from "@kit.ArkUI";
 
 interface PortMappingItem {
   id: string
   model: PortMapping
 }
 
+interface MappingCandidate {
+  name: ResourceStr
+  host: number
+  guest: number
+}
+
 const DEFAULT_MAPPING: PortMapping[] = [{ host: 2222, guest: 22 }, { host: 8080, guest: 80 }]
+const CANDIDATES: MappingCandidate[] = [{
+  name: 'SSH',
+  guest: 22,
+  host: 2222
+}, {
+  name: 'HTTP',
+  guest: 80,
+  host: 8000
+}, {
+  name: 'HTTPS',
+  guest: 443,
+  host: 1443
+}, {
+  name: 'MySQL',
+  guest: 3306,
+  host: 3306
+}, {
+  name: 'RDP',
+  guest: 3389,
+  host: 3389
+}, {
+  name: 'VNC',
+  guest: 5900,
+  host: 5900
+}, {
+  name: 'SMB',
+  guest: 445,
+  host: 1445
+}, {
+  name: 'SMTP',
+  guest: 25,
+  host: 1025
+}, {
+  name: 'Telnet',
+  guest: 23,
+  host: 1023
+}]
 
 @Component
 export struct PortMappingContent {
   @Watch('savePortMapping') @State vmPortMappingEnabled: boolean = false
   @Watch('savePortMapping') @State portMappings: PortMappingItem[] = []
   @State indexToRemove: number = -1
+  @Watch('onCandidateToAdd') @State candidateToAdd: number | undefined = undefined
   context = this.getUIContext().getHostContext() as common.UIAbilityContext
   preferences?: preference.Preferences
   confirmController: CustomDialogController = new CustomDialogController({
@@ -40,6 +84,24 @@ export struct PortMappingContent {
       }
     })
   })
+  portCandidatesController: CustomDialogController = new CustomDialogController({
+    builder: SelectDialog({
+      title: $r('app.string.select_freq_used_port'),
+      selectedIndex: this.candidateToAdd,
+      confirm: {
+        value: $r('app.string.setting_generic_cancel'),
+        action: () => {
+        },
+      },
+      radioContent: CANDIDATES.map((c, i) => ({
+        title: util.format('%s(%d:%d)', c.name, c.guest, c.host),
+        action: () => {
+          this.candidateToAdd = i
+        }
+      } as SheetInfo))
+    })
+  })
+  private promptAction: PromptAction = this.getUIContext().getPromptAction();
 
   async aboutToAppear() {
     this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
@@ -94,6 +156,19 @@ export struct PortMappingContent {
               this.addPortMapping();
             }
           })
+        SymbolGlyph($r('sys.symbol.dot_grid_1x2'))
+          .fontSize(24)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .margin({ right: 8 })
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
+          .bindMenu([{
+            enabled: !this.portMappingError(),
+            value: $r('app.string.add_freq_used_port'),
+            action: () => {
+              this.candidateToAdd = undefined
+              this.portCandidatesController.open()
+            }
+          }])
       }
       .height(56)
 
@@ -244,7 +319,7 @@ export struct PortMappingContent {
         return !(it.guest && it.host)
       })
     if (i >= 0) {
-      const temp = this.context.resourceManager.getStringSync($r('app.string.setting_incomplete_port_mapping'))
+      const temp = this.getResourceString('setting_incomplete_port_mapping')
       return util.format(temp, (i + 1))
     }
 
@@ -253,7 +328,7 @@ export struct PortMappingContent {
         return (it.host || 0) <= 1000
       })
     if (i >= 0) {
-      const temp = this.context.resourceManager.getStringSync($r('app.string.setting_port_should_larger'))
+      const temp = this.getResourceString('setting_port_should_larger')
       return util.format(temp, (i + 1))
     }
 
@@ -264,5 +339,32 @@ export struct PortMappingContent {
     }
 
     return undefined
+  }
+
+  onCandidateToAdd() {
+    if (this.candidateToAdd !== undefined) {
+
+      const c: MappingCandidate = CANDIDATES[this.candidateToAdd!!]
+      const exist = this.portMappings.map(p => p.model)
+      const duplicated = exist.find(p => p.guest === c.guest || p.host === c.host)
+      if (duplicated) {
+        const promptFormat = this.getResourceString('fre_used_port_duplicated')
+        this.promptAction.showToast({
+          message: util.format(promptFormat, c.name, duplicated.guest, duplicated.host),
+          duration: 3000
+        })
+      } else {
+        const id: string = util.generateRandomUUID();
+        this.portMappings.push({
+          id: id,
+          model: { host: c.host, guest: c.guest }
+        })
+      }
+    }
+  }
+
+  private getResourceString(name: string): string | undefined {
+    return this.getUIContext()
+      .getHostContext()?.resourceManager.getStringByNameSync(name);
   }
 }

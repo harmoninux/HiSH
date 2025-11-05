@@ -211,6 +211,18 @@
     {
       "name": "open_file",
       "value": "Open file"
+    },
+    {
+      "name": "add_freq_used_port",
+      "value": "Add frequently used ports"
+    },
+    {
+      "name": "select_freq_used_port",
+      "value": "Choose frequently used port"
+    },
+    {
+      "name": "fre_used_port_duplicated",
+      "value": "Conflict between %s and %d:%d"
     }
   ]
 }
