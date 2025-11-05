@@ -15,6 +15,7 @@ import {
   TarArchiveEntry,
   TarArchiveInputStream
 } from '@ohos/commons-compress';
+import { startVm } from '../lib/startVm';
 
 const DOMAIN = 0x0000;
 
@@ -100,25 +101,16 @@ export default class EntryAbility extends UIAbility {
 
     const serialUnixSocket = appContext.tempDir + '/serial_socket'
 
-    const basic = ['-machine', 'virt', '-cpu', 'cortex-a53', '-nographic', '-L', vmBaseDir]
-    const serial = ['-serial', "unix:" + serialUnixSocket + ",server,nowait"]
-    const cpuMem = ['-smp', cpuCount.toString(), '-m', memSize + 'M']
-    const kernel = ['-kernel', kernelFile]
-    const network = ['-netdev', "user,id=eth0" + portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('')]
-    const shared = ["-device", "virtio-net-device,netdev=eth0",
-      "-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + sharedFolder,
-      "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
-    const drive = ["-drive", "if=none,format=qcow2,file=" + rootFilesystem + ",id=hd0", "-device", "virtio-blk-device,drive=hd0"]
-    const kernelParam = ["-append",
-      "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi"]
-
-    const args = ['qemu-system-aarch64', ...basic, ...serial, ...cpuMem, ...kernel, ...network, ...shared, ...drive, ...kernelParam]
-
-    const options: napi.appOptions = {
-      argsLines: args.join('\n'),
-      unixSocket: serialUnixSocket
-    };
-    napi.startVM(options);
+    startVm({
+      baseDir: vmBaseDir,
+      cpu: cpuCount,
+      memory: memSize,
+      portMapping: portMapping,
+      kernel: kernelFile,
+      rootFilesystem,
+      sharedFolder,
+      serialUnixSocket
+    })
   }
 
   private async loadPreferences(appPref: preference.Preferences) {

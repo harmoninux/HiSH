@@ -237,12 +237,6 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     std::vector<std::string> argsVector = splitStringByNewline(argsLines);
 
     std::string unixSocket = getString(env, nv_unix_socket);
-    
-    OH_LOG_INFO(LOG_APP, "serial unix socket: %{public}s", unixSocket.c_str());
-    if (access(unixSocket.c_str(), F_OK) == 0) {
-        OH_LOG_INFO(LOG_APP, "remove exist unix socket: %{public}s", unixSocket.c_str());
-        unlink(unixSocket.c_str());
-    }
 
     OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}s", argsLines.c_str());
 
