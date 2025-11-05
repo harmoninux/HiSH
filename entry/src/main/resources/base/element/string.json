@@ -166,7 +166,7 @@
     },
     {
       "name": "restart_hish_to_apply_changes",
-      "value": "You should restart HiSH to apply changes"
+      "value": "Port mapping saved, will applied after HiSH restarted"
     },
     {
       "name": "copy_text",

@@ -170,7 +170,7 @@
     },
     {
       "name": "restart_hish_to_apply_changes",
-      "value": "重启HiSH后生效"
+      "value": "端口配置已保存，将在HiSH重启后生效"
      },
     {
       "name": "copy_text",

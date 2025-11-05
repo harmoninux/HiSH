@@ -4,6 +4,7 @@ import { PortMapping } from '../model/appOption'
 import { JSON, util } from '@kit.ArkTS';
 import appOption from '../model/appOption';
 import { AlertDialog, PromptAction, SelectDialog } from "@kit.ArkUI";
+import deepEquals from '../lib/deepEquals';
 
 interface PortMappingItem {
   id: string
@@ -16,7 +17,12 @@ interface MappingCandidate {
   guest: number
 }
 
-const DEFAULT_MAPPING: PortMapping[] = [{ host: 2222, guest: 22 }, { host: 8080, guest: 80 }]
+interface LastSavedPref {
+  vmPortMappingEnabled: boolean
+  portMappings: PortMapping[]
+}
+
+const DEFAULT_MAPPING: PortMapping[] = [{ host: 2222, guest: 22 }, { host: 8000, guest: 80 }]
 const CANDIDATES: MappingCandidate[] = [{
   name: 'SSH',
   guest: 22,
@@ -59,6 +65,8 @@ const CANDIDATES: MappingCandidate[] = [{
 export struct PortMappingContent {
   @Watch('savePortMapping') @State vmPortMappingEnabled: boolean = false
   @Watch('savePortMapping') @State portMappings: PortMappingItem[] = []
+  @State lastSaved: LastSavedPref = { vmPortMappingEnabled: false, portMappings: [] }
+  @State initialized: boolean = false
   @State indexToRemove: number = -1
   @Watch('onCandidateToAdd') @State candidateToAdd: number | undefined = undefined
   context = this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -107,13 +115,19 @@ export struct PortMappingContent {
     this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
 
     const json = await this.preferences!.get(appOption.portMapping, JSON.stringify(DEFAULT_MAPPING)) as string;
-    this.vmPortMappingEnabled = await this.preferences!.get(appOption.portMappingEnabled, false) as boolean
-    const parsed: PortMapping[] = JSON.parse(json) as PortMapping[];
 
-    this.portMappings = parsed.map(it => {
+    const portMappings: PortMapping[] = JSON.parse(json) as PortMapping[];
+    const vmPortMappingEnabled = await this.preferences!.get(appOption.portMappingEnabled, false) as boolean
+
+    this.lastSaved = { vmPortMappingEnabled, portMappings }
+
+    this.portMappings = portMappings.map(it => {
       const id = util.generateRandomUUID()
       return { id, model: it } as PortMappingItem
     })
+    this.vmPortMappingEnabled = vmPortMappingEnabled
+
+    this.initialized = true
   }
 
   private addPortMapping() {
@@ -201,10 +215,6 @@ export struct PortMappingContent {
           Text(this.portMappingError())
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.alert'))
-        } else {
-          Text($r('app.string.restart_hish_to_apply_changes'))
-            .fontSize($r('sys.float.Body_M'))
-            .fontColor($r('sys.color.icon_secondary'))
         }
 
         Row() {
@@ -295,10 +305,24 @@ export struct PortMappingContent {
 
   async savePortMapping() {
     if (!this.portMappingError()) {
-      const json = JSON.stringify(this.portMappings.map(it => it.model))
-      await this.preferences!.put(appOption.portMappingEnabled, this.vmPortMappingEnabled)
-      await this.preferences!.put(appOption.portMapping, json)
-      await this.preferences!.flush()
+
+      const portMappings: PortMapping[] = this.portMappings.map(it => it.model)
+      const current: LastSavedPref = { vmPortMappingEnabled: this.vmPortMappingEnabled, portMappings }
+
+      if (!deepEquals(current, this.lastSaved)) {
+
+        const json = JSON.stringify(portMappings)
+        await this.preferences!.put(appOption.portMappingEnabled, this.vmPortMappingEnabled)
+        await this.preferences!.put(appOption.portMapping, json)
+        await this.preferences!.flush()
+
+        this.lastSaved = { vmPortMappingEnabled: this.vmPortMappingEnabled, portMappings }
+
+        this.promptAction.showToast({
+          message: $r('app.string.restart_hish_to_apply_changes'),
+          duration: 3000
+        })
+      }
     }
   }
 
