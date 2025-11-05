@@ -74,7 +74,7 @@ export default class EntryAbility extends UIAbility {
     const rootFilesystem = AppStorage.get(appOption.rootFilesystem) as string
     const sharedFolder = AppStorage.get(appOption.sharedHost) as string
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
-    const kernel = AppStorage.get(appOption.kernel) as string
+    const kernelFile = AppStorage.get(appOption.kernel) as string
 
     let portMapping: PortMapping[] = []
     const portUsed: number[] = []
@@ -98,18 +98,25 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
       cpuCount, memSize, portMapping)
 
+    const serialUnixSocket = appContext.tempDir + '/serial_socket'
+
+    const basic = ['-machine', 'virt', '-cpu', 'cortex-a53', '-nographic', '-L', vmBaseDir]
+    const serial = ['-serial', "unix:" + serialUnixSocket + ",server,nowait"]
+    const cpuMem = ['-smp', cpuCount.toString(), '-m', memSize + 'M']
+    const kernel = ['-kernel', kernelFile]
+    const network = ['-netdev', "user,id=eth0" + portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('')]
+    const shared = ["-device", "virtio-net-device,netdev=eth0",
+      "-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + sharedFolder,
+      "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
+    const drive = ["-drive", "if=none,format=qcow2,file=" + rootFilesystem + ",id=hd0", "-device", "virtio-blk-device,drive=hd0"]
+    const kernelParam = ["-append",
+      "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi"]
+
+    const args = ['qemu-system-aarch64', ...basic, ...serial, ...cpuMem, ...kernel, ...network, ...shared, ...drive, ...kernelParam]
+
     const options: napi.appOptions = {
-      bundleCodeDir: appContext.bundleCodeDir,
-      tempDir: appContext.tempDir,
-      filesDir: appContext.filesDir,
-      vmBaseDir: vmBaseDir,
-      cpuCount: cpuCount,
-      memSize: memSize,
-      portMapping: portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join(''),
-      rootFilesystem: rootFilesystem,
-      sharedFolder: sharedFolder,
-      kernel: kernel,
-      isPc: deviceInfo.deviceType === '2in1'
+      argsLines: args.join('\n'),
+      unixSocket: serialUnixSocket
     };
     napi.startVM(options);
   }

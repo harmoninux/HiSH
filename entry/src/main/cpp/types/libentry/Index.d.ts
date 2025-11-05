@@ -1,15 +1,6 @@
 export type appOptions = {
-  bundleCodeDir: string
-  tempDir: string
-  filesDir: string
-  vmBaseDir: string
-  cpuCount: number
-  memSize: number
-  portMapping: string,
-  rootFilesystem: string,
-  kernel: string,
-  sharedFolder: string,
-  isPc: boolean
+  argsLines: string
+  unixSocket: string
 }
 
 export const startVM: (options: appOptions) => void;

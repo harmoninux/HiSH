@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -206,10 +207,14 @@ std::string getString(napi_env env, napi_value value) {
     return result;
 }
 
-static void append_args(std::vector<std::string> &out, const std::vector<std::string> &partial) {
-    for (auto &v : partial) {
-        out.push_back(v);
+std::vector<std::string> splitStringByNewline(const std::string &input) {
+    std::vector<std::string> result;
+    std::istringstream iss(input);
+    std::string line;
+    while (std::getline(iss, line)) {
+        result.push_back(line);
     }
+    return result;
 }
 
 static napi_value startVM(napi_env env, napi_callback_info info) {
@@ -219,137 +224,47 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     napi_value key_name;
-    napi_value nv_temp_dir;
-    napi_value nv_files_dir;
-    napi_value nv_cpu_count;
-    napi_value nv_mem_size;
-    napi_value nv_port_mapping;
-    napi_value nv_is_pc;
-    napi_value nv_root_fs;
-    napi_value nv_shared_folder;
-    napi_value nv_vm_base;
-    napi_value nv_kernel;
+    napi_value nv_arg_lines;
+    napi_value nv_unix_socket;
 
-    napi_create_string_utf8(env, "tempDir", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_temp_dir);
+    napi_create_string_utf8(env, "argsLines", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_arg_lines);
 
-    napi_create_string_utf8(env, "filesDir", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_files_dir);
+    napi_create_string_utf8(env, "unixSocket", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_unix_socket);
 
-    napi_create_string_utf8(env, "cpuCount", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_cpu_count);
+    std::string argsLines = getString(env, nv_arg_lines);
+    std::vector<std::string> argsVector = splitStringByNewline(argsLines);
 
-    napi_create_string_utf8(env, "memSize", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_mem_size);
-
-    napi_create_string_utf8(env, "portMapping", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_port_mapping);
-
-    napi_create_string_utf8(env, "isPc", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_is_pc);
-
-    napi_create_string_utf8(env, "rootFilesystem", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_root_fs);
-
-    napi_create_string_utf8(env, "sharedFolder", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_shared_folder);
-
-    napi_create_string_utf8(env, "vmBaseDir", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_vm_base);
-
-    napi_create_string_utf8(env, "kernel", NAPI_AUTO_LENGTH, &key_name);
-    napi_get_property(env, args[0], key_name, &nv_kernel);
-
-    std::string tempDir = getString(env, nv_temp_dir);
-    std::string portMapping = getString(env, nv_port_mapping);
-    std::string rootFilesystem = getString(env, nv_root_fs);
-    std::string sharedFolder = getString(env, nv_shared_folder);
-    std::string vmBaseDir = getString(env, nv_vm_base);
-    std::string kernel = getString(env, nv_kernel);
-
-    int cpuCount, memSize;
-    napi_get_value_int32(env, nv_cpu_count, &cpuCount);
-    napi_get_value_int32(env, nv_mem_size, &memSize);
-
-    bool isPc;
-    napi_get_value_bool(env, nv_is_pc, &isPc);
-
-    std::string unixSocketPath = tempDir + "/serial_socket";
-    OH_LOG_INFO(LOG_APP, "serial unix socket: %{public}s", unixSocketPath.c_str());
-    if (access(unixSocketPath.c_str(), F_OK) == 0) {
-        OH_LOG_INFO(LOG_APP, "remove exist unix socket: %{public}s", unixSocketPath.c_str());
-        unlink(unixSocketPath.c_str());
+    std::string unixSocket = getString(env, nv_unix_socket);
+    
+    OH_LOG_INFO(LOG_APP, "serial unix socket: %{public}s", unixSocket.c_str());
+    if (access(unixSocket.c_str(), F_OK) == 0) {
+        OH_LOG_INFO(LOG_APP, "remove exist unix socket: %{public}s", unixSocket.c_str());
+        unlink(unixSocket.c_str());
     }
 
-    OH_LOG_INFO(LOG_APP, "shared folder from host to guest: %{public}s", sharedFolder.c_str());
-    if (access(sharedFolder.c_str(), F_OK) != 0) {
-        mkdir(sharedFolder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    }
+    OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}s", argsLines.c_str());
 
-    std::thread vm_loop(
-        [unixSocketPath, vmBaseDir, cpuCount, memSize, portMapping, sharedFolder, isPc, rootFilesystem, kernel]() {
-            std::string unixSocketSerial = "unix:" + unixSocketPath + ",server,nowait";
-            std::string cpu = std::to_string(cpuCount);
-            std::string mem = std::to_string(memSize) + "M";
-            std::string portMappingOption = "user,id=eth0" + portMapping;
-            std::string fsDev0Option = "local,security_model=mapped-file,id=fsdev0,path=" + sharedFolder;
+    std::thread vm_loop([argsVector]() {
 
-            std::vector<std::string> basic = {"-machine",   "virt", "-cpu",    "cortex-a53", "-smp",
-                                              cpu,          "-m",   mem,       "-kernel",    kernel,
-                                              "-nographic", "-L",   vmBaseDir, "-serial",    unixSocketSerial};
+        const char **argv = new const char *[argsVector.size() + 1];
+        for (auto i = 0; i < argsVector.size(); i += 1) {
+            argv[i] = argsVector[i].c_str();
+        }
+        argv[argsVector.size()] = nullptr;
 
-            std::vector<std::string> net = {"-netdev", portMappingOption};
+        int argc = argsVector.size();
 
-            std::vector<std::string> shared = {"-device", "virtio-net-device,netdev=eth0",
-                                               "-fsdev",  fsDev0Option,
-                                               "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"};
+        auto qemuEntry = getQemuSystemEntry();
+        qemuEntry(argc, argv);
 
-            std::vector<std::string> argsVector = {"qemu-system-aarch64"};
-            append_args(argsVector, basic);
-            append_args(argsVector, net);
-            append_args(argsVector, shared);
-
-            if (rootFilesystem != sharedFolder) {
-                std::string driveOption = "if=none,format=qcow2,file=" + rootFilesystem + ",id=hd0";
-                std::vector<std::string> drive = {"-drive", driveOption, "-device", "virtio-blk-device,drive=hd0"};
-                std::vector<std::string> kernelParam = {"-append",
-                                                        "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi"};
-                append_args(argsVector, drive);
-                append_args(argsVector, kernelParam);
-            } else {
-                std::vector<std::string> kernelParam = {"-append",
-                                                        "root=hostshare rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L console=ttyAMA0 TERM=ansi"};
-                append_args(argsVector, kernelParam);
-            }
-
-            if (isPc) {
-                std::vector<std::string> userShared = {
-                    "-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
-                    "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"};
-                append_args(argsVector, userShared);
-            }
-
-            const char **args = new const char *[argsVector.size() + 1];
-            for (auto i = 0; i < argsVector.size(); i += 1) {
-                args[i] = argsVector[i].c_str();
-            }
-            args[argsVector.size()] = nullptr;
-
-            int argc = getArgc(args);
-
-            OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}d", argc);
-            OH_LOG_INFO(LOG_APP, "linux kernel: %{public}s", kernel.c_str());
-            OH_LOG_INFO(LOG_APP, "rootfs: %{public}s", rootFilesystem.c_str());
-
-            auto qemuEntry = getQemuSystemEntry();
-            qemuEntry(argc, args);
-
-            //  cannot reach here
-            delete[] args;
-        });
+        //  cannot reach here
+        delete[] argv;
+    });
     vm_loop.detach();
 
-    std::thread worker([=]() { serial_output_worker(unixSocketPath.c_str()); });
+    std::thread worker([=]() { serial_output_worker(unixSocket.c_str()); });
     worker.detach();
 
     return nullptr;
