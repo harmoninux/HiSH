@@ -304,7 +304,7 @@ export struct PortMappingContent {
   }
 
   async savePortMapping() {
-    if (!this.portMappingError()) {
+    if (this.initialized && !this.portMappingError()) {
 
       const portMappings: PortMapping[] = this.portMappings.map(it => it.model)
       const current: LastSavedPref = { vmPortMappingEnabled: this.vmPortMappingEnabled, portMappings }
