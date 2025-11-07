@@ -7,6 +7,7 @@ import { SharedFolderContent } from '../components/SharedFolderContent';
 import { PortMappingContent } from "../components/PortMappingContent";
 import appOption from "../model/appOption";
 import { util } from "@kit.ArkTS";
+import EmulatorManagement from "../components/EmulatorManagement";
 
 @Component
 struct PcIndex {
@@ -168,17 +169,14 @@ struct PhoneOrTablet {
       .tabBar(this.tabBuilder($r('app.string.shell'), 0, $r('sys.symbol.house')))
 
       TabContent() {
-        SharedFolderContent({
-          host: this.sharedHost,
-          guest: this.sharedGuest
-        })
+        EmulatorManagement()
       }
-      .tabBar(this.tabBuilder($r('app.string.setting_shared_folder'), 1, $r('sys.symbol.folder')))
+      .tabBar(this.tabBuilder('模拟器管理', 1, $r('sys.symbol.more')))
 
       TabContent() {
         PortMappingContent()
       }
-      .tabBar(this.tabBuilder($r('app.string.setting_port_mapping'), 2, $r('sys.symbol.reverse_order')))
+      .tabBar(this.tabBuilder('使用指南', 2, $r('sys.symbol.book_pages')))
 
       TabContent() {
         Column() {

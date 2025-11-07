@@ -1,10 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import napi from 'libentry.so'
-
-interface PortMapping {
-  guest?: number
-  host?: number
-}
+import { PortMapping } from '../model/Emulator'
 
 interface VmOptions {
   baseDir: string
@@ -49,4 +45,4 @@ function startVm(options: VmOptions) {
   });
 }
 
-export { startVm, PortMapping, VmOptions }
+export { startVm, VmOptions }

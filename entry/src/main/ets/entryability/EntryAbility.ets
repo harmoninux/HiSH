@@ -16,6 +16,7 @@ import {
   TarArchiveInputStream
 } from '@ohos/commons-compress';
 import { startVm } from '../lib/startVm';
+import { Emulator } from '../model/Emulator';
 
 const DOMAIN = 0x0000;
 
@@ -124,6 +125,9 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
     AppStorage.setOrCreate(appOption.portMappingEnabled, portMappingEnabled);
     AppStorage.setOrCreate(appOption.portMapping, portMapping);
+
+    const emulators = JSON.parse(await appPref.get(appOption.emulators, '[]') as string) as Emulator[]
+    AppStorage.setOrCreate(appOption.emulators, emulators)
   }
 
   private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext,

@@ -14,6 +14,8 @@ class appOption {
   static rootFilesystem = 'rootFilesystem'
   static kernel = 'kernel'
   static portUsedByOthers = 'portUsedByOthers'
+
+  static emulators = 'emulators'
 }
 
 interface PortMapping {

@@ -6,6 +6,10 @@
     },
     {
       "name": "setting_block_background",
+      "value": "#0CFFFFFF"
+    },
+    {
+      "name": "setting_block_background_2",
       "value": "#0DFFFFFF"
     }
   ]

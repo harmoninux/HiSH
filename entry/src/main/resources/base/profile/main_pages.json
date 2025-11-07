@@ -1,6 +1,7 @@
 {
   "src": [
     "pages/Index",
-    "pages/SettingsPage"
+    "pages/SettingsPage",
+    "pages/EditEmulator"
   ]
 }
