@@ -16,7 +16,7 @@ import {
   TarArchiveInputStream
 } from '@ohos/commons-compress';
 import { startVm } from '../lib/startVm';
-import { Emulator } from '../model/Emulator';
+import { defaultEmulator, defaultRootfs, Emulator } from '../model/Emulator';
 
 const DOMAIN = 0x0000;
 
@@ -37,9 +37,9 @@ export default class EntryAbility extends UIAbility {
     const appContext = this.context.getApplicationContext();
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
 
-    await this.extractKernelAndRootFilesystem(appContext, appPref);
-
     await this.loadPreferences(appPref);
+
+    await this.extractKernelAndRootFilesystem(appContext);
 
     await this.startVm(appContext);
 
@@ -126,157 +126,47 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.portMappingEnabled, portMappingEnabled);
     AppStorage.setOrCreate(appOption.portMapping, portMapping);
 
-    const emulators = JSON.parse(await appPref.get(appOption.emulators, '[]') as string) as Emulator[]
+    const emulators =
+      JSON.parse(await appPref.get(appOption.emulators, JSON.stringify([defaultEmulator])) as string) as Emulator[]
     AppStorage.setOrCreate(appOption.emulators, emulators)
+    const rootFilesystems =
+      JSON.parse(await appPref.get(appOption.emulators, JSON.stringify([defaultRootfs])) as string) as Emulator[]
+    AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
   }
 
-  private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext,
-    appPref: preference.Preferences): Promise<void> {
-
-    const reset: boolean = await this.getResetFlag(appPref)
+  private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext): Promise<void> {
 
     hilog.info(DOMAIN, 'testTag',
-      'extractResourcesForVM, filesDir: %{public}s, tempDir: %{public}s, reset: %{public}s',
-      appContext.filesDir, appContext.tempDir, reset);
+      'extractResourcesForVM, filesDir: %{public}s, tempDir: %{public}s',
+      appContext.filesDir, appContext.tempDir);
 
     let bundleVmDir = appContext.filesDir + "/vm";
-    if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
-      fs.mkdirSync(bundleVmDir);
-    }
-
-    for (let filename of ["vm/kernel_aarch64", "vm/efi-virtio.rom"]) {
-      this.extractVmResourceFile(appContext, filename, reset);
-    }
-
-    const use9pRootFs = false
-    AppStorage.setOrCreate(appOption.use9pRootFs, use9pRootFs)
-
-    const sharedGuest = use9pRootFs ? '/' : '/mnt/share'
-    const sharedHost = appContext.filesDir + '/' + (use9pRootFs ? 'vm/rootfs' : 'share')
-    const rootFilesystem = bundleVmDir + '/' + (use9pRootFs ? 'rootfs' : 'rootfs_aarch64.qcow2')
+    const sharedGuest = '/mnt/share'
+    const sharedHost = appContext.filesDir + '/' + 'share'
+    const rootFilesystem = bundleVmDir + '/' + 'rootfs_aarch64.qcow2'
+    AppStorage.setOrCreate(appOption.vmBaseDir, bundleVmDir)
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
     AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
     AppStorage.setOrCreate(appOption.rootFilesystem, rootFilesystem)
-
-    AppStorage.setOrCreate(appOption.vmBaseDir, bundleVmDir)
     AppStorage.setOrCreate(appOption.kernel, bundleVmDir + '/kernel_aarch64')
 
-    if (!use9pRootFs) {
-      this.extractQcow2RootFs(appContext, reset);
-    } else {
-      await this.extractTarRootFs(appContext, reset);
+    if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
+      fs.mkdirSync(bundleVmDir);
     }
+    this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64');
+    this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom');
+    this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'vm/rootfs_aarch64.qcow2');
   }
 
-  private extractQcow2RootFs(appContext: common.ApplicationContext, reset: boolean) {
-    this.extractVmResourceFile(appContext, "vm/rootfs_aarch64.qcow2", reset);
-  }
-
-  private async extractTarRootFs(appContext: common.ApplicationContext, reset: boolean) {
-    const target = appContext.filesDir + '/vm/rootfs';
-    let completeMark: string = appContext.filesDir + '/vm/.rootfs_complete';
-    if (reset) {
-      await this.deleteDirectoryRecursive(target)
-      await this.extractRootFsTar(appContext, target);
-      fs.openSync(completeMark, fs.OpenMode.CREATE);
-    } else {
-      if (!fs.accessSync(completeMark, fs.AccessModeType.EXIST)) {
-        await this.deleteDirectoryRecursive(target)
-        await this.extractRootFsTar(appContext, target);
-        fs.openSync(completeMark, fs.OpenMode.CREATE);
-      }
-    }
-  }
-
-  async deleteDirectoryRecursive(dirPath: string) {
-    try {
-      const dirEntries = await fs.listFile(dirPath, { recursion: false });
-      for (const entry of dirEntries) {
-        const fullPath = `${dirPath}/${entry}`;
-        const stat = await fs.stat(fullPath);
-
-        if (stat.isDirectory()) {
-          await this.deleteDirectoryRecursive(fullPath);
-        } else {
-          await fs.unlink(fullPath);
-        }
-      }
-      await fs.rmdir(dirPath);
-    } catch (err) {
-      console.error(`failed to remove directory: ${JSON.stringify(err)}`);
-    }
-  }
-
-  private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, reset: boolean) {
-    let filePath = appContext.filesDir + "/" + filename;
-    if (!fs.accessSync(filePath, fs.AccessModeType.EXIST) || reset) {
+  private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, toFileName: string) {
+    let filePath = appContext.filesDir + "/" + toFileName;
+    if (!fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
       let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
       let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
       fs.writeSync(file.fd, value.buffer);
       fs.closeSync(file);
       hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
     }
-  }
-
-  private async extractRootFsTar(appContext: common.ApplicationContext, target: string) {
-    try {
-      const value = appContext.resourceManager.getRawFileContentSync("vm/rootfs_aarch64.tar");
-      const tar = appContext.tempDir + '/rootfs_aarch64.tar';
-      let file = fs.openSync(tar, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-      fs.writeSync(file.fd, value.buffer);
-      fs.closeSync(file);
-
-      if (!fs.accessSync(target, fs.AccessModeType.EXIST)) {
-        fs.mkdirSync(target, true);
-      }
-
-      let input: File = new File(appContext.tempDir, 'rootfs_aarch64.tar');
-      let inputFileStream: InputStream = new InputStream();
-      inputFileStream.setFilePath(input.getPath());
-      let fileTarInputStream: TarArchiveInputStream =
-        new TarArchiveInputStream(inputFileStream, 512 * 20, 512, '', false);
-      let tarArchiveEntry: TarArchiveEntry;
-      while ((tarArchiveEntry = fileTarInputStream.getNextTarEntry()) !== null) {
-
-        let name: string = tarArchiveEntry.getName();
-        if (name.startsWith('./')) {
-          name = name.substring(2)
-        }
-
-        if (tarArchiveEntry.isDirectory()) {
-          const dir = target + '/' + name
-          let acc = fs.accessSync(dir, fs.AccessModeType.EXIST);
-          if (!acc) {
-            fs.mkdirSync(dir, true);
-          }
-        } else if (tarArchiveEntry.isFile()) {
-          let tarFile: File = new File(target, name);
-          let fos: OutputStream | null = null;
-          try {
-            fos = new OutputStream();
-            fos!.setFilePath(tarFile.getPath());
-            let read: number = -1;
-            let buffer: Int8Array = new Int8Array(tarArchiveEntry.getRealSize().toNumber());
-            while ((read = fileTarInputStream.readBytes(buffer)) > 0) {
-              fos!.writeBytesOffset(buffer, 0, read);
-            }
-          } catch (e) {
-            console.log('error extract file', e);
-          } finally {
-            fos!.close();
-          }
-        }
-      }
-    } catch (e) {
-      console.log('error extract rootfs', e);
-    }
-  }
-
-  private async getResetFlag(appPref: preference.Preferences): Promise<boolean> {
-    const flag = await appPref.get(appOption.resetLinuxFlag, false) as boolean
-    await appPref.delete(appOption.resetLinuxFlag)
-    await appPref.flush()
-    return flag
   }
 
   onWindowStageDestroy(): void {

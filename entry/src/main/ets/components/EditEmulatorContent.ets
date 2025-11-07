@@ -1,10 +1,10 @@
 import { Emulator } from "../model/Emulator"
 import ReactiveGrid from "./ReactiveGrid"
-import { RepeatGrid } from "./RepeatGrid"
 
 @Component
 export default struct EditEmulatorContent {
   @Require emulator: Emulator
+  @Require onFinished: (item: Emulator) => void
 
   @Builder
   buildEmulatorEdit() {
@@ -26,6 +26,7 @@ export default struct EditEmulatorContent {
         Blank().layoutWeight(1)
 
         Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
+          .onClick(() => this.onFinished(this.emulator))
       }
       .height(56)
 
