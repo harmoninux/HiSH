@@ -1,9 +1,10 @@
 import { cpuOptions, getCpuCount, getMemSize, memOptions } from "../lib/systemProfile"
-import { Emulator } from "../model/Emulator"
+import { defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
 import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, ItemTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
 import { util } from "@kit.ArkTS"
+import appOption from "../model/appOption"
 
 @Component
 export default struct EditEmulatorContent {
@@ -12,6 +13,8 @@ export default struct EditEmulatorContent {
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
   @State cpuOptions: SelectOption[] = []
   @State memOptions: SelectOption[] = []
+  @State rootFilesystemOptions: SelectOption[] = []
+  @State selectedRootfs: string = defaultRootfs.name
   @Watch('onPortMappingChanged') @State portMappingItems: PortMappingItem[] = []
 
   aboutToAppear(): void {
@@ -24,6 +27,9 @@ export default struct EditEmulatorContent {
 
     this.portMappingItems =
       this.emulator.portMapping.map(it => ({ id: util.generateRandomUUID(), model: it } as PortMappingItem))
+
+    const rootfs = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
+    this.rootFilesystemOptions = rootfs.map(it => ({ value: it.name } as SelectOption))
   }
 
   @Builder
@@ -33,6 +39,16 @@ export default struct EditEmulatorContent {
       .value(this.emulator.cpu.toString())
       .onSelect((_i, value) => {
         this.emulator.cpu = parseInt(value)
+      })
+  }
+
+  @Builder
+  private rootFilesystemSetting() {
+    Select(this.rootFilesystemOptions)
+      .width(150)
+      .value(this.selectedRootfs)
+      .onSelect((_i, value) => {
+        this.selectedRootfs = value
       })
   }
 
@@ -47,12 +63,19 @@ export default struct EditEmulatorContent {
   }
 
   @Builder
+  private initSetting() {
+    TextInput({ text: this.emulator.init })
+      .width(120)
+      .onChange((value) => this.emulator.init = value)
+  }
+
+  @Builder
   buildEmulatorEdit() {
     Column() {
       Column() {
         Text('名称')
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.font_tertiary'))
+          .fontColor($r('sys.color.font_primary'))
           .margin({ bottom: 10 })
         TextInput({ placeholder: '名称', text: this.emulator.name })
       }
@@ -75,6 +98,18 @@ export default struct EditEmulatorContent {
           subTitle: $r('app.string.setting_mem_size_desc'),
           content: () => {
             this.memorySetting()
+          }
+        })
+      }
+      .attributeModifier(this.blockStyle)
+
+      BlockTitle({ content: '镜像' })
+      Column() {
+        SettingItem({
+          title: '镜像',
+          subTitle: '选择模拟器使用的镜像',
+          content: () => {
+            this.rootFilesystemSetting()
           }
         })
       }
@@ -109,6 +144,29 @@ export default struct EditEmulatorContent {
       }
       .attributeModifier(this.blockStyle)
 
+      BlockTitle({ content: $r("app.string.setting_shared_folder") })
+      Column() {
+        SettingItem({
+          title: '共享文件夹只读',
+          subTitle: '禁止模拟器对共享文件夹进行写操作',
+          content: () => {
+            this.sharedFolderReadonly()
+          }
+        })
+      }
+      .attributeModifier(this.blockStyle)
+
+      BlockTitle({ content: '高级设置' })
+      Column() {
+        SettingItem({
+          title: '设置init',
+          subTitle: '模拟器启动时的配置脚本',
+          content: () => {
+            this.initSetting()
+          }
+        })
+      }
+      .attributeModifier(this.blockStyle)
     }
     .width('100%')
   }
@@ -119,6 +177,15 @@ export default struct EditEmulatorContent {
       .select(this.emulator.networking)
       .onChange((value: boolean) => {
         this.emulator.networking = value
+      })
+  }
+
+  @Builder
+  private sharedFolderReadonly() {
+    Checkbox()
+      .select(this.emulator.sharedFolderReadonly)
+      .onChange((value: boolean) => {
+        this.emulator.sharedFolderReadonly = value
       })
   }
 

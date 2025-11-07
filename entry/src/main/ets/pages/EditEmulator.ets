@@ -23,7 +23,8 @@ struct EditEmulator {
         memory: 512,
         networking: false,
         portMapping: [],
-        rootFilesystem: ''
+        rootFilesystem: '',
+        sharedFolderReadonly: false
       }
     }
   }

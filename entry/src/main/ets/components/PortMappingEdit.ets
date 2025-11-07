@@ -138,7 +138,7 @@ export struct PortMappingEdit {
             }
           }, {
             enabled: !this.portMappingError(),
-            value: '自定义',
+            value: '自定义端口',
             action: () => {
               if (!this.portMappingError()) {
                 this.addPortMapping();

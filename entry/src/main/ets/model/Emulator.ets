@@ -18,6 +18,7 @@ interface Emulator {
   init: string | undefined
   portMapping: PortMapping[]
   rootFilesystem: string
+  sharedFolderReadonly: boolean
 }
 
 //  TODO: use uri
@@ -35,7 +36,8 @@ const defaultEmulator: Emulator = {
   networking: true,
   init: '/init',
   portMapping: [],
-  rootFilesystem: 'rootfs_aarch64.qcow2'
+  rootFilesystem: 'rootfs_aarch64.qcow2',
+  sharedFolderReadonly: false
 }
 
-export { Emulator, PortMapping, defaultEmulator, defaultRootfs }
+export { Emulator, PortMapping, RootFilesystem, defaultEmulator, defaultRootfs }
