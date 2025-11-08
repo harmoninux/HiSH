@@ -86,15 +86,15 @@
     },
     {
       "name": "setting_duplicated_port",
-      "value": "Duplicated port"
+      "value": "Duplicated port in port mapping"
     },
     {
       "name": "setting_incomplete_port_mapping",
-      "value": "The %d item is not complete"
+      "value": "The %d item of port mapping is not complete"
     },
     {
       "name": "setting_port_should_larger",
-      "value": "The host port of %d should larger than 1000"
+      "value": "The host port of %d in port mapping should larger than 1000"
     },
     {
       "name": "setting_reset_linux",

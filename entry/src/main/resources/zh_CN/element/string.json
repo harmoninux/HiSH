@@ -86,15 +86,15 @@
     },
     {
       "name": "setting_duplicated_port",
-      "value": "端口号重复"
+      "value": "端口映射中的端口号存在重复"
     },
     {
       "name": "setting_incomplete_port_mapping",
-      "value": "第%d项不完整"
+      "value": "端口映射第%d项不完整"
     },
     {
       "name": "setting_port_should_larger",
-      "value": "第%d项Host端口号应大于1000"
+      "value": "端口映射第%d项Host端口号应大于1000"
     },
     {
       "name": "setting_keep_screen_on",

@@ -5,6 +5,7 @@ import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, ItemTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
 import { util } from "@kit.ArkTS"
 import appOption from "../model/appOption"
+import { PromptAction } from "@kit.ArkUI"
 
 @Component
 export default struct EditEmulatorContent {
@@ -13,9 +14,11 @@ export default struct EditEmulatorContent {
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
   @State cpuOptions: SelectOption[] = []
   @State memOptions: SelectOption[] = []
+  @State isCreate: boolean = true
   @State rootFilesystemOptions: SelectOption[] = []
   @State selectedRootfs: string = defaultRootfs.name
   @Watch('onPortMappingChanged') @State portMappingItems: PortMappingItem[] = []
+  private promptAction: PromptAction = this.getUIContext().getPromptAction();
 
   aboutToAppear(): void {
 
@@ -30,6 +33,9 @@ export default struct EditEmulatorContent {
 
     const rootfs = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
     this.rootFilesystemOptions = rootfs.map(it => ({ value: it.name } as SelectOption))
+
+    const emulators = AppStorage.get(appOption.emulators) as Emulator[]
+    this.isCreate = emulators.findIndex(it => it.id === this.emulator.id) < 0
   }
 
   @Builder
@@ -66,7 +72,7 @@ export default struct EditEmulatorContent {
   private initSetting() {
     TextInput({ text: this.emulator.init })
       .width(120)
-      .onChange((value) => this.emulator.init = value)
+      .onChange((value) => this.emulator.init = value.trim())
   }
 
   @Builder
@@ -78,6 +84,10 @@ export default struct EditEmulatorContent {
           .fontColor($r('sys.color.font_primary'))
           .margin({ bottom: 10 })
         TextInput({ placeholder: '名称', text: this.emulator.name })
+          .maxLength(64)
+          .onChange((value) => {
+            this.emulator.name = value.trim()
+          })
       }
       .alignItems(HorizontalAlign.Start)
       .padding(10)
@@ -103,17 +113,19 @@ export default struct EditEmulatorContent {
       }
       .attributeModifier(this.blockStyle)
 
-      BlockTitle({ content: '镜像' })
-      Column() {
-        SettingItem({
-          title: '镜像',
-          subTitle: '选择模拟器使用的镜像',
-          content: () => {
-            this.rootFilesystemSetting()
-          }
-        })
+      if (this.isCreate) {
+        BlockTitle({ content: '镜像' })
+        Column() {
+          SettingItem({
+            title: '镜像',
+            subTitle: '选择模拟器使用的镜像',
+            content: () => {
+              this.rootFilesystemSetting()
+            }
+          })
+        }
+        .attributeModifier(this.blockStyle)
       }
-      .attributeModifier(this.blockStyle)
 
       BlockTitle({ content: $r("app.string.setting_networking") })
       Column() {
@@ -159,7 +171,7 @@ export default struct EditEmulatorContent {
       BlockTitle({ content: '高级设置' })
       Column() {
         SettingItem({
-          title: '设置init',
+          title: 'init',
           subTitle: '模拟器启动时的配置脚本',
           content: () => {
             this.initSetting()
@@ -199,7 +211,7 @@ export default struct EditEmulatorContent {
         Blank().layoutWeight(1)
 
         Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
-          .onClick(() => this.onFinished(this.emulator))
+          .onClick(() => this.onEditFinished())
       }
       .height(56)
 
@@ -220,5 +232,85 @@ export default struct EditEmulatorContent {
 
   onPortMappingChanged() {
     this.emulator.portMapping = this.portMappingItems.map(it => it.model)
+  }
+
+  private validate(): string | undefined {
+
+    const emulators = AppStorage.get(appOption.emulators) as Emulator[]
+
+    if (this.emulator.name.length === 0) {
+      return '请输入模拟器名称'
+    }
+
+    const nameUsed = emulators.findIndex(it => it.name === this.emulator.name) > 0
+    if (nameUsed) {
+      return '模拟器名称重复，请换一个'
+    }
+
+    const mappingError = this.portMappingError()
+    if (mappingError) {
+      return mappingError
+    }
+
+    if (this.emulator.init.length === 0) {
+      return '需要指定init'
+    }
+
+    return undefined
+  }
+
+  private onEditFinished() {
+    const error = this.validate()
+    if (!error) {
+      if (this.isCreate) {
+        const roots = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
+        const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
+        const selected = roots.find(it => it.name === this.selectedRootfs)!!
+        const target = vmBaseDir + '/' + this.emulator.id + selected.path.substring(selected.path.lastIndexOf('.'))
+        //  TODO: copy images
+        this.emulator.rootFilesystem = target
+      }
+
+      this.onFinished(this.emulator)
+    } else {
+      this.promptAction.showToast({
+        message: error,
+        duration: 3000
+      })
+    }
+  }
+
+  private portMappingError(): string | undefined {
+    let mappings = this.portMappingItems.map(it => it.model)
+    let i = mappings
+      .findIndex(it => {
+        return !(it.guest && it.host)
+      })
+    if (i >= 0) {
+      const temp = this.getResourceString('setting_incomplete_port_mapping')
+      return util.format(temp, (i + 1))
+    }
+
+    i = mappings
+      .findIndex(it => {
+        return (it.host || 0) <= 1000
+      })
+    if (i >= 0) {
+      const temp = this.getResourceString('setting_port_should_larger')
+      return util.format(temp, (i + 1))
+    }
+
+    const guestPorts = new Set(mappings.map(it => it.guest))
+    const hostPorts = new Set(mappings.map(it => it.host))
+    if (guestPorts.size < mappings.length || hostPorts.size < mappings.length) {
+      return this.getResourceString('setting_duplicated_port')
+    }
+
+    return undefined
+  }
+
+  private getResourceString(name: string): string | undefined {
+    return this.getUIContext()
+      .getHostContext()?.resourceManager.getStringByNameSync(name);
   }
 }

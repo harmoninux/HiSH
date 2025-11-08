@@ -15,7 +15,7 @@ interface Emulator {
   cpu: number,
   memory: number,
   networking: boolean
-  init: string | undefined
+  init: string
   portMapping: PortMapping[]
   rootFilesystem: string
   sharedFolderReadonly: boolean

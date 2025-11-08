@@ -53,7 +53,7 @@ const CANDIDATES: MappingCandidate[] = [{
 
 @Component
 export struct PortMappingEdit {
-  @State items: PortMappingItem[] = []
+  @Watch('onItemsChanged') @State items: PortMappingItem[] = []
   @Require onChanged: (value: PortMappingItem[]) => void
   @State indexToRemove: number = -1
   @Watch('onCandidateToAdd') @State candidateToAdd: number | undefined = undefined
@@ -130,19 +130,15 @@ export struct PortMappingEdit {
           .margin({ right: 8 })
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .bindMenu([{
-            enabled: !this.portMappingError(),
             value: $r('app.string.add_freq_used_port'),
             action: () => {
               this.candidateToAdd = undefined
               this.portCandidatesController.open()
             }
           }, {
-            enabled: !this.portMappingError(),
             value: '自定义端口',
             action: () => {
-              if (!this.portMappingError()) {
-                this.addPortMapping();
-              }
+              this.addPortMapping();
             }
           }])
       }
@@ -233,40 +229,6 @@ export struct PortMappingEdit {
     this.items = copy;
   }
 
-  addPortMappingEnabled(): boolean {
-    const invalid = this.items.map(it => it.model).filter(it => !(it.guest && it.host));
-    return invalid.length === 0;
-  }
-
-  portMappingError(): string | Resource | undefined {
-    let mappings = this.items.map(it => it.model);
-    let i = mappings
-      .findIndex(it => {
-        return !(it.guest && it.host)
-      })
-    if (i >= 0) {
-      const temp = this.getResourceString('setting_incomplete_port_mapping')
-      return util.format(temp, (i + 1))
-    }
-
-    i = mappings
-      .findIndex(it => {
-        return (it.host || 0) <= 1000
-      })
-    if (i >= 0) {
-      const temp = this.getResourceString('setting_port_should_larger')
-      return util.format(temp, (i + 1))
-    }
-
-    const guestPorts = new Set(mappings.map(it => it.guest))
-    const hostPorts = new Set(mappings.map(it => it.host))
-    if (guestPorts.size < this.items.length || hostPorts.size < this.items.length) {
-      return $r('app.string.setting_duplicated_port')
-    }
-
-    return undefined
-  }
-
   onCandidateToAdd() {
     if (this.candidateToAdd !== undefined) {
       const c: MappingCandidate = CANDIDATES[this.candidateToAdd!!]
@@ -278,9 +240,8 @@ export struct PortMappingEdit {
     }
   }
 
-  private getResourceString(name: string): string | undefined {
-    return this.getUIContext()
-      .getHostContext()?.resourceManager.getStringByNameSync(name);
+  onItemsChanged() {
+    this.onChanged(this.items)
   }
 }
 
