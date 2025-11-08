@@ -11,6 +11,7 @@ import EmulatorListGrid from "../components/EmulatorListGrid";
 import EditEmulatorContent from "../components/EditEmulatorContent";
 import { Emulator } from "../model/Emulator";
 import RootfsManagementContent from "../components/RootfsManagementContent";
+import UserGuide from "../components/UserGuide";
 
 @Component
 struct PcIndex {
@@ -272,6 +273,7 @@ struct PhoneOrTablet {
 
       TabContent() {
         Column() {
+          UserGuide()
         }
       }
       .tabBar(this.tabBuilder('使用指南', 2, $r('sys.symbol.book_pages')))

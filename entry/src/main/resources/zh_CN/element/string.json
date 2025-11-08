@@ -201,6 +201,10 @@
       "value": "输入文件夹名称"
     },
     {
+      "name": "delete_this",
+      "value": "删除"
+    },
+    {
       "name": "copy_guest_path",
       "value": "复制HiSH路径"
     },

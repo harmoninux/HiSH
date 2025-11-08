@@ -7,6 +7,8 @@ import { pasteboard } from '@kit.BasicServicesKit'
 import validateFolderName from '../lib/validateFolderName'
 import { util } from "@kit.ArkTS";
 import copyFile from '../lib/copyFile';
+import deleteDirectoryRecursive from '../lib/deleteDirectoryRecursive';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 enum Type {
   Folder = 0,
@@ -37,6 +39,11 @@ export struct SharedFolderContent {
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.exporting_file_to_shared_folder'),
+    }),
+  })
+  deletingProgress: CustomDialogController = new CustomDialogController({
+    builder: LoadingDialog({
+      content: '正在删除',
     }),
   })
   createFolderController = new CustomDialogController({
@@ -134,6 +141,9 @@ export struct SharedFolderContent {
                 }, {
                   value: $r('app.string.copy_guest_path'),
                   action: () => this.copyGuestPath(item.name)
+                }, {
+                  value: $r('app.string.delete_this'),
+                  action: () => this.askForDeleteCurrent(item)
                 }])
             } else if (item.type == Type.Folder) {
               SymbolGlyph($r('sys.symbol.dot_grid_1x2'))
@@ -144,6 +154,9 @@ export struct SharedFolderContent {
                 .bindMenu([{
                   value: $r('app.string.copy_guest_path'),
                   action: () => this.copyGuestPath(item.name)
+                }, {
+                  value: $r('app.string.delete_this'),
+                  action: () => this.askForDeleteCurrent(item)
                 }])
             }
           }
@@ -164,6 +177,49 @@ export struct SharedFolderContent {
     .borderRadius(12)
     .margin({ left: 8, right: 4, bottom: 8 })
     .scrollBarWidth(1)
+  }
+
+  async askForDeleteCurrent(item: Entry): Promise<void> {
+
+    this.getUIContext().showAlertDialog({
+      title: '确定删除',
+      message: '您正在操作删除文件，删除后不可恢复，确定删除？',
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      buttons: [
+        {
+          value: $r('app.string.setting_generic_cancel'),
+          action: () => {
+          }
+        },
+        {
+          enabled: true,
+          style: DialogButtonStyle.HIGHLIGHT,
+          backgroundColor: $r('sys.color.warning'),
+          value: $r('app.string.confirm_remove'),
+          action: async () => {
+            await this.deleteCurrent(item);
+          }
+        }
+      ],
+    });
+  }
+
+  async deleteCurrent(item: Entry) {
+    const hostPath = [this.current, item.name].join('/')
+    this.deletingProgress.open()
+    try {
+      if (item.type === Type.File) {
+        fs.unlinkSync(hostPath)
+      } else {
+        await deleteDirectoryRecursive(hostPath)
+      }
+    } catch (e) {
+      hilog.info(1, "SharedFolderContent", "failed to delete %{public}s", hostPath)
+    } finally {
+      this.deletingProgress.close()
+      this.refreshFileList()
+    }
   }
 
   openFile(name: string): void {
@@ -350,7 +406,7 @@ export struct SharedFolderContent {
     if (e.type === Type.Folder) {
       this.current.push(e.name)
       await this.refreshFileList()
-    } else if(e.type == Type.File) {
+    } else if (e.type == Type.File) {
       this.openFile(e.name)
     }
   }

@@ -223,6 +223,10 @@
     {
       "name": "fre_used_port_duplicated",
       "value": "Conflict between %s and %d:%d"
+    },
+    {
+      "name": "delete_this",
+      "value": "Delete"
     }
   ]
 }
