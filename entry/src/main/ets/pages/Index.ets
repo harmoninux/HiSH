@@ -271,7 +271,8 @@ struct PhoneOrTablet {
       .tabBar(this.tabBuilder('模拟器管理', 1, $r('sys.symbol.more')))
 
       TabContent() {
-        Column()
+        Column() {
+        }
       }
       .tabBar(this.tabBuilder('使用指南', 2, $r('sys.symbol.book_pages')))
 

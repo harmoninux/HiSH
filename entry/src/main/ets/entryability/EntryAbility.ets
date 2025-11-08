@@ -102,6 +102,7 @@ export default class EntryAbility extends UIAbility {
       cpuCount, memSize, portMapping)
 
     const serialUnixSocket = appContext.tempDir + '/serial_socket'
+    const qmpUnixSocket = appContext.tempDir + '/qmp_socket'
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
@@ -115,7 +116,8 @@ export default class EntryAbility extends UIAbility {
       sharedFolder,
       serialUnixSocket,
       sharedFolderReadonly,
-      init
+      init,
+      qmpUnixSocket
     })
   }
 

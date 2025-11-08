@@ -184,14 +184,6 @@ void serial_output_worker(const char *unix_socket_path) {
     OH_LOG_INFO(LOG_APP, "Serial unix socket broken: %{public}d", errno);
 }
 
-static int getArgc(const char **args) {
-    int argc = 0;
-    while (args[argc] != nullptr) {
-        argc += 1;
-    }
-    return argc;
-}
-
 std::string getString(napi_env env, napi_value value) {
 
     size_t size;

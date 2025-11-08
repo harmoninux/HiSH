@@ -11,6 +11,7 @@ interface VmOptions {
   rootFilesystem: string
   sharedFolder: string
   serialUnixSocket: string
+  qmpUnixSocket: string
   sharedFolderReadonly: boolean
   init: string
 }
@@ -25,18 +26,23 @@ function startVm(options: VmOptions) {
   const kernel = ['-kernel', options.kernel]
   const network = ["-device", "virtio-net-device,netdev=eth0",
     '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('')]
-  const shared =  ["-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + options.sharedFolder + sharedFolderOption,
-    "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
+  const shared =
+    ["-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + options.sharedFolder + sharedFolderOption,
+      "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
   const drive = ["-drive", "if=none,format=qcow2,file=" + options.rootFilesystem + ",id=hd0", "-device",
     "virtio-blk-device,drive=hd0"]
   const kernelParam = ["-append",
     "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi init=" + options.init]
+  const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
 
   const args =
-    ['qemu-system-aarch64', ...basic, ...serial, ...cpuMem, ...kernel, ...network, ...shared, ...drive, ...kernelParam]
+    ['qemu-system-aarch64', ...basic, ...serial, ...cpuMem, ...kernel, ...network, ...shared, ...drive, ...kernelParam, ...monitor]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
     fs.unlinkSync(options.serialUnixSocket)
+  }
+  if (fs.accessSync(options.qmpUnixSocket, fs.AccessModeType.EXIST)) {
+    fs.unlinkSync(options.qmpUnixSocket)
   }
   if (!fs.accessSync(options.sharedFolder, fs.AccessModeType.EXIST)) {
     fs.mkdirSync(options.sharedFolder)
@@ -44,7 +50,8 @@ function startVm(options: VmOptions) {
 
   napi.startVM({
     argsLines: args.join('\n'),
-    unixSocket: options.serialUnixSocket
+    unixSocket: options.serialUnixSocket,
+    qmpSocket: options.qmpUnixSocket
   });
 }
 
