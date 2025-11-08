@@ -6,7 +6,6 @@ interface PortMapping {
 interface RootFilesystem {
   id: string
   name: string
-  //  相对路径
   path: string
 }
 
@@ -21,7 +20,6 @@ interface Emulator {
   sharedFolderReadonly: boolean
 }
 
-//  TODO: use uri
 const defaultRootfs: RootFilesystem = {
   id: 'rootfs_aarch64',
   name: 'Alpine Linux',

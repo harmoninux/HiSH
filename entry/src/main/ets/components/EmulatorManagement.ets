@@ -146,8 +146,7 @@ export default struct EmulatorManagement {
     const rootfsBase = AppStorage.get(appOption.vmBaseDir) as string;
     const target = rootfsBase + '/' + id + src.rootFilesystem.substring(src.rootFilesystem.lastIndexOf('.'))
 
-    const srcRootfs =
-      src.rootFilesystem.startsWith('/') ? src.rootFilesystem : (this.filesDir + '/' + src.rootFilesystem)
+    const srcRootfs = src.rootFilesystem
 
     this.copyProgress.open()
     try {
@@ -246,9 +245,7 @@ struct EmulatorItem {
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
 
   aboutToAppear(): void {
-    const rootfsPath = this.emulator.rootFilesystem.startsWith('/')
-      ? this.emulator.rootFilesystem
-      : this.filesDir + '/' + this.emulator.rootFilesystem
+    const rootfsPath = this.emulator.rootFilesystem
     const virtualSize = readQcow2VirtualSize(rootfsPath)
     this.storageSize = virtualSize / (1024 * 1024 * 1024)
   }

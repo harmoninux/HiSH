@@ -32,9 +32,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('bundleInfo', bundleInfo)
 
     const appContext = this.context.getApplicationContext();
-    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
 
-    await this.loadPreferences(appPref);
+    await this.loadPreferences(appContext);
 
     await this.extractKernelAndRootFilesystem(appContext);
 
@@ -75,9 +74,7 @@ export default class EntryAbility extends UIAbility {
 
     const cpuCount = defaultEmulator.cpu;
     const memSize = defaultEmulator.memory;
-    const rootFilesystem = defaultEmulator.rootFilesystem.startsWith('/')
-      ? defaultEmulator.rootFilesystem
-      : appContext.filesDir + '/' + defaultEmulator.rootFilesystem
+    const rootFilesystem = defaultEmulator.rootFilesystem
     const sharedFolderReadonly = defaultEmulator.sharedFolderReadonly
     const portMappingRaw = defaultEmulator.portMapping
     const init = defaultEmulator.init
@@ -125,17 +122,19 @@ export default class EntryAbility extends UIAbility {
     })
   }
 
-  private async loadPreferences(appPref: preference.Preferences) {
-    const vmCpuCount = await appPref.get(appOption.cpuCountName, 1);
-    const vmMemSize = await appPref.get(appOption.memSizeName, 512);
+  private async loadPreferences(appContext: common.ApplicationContext) {
+
+    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
-    const portMappingEnabled = await appPref.get(appOption.portMappingEnabled, false) as boolean;
-    const portMapping = JSON.parse(await appPref.get(appOption.portMapping, '[]') as string) as PortMapping[];
-    AppStorage.setOrCreate(appOption.cpuCountName, vmCpuCount);
-    AppStorage.setOrCreate(appOption.memSizeName, vmMemSize);
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
-    AppStorage.setOrCreate(appOption.portMappingEnabled, portMappingEnabled);
-    AppStorage.setOrCreate(appOption.portMapping, portMapping);
+
+    defaultRootfs.path = defaultRootfs.path.startsWith('/')
+      ? defaultRootfs.path
+      : appContext.filesDir + '/' + defaultRootfs.path
+    defaultEmulator.rootFilesystem = defaultEmulator.rootFilesystem.startsWith('/')
+      ? defaultEmulator.rootFilesystem
+      : appContext.filesDir + '/' + defaultEmulator.rootFilesystem
 
     const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
     AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)

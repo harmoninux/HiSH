@@ -4,19 +4,12 @@ import preference from '@ohos.data.preferences';
 import appOption from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
-import { fileIo as fs } from '@kit.CoreFileKit'
-import { ListFileOptions } from '@kit.CoreFileKit';
-import { cpuOptions, getCpuCount, getMemSize, memOptions } from '../lib/systemProfile';
 
 @Component
 export default struct SettingsContent {
-  @Watch('saveVmCpuCount') @StorageProp(appOption.cpuCountName) vmCpuCount: number = 1
-  @Watch('saveVmMemSize') @StorageProp(appOption.memSizeName) vmMemSize: number = 512
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
-  @State cpuOptions: SelectOption[] = []
-  @State memOptions: SelectOption[] = []
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -51,26 +44,6 @@ export default struct SettingsContent {
   preferences?: preference.Preferences
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
 
-  async aboutToAppear(): Promise<void> {
-    this.preferences = await preference.getPreferences(this.context.getApplicationContext(), appOption.preferenceName)
-
-    const cpuCount = getCpuCount()
-    this.cpuOptions = cpuOptions.filter(c => c <= cpuCount).map(c => ({ value: c.toString() } as SelectOption))
-
-    const memSize = getMemSize()
-    this.memOptions = memOptions.filter(c => c < memSize).map(c => ({ value: c.toString() } as SelectOption))
-  }
-
-  saveVmCpuCount() {
-    this.preferences!.put(appOption.cpuCountName, this.vmCpuCount)
-    this.preferences!.flush()
-  }
-
-  saveVmMemSize() {
-    this.preferences!.put(appOption.memSizeName, this.vmMemSize)
-    this.preferences!.flush()
-  }
-
   saveKeepScreenOn() {
     this.preferences!.put(appOption.keepScreenOn, this.keepScreenOn)
     this.preferences!.flush()
@@ -79,22 +52,6 @@ export default struct SettingsContent {
     if (mainWindow) {
       mainWindow.setWindowKeepScreenOn(this.keepScreenOn)
     }
-  }
-
-  @Builder
-  private cpuSetting() {
-    Select(this.cpuOptions)
-      .width(100)
-      .value(this.vmCpuCount.toString())
-      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.cpuCountName, parseInt(value)))
-  }
-
-  @Builder
-  private memorySetting() {
-    Select(this.memOptions)
-      .width(100)
-      .value(this.vmMemSize.toString())
-      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.memSizeName, parseInt(value)))
   }
 
   @Builder
@@ -110,34 +67,6 @@ export default struct SettingsContent {
     Column() {
       Scroll() {
         Column() {
-
-          BlockTitle({ content: $r("app.string.setting_block_system") })
-          Column() {
-            SettingItem({
-              title: $r('app.string.setting_cpu'),
-              subTitle: $r('app.string.setting_cpu_desc'),
-              content: () => {
-                this.cpuSetting()
-              }
-            })
-
-            SettingItem({
-              title: $r('app.string.setting_mem_size'),
-              subTitle: $r('app.string.setting_mem_size_desc'),
-              content: () => {
-                this.memorySetting()
-              }
-            })
-
-            SettingItem({
-              title: $r('app.string.setting_reset_linux'),
-              subTitle: $r('app.string.setting_reset_linux_desc'),
-              icon: $r('sys.symbol.arrow_clockwise')
-            }).onClick(() => {
-              this.openResetLinuxDialog()
-            })
-          }
-          .attributeModifier(this.blockStyle)
 
           BlockTitle({ content: $r("app.string.setting_block_display") })
           Column() {
@@ -213,31 +142,6 @@ export default struct SettingsContent {
         .margin({ top: 5 })
     }
     .width('100%')
-  }
-
-  private openResetLinuxDialog() {
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.setting_reset_linux_title'),
-      message: $r('app.string.setting_reset_linux_content'),
-      autoCancel: true,
-      alignment: DialogAlignment.Center,
-      buttons: [
-        {
-          value: $r('app.string.setting_generic_cancel'),
-          action: () => {
-          }
-        },
-        {
-          enabled: true,
-          style: DialogButtonStyle.HIGHLIGHT,
-          backgroundColor: $r('sys.color.warning'),
-          value: $r('app.string.setting_reset_linux_reset'),
-          action: async () => {
-            await this.markResetLinuxAndRestart();
-          }
-        }
-      ],
-    });
   }
 
   private async toWebBrowser(url: string): Promise<void> {

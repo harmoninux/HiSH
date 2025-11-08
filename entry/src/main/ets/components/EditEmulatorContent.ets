@@ -252,7 +252,7 @@ export default struct EditEmulatorContent {
         const roots = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
         const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
         const selected = roots.find(it => it.name === this.selectedRootfs)!!
-        const source = selected.path.startsWith('/') ? selected.path : (this.filesDir + '/' + selected.path)
+        const source = selected.path
         const target = vmBaseDir + '/' + this.emulator.id + selected.path.substring(selected.path.lastIndexOf('.'))
         await copyFile(source, target)
         this.emulator.rootFilesystem = target

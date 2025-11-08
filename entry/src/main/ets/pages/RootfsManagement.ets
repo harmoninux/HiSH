@@ -202,7 +202,7 @@ struct RootfsManagement {
       return
     }
 
-    const src = item.path.startsWith('/') ? item.path : (this.filesDir + '/' + item.path)
+    const src = item.path
     const destUri = uris[0]
 
     this.exportProgress.open()
@@ -290,7 +290,7 @@ struct RootfsManagement {
     setTimeout(() => {
       for (let i = 0; i < this.roots.length; i++) {
         const it = this.roots[i]
-        const path = it.path.startsWith('/') ? it.path : (this.filesDir + '/' + it.path)
+        const path = it.path
         const stat = fs.statSync(path)
         const sizeString = (stat.size / (1024 * 1024)).toFixed(1) + 'MB'
         const virtualSize = readQcow2VirtualSize(path)
