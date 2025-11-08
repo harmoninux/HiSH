@@ -132,6 +132,8 @@ export default class EntryAbility extends UIAbility {
 
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
+    const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;
+    AppStorage.setOrCreate(appOption.terminalFontSize, terminalFontSize);
 
     defaultRootfs.path = defaultRootfs.path.startsWith('/')
       ? defaultRootfs.path
@@ -163,7 +165,6 @@ export default class EntryAbility extends UIAbility {
 
     const sharedGuest = '/mnt/share'
     const sharedHost = appContext.filesDir + '/' + 'share'
-    const rootFilesystem = vmBaseDir + '/' + 'rootfs_aarch64.qcow2'
     AppStorage.setOrCreate(appOption.vmBaseDir, vmBaseDir)
     AppStorage.setOrCreate(appOption.rootfsBaseDir, rootfsBaseDir)
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
@@ -207,5 +208,15 @@ export default class EntryAbility extends UIAbility {
   onBackground(): void {
     // Ability has back to background
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+  }
+
+  getDefaultTerminalFontSize(): number {
+    if (deviceInfo.deviceType === 'phone'
+      || deviceInfo.deviceType === 'default') {
+      return 11;
+    } else if (deviceInfo.deviceType === 'tablet') {
+      return 13;
+    }
+    return 14;
   }
 }

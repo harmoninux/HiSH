@@ -5,9 +5,28 @@ import appOption, { savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 
+const fontSizeOptions: SelectOption[] = [{
+  value: '9'
+}, {
+  value: '10'
+}, {
+  value: '11'
+}, {
+  value: '12'
+}, {
+  value: '13'
+}, {
+  value: '14'
+}, {
+  value: '15'
+}, {
+  value: '16'
+}]
+
 @Component
 export default struct SettingsContent {
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
+  @Watch('saveTermFontSize') @StorageProp(appOption.terminalFontSize) terminalFontSize: number = 12
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -62,6 +81,14 @@ export default struct SettingsContent {
       })
   }
 
+  @Builder
+  private buildTerminalFontSize() {
+    Select(fontSizeOptions)
+      .width(80)
+      .value(this.terminalFontSize.toString())
+      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalFontSize, parseInt(value)))
+  }
+
   build() {
     Column() {
       Scroll() {
@@ -74,6 +101,14 @@ export default struct SettingsContent {
               subTitle: $r('app.string.setting_keep_screen_on_desc'),
               content: () => {
                 this.keepScreenSetting()
+              }
+            })
+
+            SettingItem({
+              title: '终端字体大小',
+              subTitle: '设置终端字体大小（重启后生效）',
+              content: () => {
+                this.buildTerminalFontSize()
               }
             })
           }
@@ -154,5 +189,9 @@ export default struct SettingsContent {
       }
     };
     await context.startAbility(want);
+  }
+
+  async saveTermFontSize() {
+    await savePreference(appOption.terminalFontSize, this.terminalFontSize, this.getUIContext())
   }
 }

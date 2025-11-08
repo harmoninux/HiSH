@@ -3,8 +3,8 @@ import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
-import { deviceInfo } from '@kit.BasicServicesKit';
 import { pasteboard } from '@kit.BasicServicesKit'
+import appOption from '../model/appOption';
 
 const DOMAIN = 0x0000;
 
@@ -177,13 +177,7 @@ export default struct WebTerminal {
   }
 
   getFontSize(): number | null {
-    if (deviceInfo.deviceType === 'phone'
-      || deviceInfo.deviceType === 'default') {
-      return 11;
-    } else if (deviceInfo.deviceType === 'tablet') {
-      return 13;
-    }
-    return null;
+    return AppStorage.get(appOption.terminalFontSize) as number
   }
 
   private onData(ab: ArrayBuffer) {

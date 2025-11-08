@@ -3,6 +3,7 @@ import preference from '@ohos.data.preferences';
 class appOption {
   static preferenceName = 'vm_pref'
   static keepScreenOn = 'appKeepScreenOn'
+  static terminalFontSize = 'terminalFontSize'
   static vmBaseDir = 'vmBaseDir'
   static rootfsBaseDir = 'rootfsBaseDir'
   static sharedGuest = 'sharedGuest'
@@ -16,7 +17,7 @@ class appOption {
   static temporaryStartEmulator = 'temporaryStartEmulator'
 }
 
-async function savePreference(key: string, value: object | string | boolean, context: UIContext) {
+async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {
   const appContext = context.getHostContext()!!.getApplicationContext();
   const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
   if (value instanceof Object) {
