@@ -13,8 +13,6 @@ import EmulatorManagement from "../components/EmulatorManagement";
 struct PcIndex {
   @StorageProp(appOption.sharedHost) sharedHost: string = ''
   @StorageProp(appOption.sharedGuest) sharedGuest: string = ''
-  private appContext: common.ApplicationContext =
-    (this.getUIContext().getHostContext() as common.UIAbilityContext).getApplicationContext()
   settingController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.Setting_title'),
@@ -205,7 +203,6 @@ struct PhoneOrTablet {
 @Component
 struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
-  @StorageProp(appOption.use9pRootFs) use9pRootFs: boolean = false
   private uiContext: UIContext = this.getUIContext();
   private promptAction: PromptAction = this.uiContext.getPromptAction();
 

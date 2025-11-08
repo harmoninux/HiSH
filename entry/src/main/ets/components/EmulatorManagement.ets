@@ -1,11 +1,11 @@
 import { Emulator } from '../model/Emulator';
 import { RepeatGrid } from './RepeatGrid';
 import { util } from '@kit.ArkTS';
+import appOption from '../model/appOption';
 
-@Preview
 @Component
 export default struct EmulatorManagement {
-  @StorageProp('emulators') private emulators: Emulator[] = []
+  @StorageProp(appOption.emulators) private emulators: Emulator[] = []
 
   @Builder
   buildEmulatorList(emulator: Emulator) {
@@ -55,10 +55,16 @@ export default struct EmulatorManagement {
           .bindMenu([{
             value: '镜像管理',
             action: () => {
+              this.getUIContext().getRouter().pushUrl({
+                url: 'pages/RootfsManagement'
+              })
             }
           }, {
             value: '共享文件夹',
             action: () => {
+              this.getUIContext().getRouter().pushUrl({
+                url: 'pages/SharedFolder'
+              })
             }
           }])
       }

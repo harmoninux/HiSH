@@ -2,6 +2,8 @@
   "src": [
     "pages/Index",
     "pages/SettingsPage",
-    "pages/EditEmulator"
+    "pages/EditEmulator",
+    "pages/RootfsManagement",
+    "pages/SharedFolder"
   ]
 }

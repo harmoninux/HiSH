@@ -229,7 +229,7 @@ export struct SharedFolderContent {
           .margin({ right: 5 })
           .onClick(() => this.refreshFileList())
 
-        SymbolGlyph($r('sys.symbol.plus'))
+        SymbolGlyph($r('sys.symbol.dot_grid_1x2'))
           .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
           .padding(4)
