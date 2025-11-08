@@ -304,13 +304,13 @@ export default struct RootfsManagementContent {
         const it = this.roots[i]
         const path = it.path
         const stat = fs.statSync(path)
-        const sizeString = (stat.size / (1024 * 1024)).toFixed(1) + 'MB'
+        const sizeString = (stat.size / (1024 * 1024)).toFixed(1) + ' MB'
         const virtualSize = readQcow2VirtualSize(path)
         let virtualSizeString: string;
         if (virtualSize === undefined) {
           virtualSizeString = '-'
         } else {
-          virtualSizeString = (virtualSize / (1024 * 1024 * 1024)).toFixed(1) + 'GB'
+          virtualSizeString = (virtualSize / (1024 * 1024 * 1024)).toFixed(1) + ' GB'
         }
         this.rootfsItems.push({ model: it, fileSize: sizeString, virtualSize: virtualSizeString })
       }
@@ -376,12 +376,15 @@ struct RootFilesystemItem {
         Blank().layoutWeight(1)
         Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onDelete(this.value.model))
         Button('重命名', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.value.model))
         Button('导出', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onExport(this.value.model))
       }
       .padding({ top: 5, bottom: 5 })
@@ -393,5 +396,6 @@ struct RootFilesystemItem {
       right: 10
     })
     .backgroundColor($r('app.color.setting_block_background'))
+    .clickEffect({ level: ClickEffectLevel.LIGHT })
   }
 }

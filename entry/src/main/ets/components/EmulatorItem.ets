@@ -33,7 +33,7 @@ export default struct EmulatorItem {
         if (this.isRunning) {
           Text('运行中')
             .fontSize($r('sys.float.Body_M'))
-            .fontColor('#2E7D32')
+            .fontColor('#388E3C')
             .height(20)
         } else {
           Button('运行', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
@@ -52,21 +52,21 @@ export default struct EmulatorItem {
 
       Row() {
         Column() {
-          Text(this.emulator.cpu + '核').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
+          Text(this.emulator.cpu + ' 核').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
           Text('CPU').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
 
         Column() {
-          Text(this.emulator.memory + 'MB').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
+          Text(this.formatMemory()).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
           Text('内存').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
 
         Column() {
-          Text(this.storageSize.toFixed(1) + 'GB')
+          Text(this.storageSize.toFixed(1) + ' GB')
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
           Text('虚拟盘').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
@@ -104,15 +104,19 @@ export default struct EmulatorItem {
         Blank().layoutWeight(1)
         Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onDelete(this.emulator))
         Button('导出', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onExport(this.emulator))
         Button('复制', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onCopy(this.emulator))
         Button('修改', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.emulator))
       }
       .padding({ top: 5, bottom: 5 })
@@ -123,6 +127,14 @@ export default struct EmulatorItem {
       left: 10,
       right: 10
     })
+    .clickEffect({ level: ClickEffectLevel.LIGHT })
     .backgroundColor($r('app.color.setting_block_background'))
+  }
+
+  private formatMemory() {
+    if (this.emulator.memory >= 1024) {
+      return (this.emulator.memory / 1024).toFixed(1) + ' GB'
+    }
+    return this.emulator.memory + ' MB';
   }
 }
