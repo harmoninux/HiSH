@@ -1,12 +1,11 @@
 import EditEmulatorContent from '../components/EditEmulatorContent'
-import appOption, { savePreference } from '../model/appOption'
+import appOption from '../model/appOption'
 import { Emulator } from '../model/Emulator'
 import { util } from '@kit.ArkTS'
 
 @Entry
 @Component
 struct EditEmulator {
-  @StorageLink(appOption.emulators) emulators: Emulator[] = []
   @State emulator?: Emulator = undefined
   private emId = (this.getUIContext().getRouter().getParams() as Record<string, string>)['id'] as string
 
@@ -45,27 +44,12 @@ struct EditEmulator {
       if (this.emulator) {
         EditEmulatorContent({
           emulator: this.emulator,
-          onFinished: async (item: Emulator) => {
-            await this.saveEmulator(item)
-          }
+          onFinished: (item: Emulator) => {
+            this.getUIContext().getRouter().back()
+          },
+          titleBar: true
         })
       }
     }
-  }
-
-  private async saveEmulator(em: Emulator) {
-
-    const i = this.emulators.findIndex(it => it.id === em.id)
-
-    if (i >= 0) {
-      //  update
-      this.emulators[i] = em
-    } else {
-      this.emulators.push(em)
-    }
-
-    await savePreference(appOption.emulators, this.emulators, this.getUIContext())
-
-    this.getUIContext().getRouter().back()
   }
 }

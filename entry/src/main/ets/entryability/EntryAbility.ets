@@ -168,7 +168,6 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.rootfsBaseDir, rootfsBaseDir)
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
     AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
-    AppStorage.setOrCreate(appOption.rootFilesystem, rootFilesystem)
     AppStorage.setOrCreate(appOption.kernel, vmBaseDir + '/kernel_aarch64')
 
     if (!fs.accessSync(vmBaseDir, fs.AccessModeType.EXIST)) {

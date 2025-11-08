@@ -4,7 +4,7 @@ import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, ItemTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
 import { util } from "@kit.ArkTS"
-import appOption from "../model/appOption"
+import appOption, { savePreference } from "../model/appOption"
 import { PromptAction } from "@kit.ArkUI"
 import copyFile from "../lib/copyFile"
 
@@ -19,6 +19,9 @@ export default struct EditEmulatorContent {
   @State rootFilesystemOptions: SelectOption[] = []
   @State selectedRootfs: string = defaultRootfs.name
   @Watch('onPortMappingChanged') @State portMappingItems: PortMappingItem[] = []
+  @StorageLink(appOption.emulators) emulators: Emulator[] = []
+  @Prop specifiedBreak?: string = undefined
+  @Prop titleBar: boolean = true
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   private promptAction: PromptAction = this.getUIContext().getPromptAction();
 
@@ -188,23 +191,26 @@ export default struct EditEmulatorContent {
 
   build() {
     Column() {
-      Row() {
-        Text('编辑模拟器')
-          .fontSize(16)
-          .padding({ left: 15 })
+      if (this.titleBar) {
+        Row() {
+          Text('编辑模拟器')
+            .fontSize(16)
+            .padding({ left: 15 })
 
-        Blank().layoutWeight(1)
+          Blank().layoutWeight(1)
 
-        Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
-          .onClick(() => this.onEditFinished())
+          Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
+            .onClick(() => this.onEditFinished())
+        }
+        .height(56)
       }
-      .height(56)
 
       Scroll() {
         ReactiveGrid({
           contentBuilder: () => {
             this.buildEmulatorEdit()
-          }
+          },
+          specifiedBreak: this.specifiedBreak
         })
       }
       .scrollable(ScrollDirection.Vertical)
@@ -212,6 +218,12 @@ export default struct EditEmulatorContent {
       .scrollBarWidth(1)
       .layoutWeight(1)
       .align(Alignment.Top)
+
+      if (!this.titleBar) {
+        Button('完成')
+          .width('100%')
+          .onClick(() => this.onEditFinished())
+      }
     }
   }
 
@@ -258,6 +270,8 @@ export default struct EditEmulatorContent {
         this.emulator.rootFilesystem = target
       }
 
+      await this.saveEmulators()
+
       this.onFinished(this.emulator)
     } else {
       this.promptAction.showToast({
@@ -265,6 +279,17 @@ export default struct EditEmulatorContent {
         duration: 3000
       })
     }
+  }
+
+  private async saveEmulators() {
+    const i = this.emulators.findIndex(it => it.id === this.emulator.id)
+    if (i >= 0) {
+      //  update
+      this.emulators[i] = this.emulator
+    } else {
+      this.emulators.push(this.emulator)
+    }
+    await savePreference(appOption.emulators, this.emulators, this.getUIContext())
   }
 
   private portMappingError(): string | undefined {

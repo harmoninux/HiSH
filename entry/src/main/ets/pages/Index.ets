@@ -4,37 +4,32 @@ import { deviceInfo } from '@kit.BasicServicesKit';
 import WebTerminal from '../components/WebTerminal'
 import SettingsContent from '../components/SettingsContent';
 import { SharedFolderContent } from '../components/SharedFolderContent';
-import { PortMappingContent } from "../components/PortMappingContent";
 import appOption from "../model/appOption";
 import { util } from "@kit.ArkTS";
 import EmulatorManagement from "../components/EmulatorManagement";
+import EmulatorListGrid from "../components/EmulatorListGrid";
+import EditEmulatorContent from "../components/EditEmulatorContent";
+import { Emulator } from "../model/Emulator";
+import RootfsManagementContent from "../components/RootfsManagementContent";
 
 @Component
 struct PcIndex {
   @StorageProp(appOption.sharedHost) sharedHost: string = ''
   @StorageProp(appOption.sharedGuest) sharedGuest: string = ''
-  settingController: CustomDialogController = new CustomDialogController({
+  @State emulatorToEdit?: Emulator = undefined
+  emulatorManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: $r('app.string.Setting_title'),
+      primaryTitle: '模拟器管理',
       contentBuilder: () => {
-        this.buildSettings();
-      },
-      buttons: [{
-        value: $r('app.string.SettingComplete_label'),
-        buttonStyle: ButtonStyleMode.TEXTUAL,
-        action: () => {
-          this.settingController.close()
-        }
-      }]
-    }),
-    autoCancel: true,
-    alignment: DialogAlignment.Center
+        this.buildSimulatorManagement();
+      }
+    })
   })
-  portMappingController: CustomDialogController = new CustomDialogController({
+  rootfsManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: $r('app.string.setting_port_mapping'),
+      primaryTitle: '镜像管理',
       contentBuilder: () => {
-        this.buildPortMapping();
+        this.buildRootfsManagement();
       }
     })
   })
@@ -43,6 +38,22 @@ struct PcIndex {
       primaryTitle: $r('app.string.setting_shared_folder'),
       contentBuilder: () => {
         this.buildSharedFolder();
+      }
+    })
+  })
+  settingController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.Setting_title'),
+      contentBuilder: () => {
+        this.buildSettings();
+      }
+    })
+  })
+  editEmulatorController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '编辑模拟器',
+      contentBuilder: () => {
+        this.buildEditEmulator();
       }
     })
   })
@@ -60,35 +71,68 @@ struct PcIndex {
         Blank()
 
         Row() {
-          Image($r('app.media.folder'))
-            .width(28)
-            .aspectRatio(1)
-            .padding(4)
-            .margin({ right: 10 })
-            .borderRadius(4)
-            .hoverEffect(HoverEffect.Highlight)
-            .onClick(() => {
-              this.sharedFolderController.open()
-            })
-          Image($r('app.media.reverse_order'))
-            .width(28)
-            .aspectRatio(1)
-            .padding(4)
-            .margin({ right: 10 })
-            .borderRadius(4)
-            .hoverEffect(HoverEffect.Highlight)
-            .onClick(() => {
-              this.portMappingController.open()
-            })
-          Image($r('app.media.gearshape'))
-            .width(28)
-            .aspectRatio(1)
-            .padding(4)
-            .borderRadius(4)
-            .hoverEffect(HoverEffect.Highlight)
-            .onClick(() => {
-              this.settingController.open()
-            })
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
+            SymbolGlyph($r('sys.symbol.more'))
+              .fontSize('20vp')
+              .width(20)
+              .height(20)
+              .fontColor(['#ffffff'])
+          }
+          .borderRadius(4)
+          .padding(4)
+          .margin({ right: 10 })
+          .onClick((event: ClickEvent) => {
+            this.emulatorManagementController.open()
+          })
+
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
+            SymbolGlyph($r('sys.symbol.externaldrive_3'))
+              .fontSize('20vp')
+              .width(20)
+              .height(20)
+              .fontColor(['#ffffff'])
+          }
+          .borderRadius(4)
+          .padding(4)
+          .margin({ right: 10 })
+          .onClick((event: ClickEvent) => {
+            this.rootfsManagementController.open()
+          })
+
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
+            Image($r('app.media.folder')).width(20)
+          }
+          .borderRadius(4)
+          .padding(4)
+          .margin({ right: 10 })
+          .onClick((event: ClickEvent) => {
+            this.sharedFolderController.open()
+          })
+
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
+            Image($r('app.media.gearshape')).width(20)
+          }
+          .borderRadius(4)
+          .padding(4)
+          .onClick((event: ClickEvent) => {
+            this.settingController.open()
+          })
         }
       }
       .width('100%')
@@ -106,13 +150,68 @@ struct PcIndex {
   }
 
   @Builder
-  buildSettings() {
-    SettingsContent()
+  buildSimulatorManagement() {
+    Column() {
+      EmulatorListGrid({
+        onEditEmulator: (item) => {
+          this.emulatorToEdit = {
+            id: item.id,
+            name: item.name,
+            init: item.init,
+            cpu: item.cpu,
+            memory: item.memory,
+            portMapping: item.portMapping,
+            rootFilesystem: item.rootFilesystem,
+            sharedFolderReadonly: item.sharedFolderReadonly
+          }
+          this.editEmulatorController.open()
+        },
+        specifiedBreak: 'xs'
+      })
+      Button('添加')
+        .width('100%')
+        .onClick(() => {
+          const id = util.generateRandomUUID()
+          this.emulatorToEdit = {
+            id,
+            name: '',
+            init: '/init',
+            cpu: 1,
+            memory: 512,
+            portMapping: [],
+            rootFilesystem: '',
+            sharedFolderReadonly: false
+          }
+          this.editEmulatorController.open()
+        })
+    }
   }
 
   @Builder
-  buildPortMapping() {
-    PortMappingContent()
+  buildRootfsManagement() {
+    Column() {
+      RootfsManagementContent({
+        toolBar: false,
+        specifiedBreak: 'xs'
+      })
+    }
+  }
+
+  @Builder
+  buildEditEmulator() {
+    EditEmulatorContent({
+      emulator: this.emulatorToEdit,
+      onFinished: () => {
+        this.editEmulatorController.close()
+      },
+      specifiedBreak: 'xs',
+      titleBar: false
+    })
+  }
+
+  @Builder
+  buildSettings() {
+    SettingsContent()
   }
 
   @Builder
@@ -172,7 +271,7 @@ struct PhoneOrTablet {
       .tabBar(this.tabBuilder('模拟器管理', 1, $r('sys.symbol.more')))
 
       TabContent() {
-        PortMappingContent()
+        Column()
       }
       .tabBar(this.tabBuilder('使用指南', 2, $r('sys.symbol.book_pages')))
 
