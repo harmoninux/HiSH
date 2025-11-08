@@ -17,6 +17,7 @@ export struct OpenSourceContent {
           return false;
         }
       })
+      .backgroundColor('#000000')
   }
 
   async toWebBrowser(url: string): Promise<void> {
