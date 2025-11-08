@@ -178,14 +178,19 @@ export default struct EmulatorManagement {
     await savePreference(appOption.defaultStartEmulator, this.defaultStart, this.getUIContext())
   }
 
-  deleteEmulatorItem(item: Emulator) {
+  async deleteEmulatorItem(item: Emulator) {
 
     const i = this.emulators.findIndex(it => it.id === item.id)
 
     const rootfs = item.rootFilesystem
-    fs.unlinkSync(rootfs)
+    try {
+      fs.unlinkSync(rootfs)
+    } catch (e) {
+      hilog.info(1, "EmulatorManagement", "failed to delete %{public}s", rootfs)
+    }
 
     this.emulators.splice(i, 1)
+    await savePreference(appOption.emulators, this.emulators, this.getUIContext())
   }
 
   async copyEmulatorItem() {
