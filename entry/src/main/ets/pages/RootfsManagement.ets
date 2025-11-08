@@ -302,7 +302,7 @@ struct RootfsManagement {
         }
         this.rootfsItems.push({ model: it, fileSize: sizeString, virtualSize: virtualSizeString })
       }
-    }, 50)
+    }, 20)
   }
 }
 

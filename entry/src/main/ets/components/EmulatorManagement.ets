@@ -6,12 +6,14 @@ import appOption, { savePreference } from '../model/appOption';
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
 import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 @Component
 export default struct EmulatorManagement {
   @State selectedIdToCopy?: string = undefined
   @State tempEmulatorName: string = ''
-  @StorageLink(appOption.emulators) emulators: Emulator[] = []
+  @Watch('onEmulatorsChange') @StorageLink(appOption.emulators) emulators: Emulator[] = []
+  @State displayEmulators: Emulator[] = []
   @StorageLink(appOption.defaultStartEmulator) defaultStart?: string = undefined
   @StorageProp(appOption.currentRunningEmulator) currentRunning?: string = undefined
   emulatorNameController = new CustomDialogController({
@@ -30,6 +32,10 @@ export default struct EmulatorManagement {
   })
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   promptAction = this.getUIContext().getPromptAction()
+
+  aboutToAppear(): void {
+    this.onEmulatorsChange()
+  }
 
   @Builder
   buildInputEmulatorName() {
@@ -216,7 +222,7 @@ export default struct EmulatorManagement {
 
       Scroll() {
         RepeatGrid({
-          items: this.emulators as object[],
+          items: this.displayEmulators as object[],
           contentBuilder: (item: object, index: number) => {
             this.buildEmulatorListItem(item as Emulator)
           },
@@ -229,6 +235,14 @@ export default struct EmulatorManagement {
       .layoutWeight(1)
       .align(Alignment.Top)
     }
+  }
+
+  onEmulatorsChange() {
+    hilog.info(1, "EmulatorManagement", "onEmulatorsChange: %{public}s", JSON.stringify(this.emulators))
+    this.displayEmulators.splice(0, this.displayEmulators.length)
+    setTimeout(() => {
+      this.emulators.forEach(it => this.displayEmulators.push(it))
+    }, 20)
   }
 }
 
