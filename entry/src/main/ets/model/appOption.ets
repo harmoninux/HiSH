@@ -1,3 +1,5 @@
+import preference from '@ohos.data.preferences';
+
 class appOption {
   static preferenceName = 'vm_pref'
   static cpuCountName = 'vmCpuCount'
@@ -7,7 +9,6 @@ class appOption {
   static keepScreenOn = 'appKeepScreenOn'
   static resetLinuxFlag = 'resetLinuxAtStart'
   static use9pRootFs = 'use9pRootFs'
-
   static vmBaseDir = 'vmBaseDir'
   static rootfsBaseDir = 'rootfsBaseDir'
   static sharedGuest = 'sharedGuest'
@@ -15,9 +16,9 @@ class appOption {
   static rootFilesystem = 'rootFilesystem'
   static kernel = 'kernel'
   static portUsedByOthers = 'portUsedByOthers'
-
   static emulators = 'emulators'
   static rootFilesystems = 'rootFilesystems'
+  static currentRunningEmulator = 'currentRunningEmulator'
 }
 
 interface PortMapping {
@@ -25,6 +26,13 @@ interface PortMapping {
   host?: number
 }
 
+async function savePreference(key: string, value: object, context: UIContext) {
+  const appContext = context.getHostContext()!!.getApplicationContext();
+  const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+  await appPref.put(key, JSON.stringify(value));
+  await appPref.flush();
+}
+
 export default appOption
 
-export { PortMapping }
+export { PortMapping, savePreference }

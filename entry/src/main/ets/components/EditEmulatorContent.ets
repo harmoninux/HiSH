@@ -1,11 +1,12 @@
 import { cpuOptions, getCpuCount, getMemSize, memOptions } from "../lib/systemProfile"
-import { defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
+import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
 import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, ItemTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
 import { util } from "@kit.ArkTS"
 import appOption from "../model/appOption"
 import { PromptAction } from "@kit.ArkUI"
+import copyFile from "../lib/copyFile"
 
 @Component
 export default struct EditEmulatorContent {
@@ -18,6 +19,7 @@ export default struct EditEmulatorContent {
   @State rootFilesystemOptions: SelectOption[] = []
   @State selectedRootfs: string = defaultRootfs.name
   @Watch('onPortMappingChanged') @State portMappingItems: PortMappingItem[] = []
+  filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   private promptAction: PromptAction = this.getUIContext().getPromptAction();
 
   aboutToAppear(): void {
@@ -85,6 +87,7 @@ export default struct EditEmulatorContent {
           .margin({ bottom: 10 })
         TextInput({ placeholder: '名称', text: this.emulator.name })
           .maxLength(64)
+          .enabled(this.emulator.id !== defaultEmulator.id)
           .onChange((value) => {
             this.emulator.name = value.trim()
           })
@@ -242,7 +245,8 @@ export default struct EditEmulatorContent {
       return '请输入模拟器名称'
     }
 
-    const nameUsed = emulators.findIndex(it => it.name === this.emulator.name) > 0
+    const nameUsed = emulators
+      .findIndex(it => it.id !== this.emulator.id && it.name === this.emulator.name) >= 0
     if (nameUsed) {
       return '模拟器名称重复，请换一个'
     }
@@ -259,15 +263,16 @@ export default struct EditEmulatorContent {
     return undefined
   }
 
-  private onEditFinished() {
+  private async onEditFinished() {
     const error = this.validate()
     if (!error) {
       if (this.isCreate) {
         const roots = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
         const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
         const selected = roots.find(it => it.name === this.selectedRootfs)!!
+        const source = selected.path.startsWith('/') ? selected.path : (this.filesDir + '/' + selected.path)
         const target = vmBaseDir + '/' + this.emulator.id + selected.path.substring(selected.path.lastIndexOf('.'))
-        //  TODO: copy images
+        await copyFile(source, target)
         this.emulator.rootFilesystem = target
       }
 

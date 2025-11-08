@@ -8,6 +8,7 @@ import { CustomContentDialog, LoadingDialog } from "@kit.ArkUI";
 import { util } from "@kit.ArkTS";
 import copyFile from "../lib/copyFile";
 import { fileIo as fs } from '@kit.CoreFileKit'
+import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
 
 interface RootfsItem {
   model: RootFilesystem
@@ -380,28 +381,5 @@ struct RootFilesystemItem {
       right: 10
     })
     .backgroundColor($r('app.color.setting_block_background'))
-  }
-}
-
-function readQcow2VirtualSize(filePath: string): number | undefined {
-
-  try {
-    const f = fs.openSync(filePath, fs.OpenMode.READ_ONLY)
-
-    const HEADER_SIZE = 32;
-    const buffer = new ArrayBuffer(HEADER_SIZE);
-
-    const bytesRead = fs.readSync(f.fd, buffer, { offset: 0, length: HEADER_SIZE })
-    fs.close(f)
-
-    if (bytesRead < HEADER_SIZE) {
-      return undefined
-    }
-
-    const dataView = new DataView(buffer)
-    const size = dataView.getBigInt64(24, false)
-    return Number(size)
-  } catch (e) {
-    return undefined
   }
 }
