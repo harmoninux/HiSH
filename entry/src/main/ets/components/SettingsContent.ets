@@ -1,7 +1,7 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
-import appOption from '../model/appOption';
+import appOption, { savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 
@@ -44,9 +44,8 @@ export default struct SettingsContent {
   preferences?: preference.Preferences
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
 
-  saveKeepScreenOn() {
-    this.preferences!.put(appOption.keepScreenOn, this.keepScreenOn)
-    this.preferences!.flush()
+  async saveKeepScreenOn() {
+    await savePreference(appOption.keepScreenOn, this.keepScreenOn, this.getUIContext())
 
     const mainWindow = AppStorage.get('mainWindow') as window.Window
     if (mainWindow) {
@@ -155,20 +154,5 @@ export default struct SettingsContent {
       }
     };
     await context.startAbility(want);
-  }
-
-  private async markResetLinuxAndRestart() {
-    await this.preferences?.put(appOption.resetLinuxFlag, true);
-    await this.preferences?.flush();
-    this.restartApp();
-  }
-
-  private async restartApp() {
-    let applicationContext = this.context.getApplicationContext();
-    let want: Want = {
-      bundleName: this.bundleInfo?.name,
-      abilityName: 'EntryAbility'
-    };
-    applicationContext.restartApp(want);
   }
 }

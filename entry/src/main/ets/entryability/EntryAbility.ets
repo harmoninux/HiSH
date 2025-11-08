@@ -62,22 +62,19 @@ export default class EntryAbility extends UIAbility {
 
   private async startDefaultEmulator(appContext: common.ApplicationContext) {
 
-    const defaultStart: string | undefined = AppStorage.get(appOption.defaultStartEmulator) as string
+    const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string
+    const defaultStart: string | undefined = temporaryStart || AppStorage.get(appOption.defaultStartEmulator) as string
 
     const emulators = AppStorage.get(appOption.emulators) as Emulator[]
 
-    const defaultEmulator = emulators.find(it => it.id === defaultStart)
+    const emulatorToStart = emulators.find(it => it.id === defaultStart)!!
 
-    if (!defaultEmulator) {
-      return
-    }
-
-    const cpuCount = defaultEmulator.cpu;
-    const memSize = defaultEmulator.memory;
-    const rootFilesystem = defaultEmulator.rootFilesystem
-    const sharedFolderReadonly = defaultEmulator.sharedFolderReadonly
-    const portMappingRaw = defaultEmulator.portMapping
-    const init = defaultEmulator.init
+    const cpuCount = emulatorToStart.cpu;
+    const memSize = emulatorToStart.memory;
+    const rootFilesystem = emulatorToStart.rootFilesystem
+    const sharedFolderReadonly = emulatorToStart.sharedFolderReadonly
+    const portMappingRaw = emulatorToStart.portMapping
+    const init = emulatorToStart.init
 
     const sharedFolder = AppStorage.get(appOption.sharedHost) as string
 
@@ -106,7 +103,7 @@ export default class EntryAbility extends UIAbility {
 
     const serialUnixSocket = appContext.tempDir + '/serial_socket'
 
-    AppStorage.setOrCreate(appOption.currentRunningEmulator, defaultEmulator.id)
+    AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
     startVm({
       baseDir: vmBaseDir,
@@ -125,6 +122,13 @@ export default class EntryAbility extends UIAbility {
   private async loadPreferences(appContext: common.ApplicationContext) {
 
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+
+    const temporaryStart = await appPref.get(appOption.temporaryStartEmulator, undefined) as string | undefined
+    appPref.deleteSync(appOption.temporaryStartEmulator)
+    appPref.flush()
+    if (temporaryStart) {
+      AppStorage.setOrCreate(appOption.temporaryStartEmulator, temporaryStart)
+    }
 
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);

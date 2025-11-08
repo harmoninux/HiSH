@@ -7,6 +7,8 @@ import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
 import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { Want } from '@kit.AbilityKit';
+import { bundleManager } from '@kit.MDMKit';
 
 @Component
 export default struct EmulatorManagement {
@@ -16,6 +18,7 @@ export default struct EmulatorManagement {
   @State displayEmulators: Emulator[] = []
   @StorageLink(appOption.defaultStartEmulator) defaultStart?: string = undefined
   @StorageProp(appOption.currentRunningEmulator) currentRunning?: string = undefined
+  @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   emulatorNameController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: '复制',
@@ -42,7 +45,7 @@ export default struct EmulatorManagement {
     Column() {
       TextInput({
         text: this.tempEmulatorName,
-        placeholder: '输入镜像名称'
+        placeholder: '输入新的模拟器名称'
       })
         .onChange((value) => {
           this.tempEmulatorName = value;
@@ -99,8 +102,50 @@ export default struct EmulatorManagement {
       },
       onSetDefault: (item) => {
         this.onSetDefault(item);
+      },
+      onStart: (item) => {
+        this.askForStartEmulator(item)
       }
     })
+  }
+
+  askForStartEmulator(item: Emulator) {
+    this.getUIContext().showAlertDialog({
+      title: item.name,
+      message: '将重启HiSH并启动“' + item.name + "”，建议保存好当前模拟器中的数据再操作。是否现在启动？",
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      buttons: [
+        {
+          value: $r('app.string.setting_generic_cancel'),
+          action: () => {
+          }
+        },
+        {
+          enabled: true,
+          style: DialogButtonStyle.HIGHLIGHT,
+          backgroundColor: $r('sys.color.warning'),
+          value: '运行',
+          action: async () => {
+            this.startEmulator(item);
+          }
+        }
+      ],
+    });
+  }
+
+  async startEmulator(item: Emulator) {
+    await savePreference(appOption.temporaryStartEmulator, item.id, this.getUIContext())
+    await this.restartApp()
+  }
+
+  private async restartApp() {
+    let applicationContext = this.getUIContext().getHostContext()!!.getApplicationContext();
+    let want: Want = {
+      bundleName: this.bundleInfo?.name,
+      abilityName: 'EntryAbility'
+    };
+    applicationContext.restartApp(want);
   }
 
   private askForDeleteEmulator(item: Emulator) {
@@ -255,6 +300,7 @@ struct EmulatorItem {
   @Require onDelete: (item: Emulator) => void
   @Require onCopy: (item: Emulator) => void
   @Require onSetDefault: (item: Emulator) => void
+  @Require onStart: (item: Emulator) => void
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
 
@@ -275,8 +321,14 @@ struct EmulatorItem {
           .layoutWeight(1)
         if (this.isRunning) {
           Text('运行中')
-            .fontSize($r('sys.float.Body_S'))
-            .fontColor('#FF5291FF')
+            .fontSize($r('sys.float.Body_M'))
+            .fontColor('#2E7D32')
+            .height(20)
+        } else {
+          Button('运行', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => this.onStart(this.emulator))
+            .height(20)
         }
       }
       .padding({
@@ -330,7 +382,7 @@ struct EmulatorItem {
           Checkbox()
             .select(this.isDefault)
             .size({ width: $r('sys.float.Body_L'), height: $r('sys.float.Body_L') })
-            .enabled(!this.isDefault)
+            .enabled(false)
           Text('设为默认启动').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT })
