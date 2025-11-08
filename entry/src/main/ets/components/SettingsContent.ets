@@ -102,6 +102,8 @@ export default struct SettingsContent {
               content: () => {
                 this.keepScreenSetting()
               }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.keepScreenOn, !this.keepScreenOn)
             })
 
             SettingItem({
@@ -112,9 +114,6 @@ export default struct SettingsContent {
               }
             })
           }
-          .onClick(() => {
-            AppStorage.setOrCreate(appOption.keepScreenOn, !this.keepScreenOn)
-          })
           .attributeModifier(this.blockStyle)
 
           BlockTitle({ content: $r('app.string.setting_block_about') })

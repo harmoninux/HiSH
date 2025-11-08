@@ -7,7 +7,7 @@ export default struct EmulatorManagement {
     Column() {
       Row() {
         Text('模拟器管理')
-          .fontSize(16)
+          .fontSize(20)
           .padding({ left: 15 })
 
         Blank().layoutWeight(1)

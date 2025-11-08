@@ -4,6 +4,7 @@
     "pages/SettingsPage",
     "pages/EditEmulator",
     "pages/RootfsManagement",
-    "pages/SharedFolder"
+    "pages/SharedFolder",
+    "pages/GuideWebPage"
   ]
 }

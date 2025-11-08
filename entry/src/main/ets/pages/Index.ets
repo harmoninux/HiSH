@@ -12,6 +12,7 @@ import EditEmulatorContent from "../components/EditEmulatorContent";
 import { Emulator } from "../model/Emulator";
 import RootfsManagementContent from "../components/RootfsManagementContent";
 import UserGuide from "../components/UserGuide";
+import { webview } from "@kit.ArkWeb";
 
 @Component
 struct PcIndex {
@@ -58,6 +59,15 @@ struct PcIndex {
       }
     })
   })
+  userGuideController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '使用指南',
+      contentBuilder: () => {
+        this.buildGuideList();
+      }
+    })
+  })
+  webController = new webview.WebviewController()
 
   build() {
     Column() {
@@ -131,8 +141,26 @@ struct PcIndex {
           }
           .borderRadius(4)
           .padding(4)
+          .margin({ right: 10 })
           .onClick((event: ClickEvent) => {
             this.settingController.open()
+          })
+
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
+            SymbolGlyph($r('sys.symbol.book_pages'))
+              .fontSize('20vp')
+              .width(20)
+              .height(20)
+              .fontColor(['#ffffff'])
+          }
+          .borderRadius(4)
+          .padding(4)
+          .onClick((event: ClickEvent) => {
+            this.userGuideController.open()
           })
         }
       }
@@ -211,6 +239,52 @@ struct PcIndex {
   }
 
   @Builder
+  buildGuideList() {
+    UserGuide({
+      toolBar: false,
+      openPage: (title: string, url: string) => {
+        const controller =  new CustomDialogController({
+          builder: CustomContentDialog({
+            primaryTitle: title,
+            contentBuilder: () => {
+              this.buildGuideWebView(url);
+            }
+          })
+        })
+        controller.open()
+      }
+    })
+  }
+
+  @Builder
+  private buildGuideWebView(url: string) {
+    Web({
+      src: $rawfile(url),
+      controller: this.webController
+    }).javaScriptProxy({
+      permission: `{
+          "javascriptProxyPermission": {
+            "urlPermissionList": [
+              {
+                "scheme": "resource",
+                "host": "rawfile",
+                "port": "",
+                "path": ""
+              }
+            ]
+          }
+        }`,
+      object: this,
+      name: 'native',
+      methodList: [],
+      controller: this.webController
+    })
+      .width('100%')
+      .height('100%')
+      .backgroundColor('#000000');
+  }
+
+  @Builder
   buildSettings() {
     SettingsContent()
   }
@@ -273,7 +347,14 @@ struct PhoneOrTablet {
 
       TabContent() {
         Column() {
-          UserGuide()
+          UserGuide({
+            openPage: (title: string, url: string) => {
+              this.getUIContext().getRouter().pushUrl({
+                url: 'pages/GuideWebPage',
+                params: { page: url }
+              })
+            }
+          })
         }
       }
       .tabBar(this.tabBuilder('使用指南', 2, $r('sys.symbol.book_pages')))
@@ -281,10 +362,10 @@ struct PhoneOrTablet {
       TabContent() {
         Column() {
           Text($r('app.string.Setting_title'))
-            .fontSize(23)
+            .fontSize(20)
             .height(56)
             .width('100%')
-            .padding({ left: 20, right: 20 })
+            .padding({ left: 15, right: 15 })
           SettingsContent()
         }
         .width('100%')

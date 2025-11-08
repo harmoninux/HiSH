@@ -66,17 +66,19 @@ export struct SettingItem {
 
 @Component
 export struct LinkItem {
-  @Prop icon: Resource
+  @Prop icon?: Resource
   @Prop title: string | Resource
   @Prop subTitle: string | Resource
   click?: () => void
 
   build() {
     Row() {
-      SymbolGlyph(this.icon)
-        .fontSize('24vp')
-        .margin({ right: $r('sys.float.padding_level8') })
-        .fontColor([$r('sys.color.icon_emphasize')])
+      if (this.icon) {
+        SymbolGlyph(this.icon)
+          .fontSize('24vp')
+          .margin({ right: $r('sys.float.padding_level8') })
+          .fontColor([$r('sys.color.icon_emphasize')])
+      }
       Column() {
         Text(this.title).fontSize($r('sys.float.Body_L')).fontColor($r('sys.color.font_primary'))
         Text(this.subTitle).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
