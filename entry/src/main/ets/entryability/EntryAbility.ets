@@ -6,10 +6,10 @@ import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
-import appOption, { PortMapping } from '../model/appOption'
+import appOption from '../model/appOption'
 import napi from 'libentry.so';
 import { startVm } from '../lib/startVm';
-import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
+import { defaultEmulator, defaultRootfs, Emulator, PortMapping, RootFilesystem } from '../model/Emulator';
 
 const DOMAIN = 0x0000;
 
@@ -27,6 +27,10 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
+    const bundleInfo =
+      await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
+    AppStorage.setOrCreate('bundleInfo', bundleInfo)
+
     const appContext = this.context.getApplicationContext();
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
 
@@ -34,11 +38,7 @@ export default class EntryAbility extends UIAbility {
 
     await this.extractKernelAndRootFilesystem(appContext);
 
-    await this.startVm(appContext);
-
-    const bundleInfo =
-      await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
-    AppStorage.setOrCreate('bundleInfo', bundleInfo)
+    await this.startDefaultEmulator(appContext);
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
@@ -61,30 +61,44 @@ export default class EntryAbility extends UIAbility {
     });
   }
 
-  private async startVm(appContext: common.ApplicationContext) {
+  private async startDefaultEmulator(appContext: common.ApplicationContext) {
 
-    const cpuCount = AppStorage.get(appOption.cpuCountName) as number;
-    const memSize = AppStorage.get(appOption.memSizeName) as number;
-    const portMappingEnabled = AppStorage.get(appOption.portMappingEnabled) as boolean;
-    const rootFilesystem = AppStorage.get(appOption.rootFilesystem) as string
+    const defaultStart: string | undefined = AppStorage.get(appOption.defaultStartEmulator) as string
+
+    const emulators = AppStorage.get(appOption.emulators) as Emulator[]
+
+    const defaultEmulator = emulators.find(it => it.id === defaultStart)
+
+    if (!defaultEmulator) {
+      return
+    }
+
+    const cpuCount = defaultEmulator.cpu;
+    const memSize = defaultEmulator.memory;
+    const rootFilesystem = defaultEmulator.rootFilesystem.startsWith('/')
+      ? defaultEmulator.rootFilesystem
+      : appContext.filesDir + '/' + defaultEmulator.rootFilesystem
+    const sharedFolderReadonly = defaultEmulator.sharedFolderReadonly
+    const portMappingRaw = defaultEmulator.portMapping
+    const init = defaultEmulator.init
+
     const sharedFolder = AppStorage.get(appOption.sharedHost) as string
+
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernelFile = AppStorage.get(appOption.kernel) as string
 
-    let portMapping: PortMapping[] = []
+    const portMapping: PortMapping[] = []
     const portUsed: number[] = []
-    if (portMappingEnabled) {
-      const candidates = AppStorage.get(appOption.portMapping) as PortMapping[];
-      for (let i = 0; i < candidates.length; i++) {
-        let item = candidates[i];
-        let port: number = item.host!!;
-        const used = napi.checkPortUsed(port)
-        if (!used) {
-          portMapping.push(item)
-        } else {
-          portUsed.push(port)
-          hilog.info(DOMAIN, 'testTag', 'host port %{public}d of PortMapping is used by others', port)
-        }
+    const candidates = portMappingRaw
+    for (let i = 0; i < candidates.length; i++) {
+      let item = candidates[i];
+      let port: number = item.host!!;
+      const used = napi.checkPortUsed(port)
+      if (!used) {
+        portMapping.push(item)
+      } else {
+        portUsed.push(port)
+        hilog.info(DOMAIN, 'testTag', 'host port %{public}d of PortMapping is used by others', port)
       }
     }
 
@@ -95,6 +109,8 @@ export default class EntryAbility extends UIAbility {
 
     const serialUnixSocket = appContext.tempDir + '/serial_socket'
 
+    AppStorage.setOrCreate(appOption.currentRunningEmulator, defaultEmulator.id)
+
     startVm({
       baseDir: vmBaseDir,
       cpu: cpuCount,
@@ -103,7 +119,9 @@ export default class EntryAbility extends UIAbility {
       kernel: kernelFile,
       rootFilesystem,
       sharedFolder,
-      serialUnixSocket
+      serialUnixSocket,
+      sharedFolderReadonly,
+      init
     })
   }
 
@@ -119,11 +137,15 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.portMappingEnabled, portMappingEnabled);
     AppStorage.setOrCreate(appOption.portMapping, portMapping);
 
+    const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
+    AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)
+
     const emulators =
       JSON.parse(await appPref.get(appOption.emulators, JSON.stringify([defaultEmulator])) as string) as Emulator[]
     AppStorage.setOrCreate(appOption.emulators, emulators)
     const rootFilesystems =
-      JSON.parse(await appPref.get(appOption.rootFilesystems, JSON.stringify([defaultRootfs])) as string) as RootFilesystem[]
+      JSON.parse(await appPref.get(appOption.rootFilesystems,
+        JSON.stringify([defaultRootfs])) as string) as RootFilesystem[]
     AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
   }
 

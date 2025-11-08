@@ -15,7 +15,6 @@ interface Emulator {
   name: string,
   cpu: number,
   memory: number,
-  networking: boolean
   init: string
   portMapping: PortMapping[]
   rootFilesystem: string
@@ -34,7 +33,6 @@ const defaultEmulator: Emulator = {
   name: '默认模拟器',
   cpu: 1,
   memory: 512,
-  networking: true,
   init: '/init',
   portMapping: [],
   rootFilesystem: 'vm/rootfs_aarch64.qcow2',

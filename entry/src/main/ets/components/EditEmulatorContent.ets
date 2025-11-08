@@ -132,26 +132,17 @@ export default struct EditEmulatorContent {
 
       BlockTitle({ content: $r("app.string.setting_networking") })
       Column() {
-        SettingItem({
-          title: '开启网络',
-          subTitle: '开启模拟器的网络',
-          content: () => {
-            this.enableNetworking()
-          }
-        })
-
         Column() {
-          ItemTitle({
+          SettingItem({
             title: '端口映射',
             subTitle: '将对主机的端口访问转发到模拟器'
           })
-            .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
           PortMappingEdit({
             items: this.portMappingItems,
             onChanged: (value) => this.portMappingItems = value
           })
             .borderRadius(15)
-            .margin(10)
+            .margin({ left: 10, right: 10, bottom: 10 })
             .backgroundColor($r('app.color.setting_block_background_2'))
         }
         .flexGrow(1)
@@ -184,15 +175,6 @@ export default struct EditEmulatorContent {
       .attributeModifier(this.blockStyle)
     }
     .width('100%')
-  }
-
-  @Builder
-  private enableNetworking() {
-    Checkbox()
-      .select(this.emulator.networking)
-      .onChange((value: boolean) => {
-        this.emulator.networking = value
-      })
   }
 
   @Builder

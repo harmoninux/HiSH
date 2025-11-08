@@ -22,7 +22,6 @@ struct EditEmulator {
         init: '/init',
         cpu: 1,
         memory: 512,
-        networking: false,
         portMapping: [],
         rootFilesystem: '',
         sharedFolderReadonly: false
@@ -34,7 +33,6 @@ struct EditEmulator {
         init: found.init,
         cpu: found.cpu,
         memory: found.memory,
-        networking: found.networking,
         portMapping: found.portMapping,
         rootFilesystem: found.rootFilesystem,
         sharedFolderReadonly: found.sharedFolderReadonly

@@ -12,6 +12,8 @@ export default struct EmulatorManagement {
   @State selectedIdToCopy?: string = undefined
   @State tempEmulatorName: string = ''
   @StorageLink(appOption.emulators) emulators: Emulator[] = []
+  @StorageLink(appOption.defaultStartEmulator) defaultStart?: string = undefined
+  @StorageProp(appOption.currentRunningEmulator) currentRunning?: string = undefined
   emulatorNameController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: '复制',
@@ -27,6 +29,7 @@ export default struct EmulatorManagement {
     }),
   })
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
+  promptAction = this.getUIContext().getPromptAction()
 
   @Builder
   buildInputEmulatorName() {
@@ -62,11 +65,11 @@ export default struct EmulatorManagement {
   }
 
   @Builder
-  buildEmulatorList(emulator: Emulator) {
+  buildEmulatorListItem(emulator: Emulator) {
     EmulatorItem({
       emulator: emulator,
-      isRunning: true,
-      isDefault: true,
+      isRunning: emulator.id === this.currentRunning,
+      isDefault: emulator.id === this.defaultStart,
       onEdit: (item) => {
         this.getUIContext().getRouter().pushUrl({
           url: 'pages/EditEmulator',
@@ -74,34 +77,54 @@ export default struct EmulatorManagement {
         })
       },
       onDelete: (item) => {
-        this.getUIContext().showAlertDialog({
-          title: '确定删除',
-          message: '您正在操作删除模拟器，删除后不可恢复，确定操作？',
-          autoCancel: true,
-          alignment: DialogAlignment.Center,
-          buttons: [
-            {
-              value: $r('app.string.setting_generic_cancel'),
-              action: () => {
-              }
-            },
-            {
-              enabled: true,
-              style: DialogButtonStyle.HIGHLIGHT,
-              backgroundColor: $r('sys.color.warning'),
-              value: $r('app.string.confirm_remove'),
-              action: async () => {
-                this.deleteEmulatorItem(item)
-              }
-            }
-          ],
-        });
+        if (item.id === this.currentRunning) {
+          this.promptAction.showToast({ message: '不支持删除运行中的模拟器' })
+        } else if (item.id === this.defaultStart) {
+          this.promptAction.showToast({ message: '不支持删除默认启动的模拟器' })
+        } else if (item.id === defaultEmulator.id) {
+          this.promptAction.showToast({ message: '不支持删除默认模拟器' })
+        } else {
+          this.askForDeleteEmulator(item);
+        }
       },
       onCopy: (item) => {
         this.selectedIdToCopy = item.id
         this.emulatorNameController.open()
+      },
+      onSetDefault: (item) => {
+        this.onSetDefault(item);
       }
     })
+  }
+
+  private askForDeleteEmulator(item: Emulator) {
+    this.getUIContext().showAlertDialog({
+      title: '确定删除',
+      message: '您正在操作删除模拟器，删除后不可恢复，确定操作？',
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      buttons: [
+        {
+          value: $r('app.string.setting_generic_cancel'),
+          action: () => {
+          }
+        },
+        {
+          enabled: true,
+          style: DialogButtonStyle.HIGHLIGHT,
+          backgroundColor: $r('sys.color.warning'),
+          value: $r('app.string.confirm_remove'),
+          action: async () => {
+            this.deleteEmulatorItem(item);
+          }
+        }
+      ],
+    });
+  }
+
+  private async onSetDefault(item: Emulator) {
+    this.defaultStart = item.id;
+    await savePreference(appOption.defaultStartEmulator, this.defaultStart, this.getUIContext())
   }
 
   deleteEmulatorItem(item: Emulator) {
@@ -135,7 +158,6 @@ export default struct EmulatorManagement {
         name: this.tempEmulatorName,
         cpu: src.cpu,
         memory: src.memory,
-        networking: src.networking,
         init: src.init,
         portMapping: src.portMapping,
         rootFilesystem: target,
@@ -193,15 +215,11 @@ export default struct EmulatorManagement {
       }
       .height(56)
 
-      ForEach(this.emulators, (item: Emulator, i: number) => {
-        Text(item.name)
-      }, (item: Emulator) => item.id)
-
       Scroll() {
         RepeatGrid({
           items: this.emulators as object[],
           contentBuilder: (item: object, index: number) => {
-            this.buildEmulatorList(item as Emulator)
+            this.buildEmulatorListItem(item as Emulator)
           },
           getKey: (item: object, index: number) => (item as Emulator).id
         })
@@ -217,15 +235,15 @@ export default struct EmulatorManagement {
 
 @Component
 struct EmulatorItem {
-  @Require emulator: Emulator
-  @Require isRunning: boolean
-  @Require isDefault: boolean
+  @Prop emulator: Emulator
+  @Prop isRunning: boolean
+  @Prop isDefault: boolean
   @Require onEdit: (item: Emulator) => void
   @Require onDelete: (item: Emulator) => void
   @Require onCopy: (item: Emulator) => void
+  @Require onSetDefault: (item: Emulator) => void
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
-  promptAction = this.getUIContext().getPromptAction()
 
   aboutToAppear(): void {
     const rootfsPath = this.emulator.rootFilesystem.startsWith('/')
@@ -283,10 +301,10 @@ struct EmulatorItem {
         .layoutWeight(1)
 
         Column() {
-          Text(this.emulator.networking ? '开启' : '关闭')
+          Text(this.emulator.portMapping.length.toString())
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
-          Text('网络').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text('端口映射').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -302,19 +320,18 @@ struct EmulatorItem {
             .select(this.isDefault)
             .size({ width: $r('sys.float.Body_L'), height: $r('sys.float.Body_L') })
             .enabled(!this.isDefault)
-          Text('设为默认').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+          Text('设为默认启动').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT })
+        .onClick(() => {
+          this.onSetDefault(this.emulator)
+        })
 
         Blank().layoutWeight(1)
         Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .onClick(() => {
-            if (this.emulator.id === defaultEmulator.id) {
-              this.promptAction.showToast({ message: '不支持删除默认模拟器' })
-            } else {
-              this.onDelete(this.emulator)
-            }
+            this.onDelete(this.emulator)
           })
         Button('修改', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))

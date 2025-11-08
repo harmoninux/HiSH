@@ -18,6 +18,7 @@ class appOption {
   static portUsedByOthers = 'portUsedByOthers'
   static emulators = 'emulators'
   static rootFilesystems = 'rootFilesystems'
+  static defaultStartEmulator = 'defaultStartEmulator'
   static currentRunningEmulator = 'currentRunningEmulator'
 }
 
@@ -26,10 +27,14 @@ interface PortMapping {
   host?: number
 }
 
-async function savePreference(key: string, value: object, context: UIContext) {
+async function savePreference(key: string, value: object | string, context: UIContext) {
   const appContext = context.getHostContext()!!.getApplicationContext();
   const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
-  await appPref.put(key, JSON.stringify(value));
+  if (value instanceof Object) {
+    await appPref.put(key, JSON.stringify(value));
+  } else {
+    await appPref.put(key, value)
+  }
   await appPref.flush();
 }
 
