@@ -77,7 +77,7 @@ export default struct UserGuide {
           ForEach(this.guideBlocks, (block: GuidBlock) => {
             Column() {
               Column() {
-                BlockTitle({ content: '基本用法' })
+                BlockTitle({ content: block.title })
                 Column() {
                   ForEach(block.pages, (pg: GuidItem) => {
                     LinkItem({
