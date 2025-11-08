@@ -9,6 +9,7 @@ class appOption {
   static use9pRootFs = 'use9pRootFs'
 
   static vmBaseDir = 'vmBaseDir'
+  static rootfsBaseDir = 'rootfsBaseDir'
   static sharedGuest = 'sharedGuest'
   static sharedHost = 'sharedHost'
   static rootFilesystem = 'rootFilesystem'

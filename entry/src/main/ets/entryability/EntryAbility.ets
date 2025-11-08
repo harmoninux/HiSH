@@ -8,15 +8,8 @@ import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
 import appOption, { PortMapping } from '../model/appOption'
 import napi from 'libentry.so';
-import {
-  File,
-  InputStream,
-  OutputStream,
-  TarArchiveEntry,
-  TarArchiveInputStream
-} from '@ohos/commons-compress';
 import { startVm } from '../lib/startVm';
-import { defaultEmulator, defaultRootfs, Emulator } from '../model/Emulator';
+import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
 
 const DOMAIN = 0x0000;
 
@@ -130,7 +123,7 @@ export default class EntryAbility extends UIAbility {
       JSON.parse(await appPref.get(appOption.emulators, JSON.stringify([defaultEmulator])) as string) as Emulator[]
     AppStorage.setOrCreate(appOption.emulators, emulators)
     const rootFilesystems =
-      JSON.parse(await appPref.get(appOption.emulators, JSON.stringify([defaultRootfs])) as string) as Emulator[]
+      JSON.parse(await appPref.get(appOption.rootFilesystems, JSON.stringify([defaultRootfs])) as string) as RootFilesystem[]
     AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
   }
 
@@ -140,19 +133,27 @@ export default class EntryAbility extends UIAbility {
       'extractResourcesForVM, filesDir: %{public}s, tempDir: %{public}s',
       appContext.filesDir, appContext.tempDir);
 
-    let bundleVmDir = appContext.filesDir + "/vm";
+    const vmBaseDir = appContext.filesDir + "/vm";
+    const rootfsBaseDir = appContext.filesDir + "/roots";
+
     const sharedGuest = '/mnt/share'
     const sharedHost = appContext.filesDir + '/' + 'share'
-    const rootFilesystem = bundleVmDir + '/' + 'rootfs_aarch64.qcow2'
-    AppStorage.setOrCreate(appOption.vmBaseDir, bundleVmDir)
+    const rootFilesystem = vmBaseDir + '/' + 'rootfs_aarch64.qcow2'
+    AppStorage.setOrCreate(appOption.vmBaseDir, vmBaseDir)
+    AppStorage.setOrCreate(appOption.rootfsBaseDir, rootfsBaseDir)
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
     AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
     AppStorage.setOrCreate(appOption.rootFilesystem, rootFilesystem)
-    AppStorage.setOrCreate(appOption.kernel, bundleVmDir + '/kernel_aarch64')
+    AppStorage.setOrCreate(appOption.kernel, vmBaseDir + '/kernel_aarch64')
 
-    if (!fs.accessSync(bundleVmDir, fs.AccessModeType.EXIST)) {
-      fs.mkdirSync(bundleVmDir);
+    if (!fs.accessSync(vmBaseDir, fs.AccessModeType.EXIST)) {
+      fs.mkdirSync(vmBaseDir);
     }
+    if (!fs.accessSync(rootfsBaseDir, fs.AccessModeType.EXIST)) {
+      fs.mkdirSync(rootfsBaseDir);
+    }
+
+    this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2');
     this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64');
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom');
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'vm/rootfs_aarch64.qcow2');

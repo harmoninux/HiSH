@@ -1,6 +1,6 @@
 @Component
 export struct RepeatGrid {
-  @Require items: object[] = []
+  @State @Require items: object[] = []
   @Require @BuilderParam contentBuilder: (item: object, index: number) => void
   @Require getKey: (item: object, index: number) => string
   @State private gridMargin: number = 24

@@ -6,6 +6,7 @@ import { CustomContentDialog, LoadingDialog, PromptAction } from "@kit.ArkUI";
 import { pasteboard } from '@kit.BasicServicesKit'
 import validateFolderName from '../lib/validateFolderName'
 import { util } from "@kit.ArkTS";
+import copyFile from '../lib/copyFile';
 
 enum Type {
   Folder = 0,
@@ -430,15 +431,4 @@ function formatDetail(entry: Entry): string {
   } catch (e) {
     return '--'
   }
-}
-
-async function copyFile(srcPathOrUri: string, destPathOrUri: string) {
-
-  const srcFile = await fs.open(srcPathOrUri, fs.OpenMode.READ_ONLY);
-  const destFile = await fs.open(destPathOrUri, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE);
-
-  await fs.copyFile(srcFile.fd, destFile.fd)
-
-  await fs.close(srcFile.fd);
-  await fs.close(destFile.fd);
 }

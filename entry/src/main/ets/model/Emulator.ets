@@ -6,6 +6,7 @@ interface PortMapping {
 interface RootFilesystem {
   id: string
   name: string
+  //  相对路径
   path: string
 }
 
@@ -23,20 +24,20 @@ interface Emulator {
 
 //  TODO: use uri
 const defaultRootfs: RootFilesystem = {
-  id: '63233e0f84ed4efa8901c0d617aae884',
+  id: 'rootfs_aarch64',
   name: 'Alpine Linux',
-  path: 'rootfs_aarch64.qcow2'
+  path: 'roots/rootfs_aarch64.qcow2'
 }
 
 const defaultEmulator: Emulator = {
-  id: '316ebe3596344e9d8b0a6c1a9bc840d2',
+  id: 'rootfs_aarch64',
   name: '默认模拟器',
   cpu: 1,
   memory: 512,
   networking: true,
   init: '/init',
   portMapping: [],
-  rootFilesystem: 'rootfs_aarch64.qcow2',
+  rootFilesystem: 'vm/rootfs_aarch64.qcow2',
   sharedFolderReadonly: false
 }
 

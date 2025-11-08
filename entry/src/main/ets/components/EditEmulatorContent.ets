@@ -172,7 +172,7 @@ export default struct EditEmulatorContent {
       Column() {
         SettingItem({
           title: 'init',
-          subTitle: '模拟器启动时的配置脚本',
+          subTitle: '模拟器Linux启动脚本',
           content: () => {
             this.initSetting()
           }
