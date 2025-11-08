@@ -8,6 +8,7 @@ export default struct EmulatorItem {
   @Prop isDefault: boolean
   @Require onEdit: (item: Emulator) => void
   @Require onDelete: (item: Emulator) => void
+  @Require onExport: (item: Emulator) => void
   @Require onCopy: (item: Emulator) => void
   @Require onSetDefault: (item: Emulator) => void
   @Require onStart: (item: Emulator) => void
@@ -103,15 +104,16 @@ export default struct EmulatorItem {
         Blank().layoutWeight(1)
         Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
-          .onClick(() => {
-            this.onDelete(this.emulator)
-          })
-        Button('修改', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          .onClick(() => this.onDelete(this.emulator))
+        Button('导出', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
-          .onClick(() => this.onEdit(this.emulator))
+          .onClick(() => this.onExport(this.emulator))
         Button('复制', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .onClick(() => this.onCopy(this.emulator))
+        Button('修改', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          .fontSize($r('sys.float.Body_M'))
+          .onClick(() => this.onEdit(this.emulator))
       }
       .padding({ top: 5, bottom: 5 })
       .width('100%')

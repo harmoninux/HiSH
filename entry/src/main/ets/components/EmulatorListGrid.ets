@@ -1,5 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { defaultEmulator, Emulator } from '../model/Emulator';
+import { defaultEmulator, Emulator, RootFilesystem } from '../model/Emulator';
 import { RepeatGrid } from './RepeatGrid';
 import { util } from '@kit.ArkTS';
 import appOption, { savePreference } from '../model/appOption';
@@ -12,9 +12,11 @@ import EmulatorItem from './EmulatorItem';
 
 @Component
 export default struct EmulatorListGrid {
-  @State selectedIdToCopy?: string = undefined
+  @State selectedId?: string = undefined
   @State tempEmulatorName: string = ''
+  @State tempRootfsName: string = ''
   @Watch('onEmulatorsChange') @StorageLink(appOption.emulators) emulators: Emulator[] = []
+  @StorageLink(appOption.rootFilesystems) rootFilesystems: RootFilesystem[] = []
   @State displayEmulators: Emulator[] = []
   @StorageLink(appOption.defaultStartEmulator) defaultStart?: string = undefined
   @StorageProp(appOption.currentRunningEmulator) currentRunning?: string = undefined
@@ -24,15 +26,29 @@ export default struct EmulatorListGrid {
   emulatorNameController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: '复制',
-      secondaryTitle: '输入新的模拟器名称，请注意不要重复',
+      secondaryTitle: '输入新的模拟器名称，请注意不要与已有模拟器重复',
       contentBuilder: () => {
         this.buildInputEmulatorName()
+      }
+    })
+  })
+  rootfsNameController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '导出为镜像',
+      secondaryTitle: '输入新的镜像名称，请注意不要与已有镜像重复',
+      contentBuilder: () => {
+        this.buildInputRootfsName()
       }
     })
   })
   copyProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: '正在复制',
+    }),
+  })
+  exportProgress: CustomDialogController = new CustomDialogController({
+    builder: LoadingDialog({
+      content: '正在导出',
     }),
   })
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
@@ -61,6 +77,70 @@ export default struct EmulatorListGrid {
           await this.copyEmulatorItem()
         })
     }
+  }
+
+  @Builder
+  buildInputRootfsName() {
+    Column() {
+      TextInput({
+        text: this.tempRootfsName,
+        placeholder: '输入导出的镜像名称'
+      })
+        .onChange((value) => {
+          this.tempRootfsName = value;
+        })
+      Button('完成')
+        .margin({ top: 10 })
+        .width('100%')
+        .enabled(this.validateRootfsName())
+        .onClick(async () => {
+          this.rootfsNameController.close()
+          await this.exportToRootfs()
+        })
+    }
+  }
+
+  async exportToRootfs() {
+    const src = this.emulators.find(it => it.id === this.selectedId)!!
+
+    const id = util.generateRandomUUID()
+
+    const base = AppStorage.get(appOption.rootfsBaseDir) as string;
+    const target = base + '/' + id + src.rootFilesystem.substring(src.rootFilesystem.lastIndexOf('.'))
+
+    const srcRootfs = src.rootFilesystem
+
+    this.exportProgress.open()
+    try {
+      await copyFile(srcRootfs, target)
+
+      const rootfs: RootFilesystem = {
+        id,
+        name: this.tempRootfsName.trim(),
+        path: target
+      }
+      this.rootFilesystems.push(rootfs)
+
+      await savePreference(appOption.rootFilesystems, this.rootFilesystems, this.getUIContext())
+    } finally {
+      this.exportProgress.close()
+    }
+    this.promptAction.showToast({
+      message: '导出镜像完成，您可以前往“镜像管理”进行查看',
+      duration: 3000
+    })
+  }
+
+  validateRootfsName(): boolean {
+    const name = this.tempRootfsName.trim();
+    if (name.length <= 0) {
+      return false
+    }
+    const used = this.rootFilesystems.findIndex(it => it.name === name) >= 0
+    if (used) {
+      return false
+    }
+    return true
   }
 
   validateEmulatorName(): boolean {
@@ -96,7 +176,7 @@ export default struct EmulatorListGrid {
         }
       },
       onCopy: (item) => {
-        this.selectedIdToCopy = item.id
+        this.selectedId = item.id
         this.emulatorNameController.open()
       },
       onSetDefault: (item) => {
@@ -104,6 +184,10 @@ export default struct EmulatorListGrid {
       },
       onStart: (item) => {
         this.askForStartEmulator(item)
+      },
+      onExport: (item) => {
+        this.selectedId = item.id
+        this.rootfsNameController.open()
       }
     })
   }
@@ -194,12 +278,12 @@ export default struct EmulatorListGrid {
 
   async copyEmulatorItem() {
 
-    const src = this.emulators.find(it => it.id === this.selectedIdToCopy)!!
+    const src = this.emulators.find(it => it.id === this.selectedId)!!
 
     const id = util.generateRandomUUID()
 
-    const rootfsBase = AppStorage.get(appOption.vmBaseDir) as string;
-    const target = rootfsBase + '/' + id + src.rootFilesystem.substring(src.rootFilesystem.lastIndexOf('.'))
+    const base = AppStorage.get(appOption.vmBaseDir) as string;
+    const target = base + '/' + id + src.rootFilesystem.substring(src.rootFilesystem.lastIndexOf('.'))
 
     const srcRootfs = src.rootFilesystem
 
@@ -209,7 +293,7 @@ export default struct EmulatorListGrid {
 
       const emulator: Emulator = {
         id,
-        name: this.tempEmulatorName,
+        name: this.tempEmulatorName.trim(),
         cpu: src.cpu,
         memory: src.memory,
         init: src.init,
