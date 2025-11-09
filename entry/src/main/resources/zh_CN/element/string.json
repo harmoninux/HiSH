@@ -166,12 +166,12 @@
     },
     {
       "name": "empty_shared_folder_prompt",
-      "value": "点击右上角添加文件至共享文件夹\n即可在HiSH的/mnt/share下进行访问"
+      "value": "点击右上角添加文件至共享文件夹\n即可在HiSH的/mnt/share下进行访问\n详情可参考“使用指南->共享文件夹”"
     },
     {
       "name": "restart_hish_to_apply_changes",
       "value": "端口配置已保存，将在HiSH重启后生效"
-     },
+    },
     {
       "name": "copy_text",
       "value": "复制"

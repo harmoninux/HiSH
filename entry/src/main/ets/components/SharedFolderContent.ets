@@ -1,4 +1,4 @@
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { Want, common, wantConstant } from "@kit.AbilityKit"
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -9,6 +9,7 @@ import { util } from "@kit.ArkTS";
 import copyFile from '../lib/copyFile';
 import deleteDirectoryRecursive from '../lib/deleteDirectoryRecursive';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { SimpleWebView } from './SimpleWebView';
 
 enum Type {
   Folder = 0,
@@ -34,6 +35,18 @@ interface PasteContent {
   type: Type
 }
 
+class Controller {
+  backToParentImpl?: () => boolean
+
+  backToParent(): boolean {
+    if (this.backToParentImpl) {
+      return this.backToParentImpl()
+    } else {
+      return false
+    }
+  }
+}
+
 @Component
 export struct SharedFolderContent {
   @Require @Prop host: string
@@ -42,6 +55,7 @@ export struct SharedFolderContent {
   @State current: string[] = []
   @State tempFolderName: string = ''
   @State tempClipboard?: PasteContent = undefined
+  controller?: Controller = undefined
   importProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.importing_file_to_shared_folder'),
@@ -70,6 +84,18 @@ export struct SharedFolderContent {
   private promptAction: PromptAction = this.uiContext.getPromptAction();
 
   async aboutToAppear() {
+
+    if (this.controller) {
+      this.controller.backToParentImpl = () => {
+        if (this.current.length > 1) {
+          this.backToParent()
+          return true
+        } else {
+          return false
+        }
+      }
+    }
+
     this.current = [this.host];
     await this.refreshFileList();
   }
@@ -358,11 +384,21 @@ export struct SharedFolderContent {
       // 文件列表区域
       if (this.current.length === 1 && this.files.length === 0) {
         Column() {
-          Text($r('app.string.empty_shared_folder_prompt'))
-            .textAlign(TextAlign.Center)
-            .fontColor($r('sys.color.icon_secondary'))
-            .fontSize($r('sys.float.Body_M'))
-            .height('100%')
+          Text() {
+            Span('点击右上角添加文件至共享文件夹\n' +
+              '即可在HiSH的/mnt/share下进行访问\n' +
+              '详情可参考“')
+            Span('使用指南->共享文件夹')
+              .fontColor('#3388ff')
+              .onClick(() => {
+                this.gotoSharedFolderGuide()
+              })
+            Span('”')
+          }
+          .textAlign(TextAlign.Center)
+          .fontColor($r('sys.color.icon_secondary'))
+          .fontSize($r('sys.float.Body_M'))
+          .height('100%')
         }
         .layoutWeight(1)
       } else {
@@ -370,6 +406,30 @@ export struct SharedFolderContent {
       }
     }
     .margin({ left: 5, right: 5 })
+  }
+
+  gotoSharedFolderGuide() {
+    if (deviceInfo.deviceType === '2in1') {
+      const controller = new CustomDialogController({
+        builder: CustomContentDialog({
+          primaryTitle: $r('app.string.setting_shared_folder'),
+          contentBuilder: () => {
+            this.buildGuideWebView();
+          }
+        })
+      })
+      controller.open()
+    } else {
+      this.getUIContext().getRouter().pushUrl({
+        url: 'pages/GuideWebPage',
+        params: { page: 'guide/06_Shared_Folder.html' }
+      })
+    }
+  }
+
+  @Builder
+  buildGuideWebView() {
+    SimpleWebView({ url: 'guide/06_Shared_Folder.html' })
   }
 
   async onPasteToHere(): Promise<void> {
@@ -584,3 +644,5 @@ function formatDetail(entry: Entry): string {
     return '--'
   }
 }
+
+export { Controller }
