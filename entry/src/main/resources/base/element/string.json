@@ -2,11 +2,11 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "HiSH Entry Module"
+      "value": "HiSH, Run Linux Shell on HarmonyOS"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "HiSH Entry Ability"
+      "value": "HiSH, Run Linux Shell on HarmonyOS"
     },
     {
       "name": "EntryAbility_label",
