@@ -194,7 +194,7 @@ export default struct EditEmulatorContent {
       if (this.titleBar) {
         Row() {
           Text('编辑模拟器')
-            .fontSize(16)
+            .fontSize(18)
             .padding({ left: 15 })
 
           Blank().layoutWeight(1)

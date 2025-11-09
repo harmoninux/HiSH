@@ -162,7 +162,7 @@ export struct SharedFolderContent {
           }
           .height(56)
           .width('100%')
-          .clickEffect(item.type !== Type.File ? { level: ClickEffectLevel.MIDDLE } : null)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE })
           .onClick(() => this.openFileEntry(item))
         }
       }, (item: Entry) => item.name)

@@ -12,10 +12,10 @@ interface GuidBlock {
 }
 
 const blocks: GuidBlock[] = [{
-  title: '基本用法',
+  title: '基本功能',
   pages: [{
     title: 'Linux Shell',
-    subTitle: '基本功能介绍',
+    subTitle: 'Linux Shell 基本功能介绍',
     page: 'guide/01_Linux_Shell.html'
   }, {
     title: '包管理器',
@@ -27,7 +27,7 @@ const blocks: GuidBlock[] = [{
     page: 'guide/03_OpenRC.html'
   }]
 }, {
-  title: '管理',
+  title: '管理功能',
   pages: [{
     title: '模拟器管理',
     subTitle: '管理模拟器实例和配置',
@@ -66,7 +66,7 @@ export default struct UserGuide {
       if (this.toolBar) {
         Row() {
           Text('使用指南')
-            .fontSize(20)
+            .fontSize(18)
             .padding({ left: 15 })
           Blank().layoutWeight(1)
         }

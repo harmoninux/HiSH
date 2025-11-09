@@ -71,7 +71,7 @@ export default struct RootfsManagementContent {
       if (this.toolBar) {
         Row() {
           Text('镜像管理')
-            .fontSize(16)
+            .fontSize(18)
             .padding({ left: 15 })
 
           Blank().layoutWeight(1)

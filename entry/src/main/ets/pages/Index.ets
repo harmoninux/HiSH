@@ -362,7 +362,7 @@ struct PhoneOrTablet {
       TabContent() {
         Column() {
           Text($r('app.string.Setting_title'))
-            .fontSize(20)
+            .fontSize(18)
             .height(56)
             .width('100%')
             .padding({ left: 15, right: 15 })
