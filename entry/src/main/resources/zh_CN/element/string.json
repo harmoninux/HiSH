@@ -227,6 +227,18 @@
     {
       "name": "fre_used_port_duplicated",
       "value": "%s 与 %d:%d 冲突"
+    },
+    {
+      "name": "copy_this",
+      "value": "复制"
+    },
+    {
+      "name": "move_this",
+      "value": "移动"
+    },
+    {
+      "name": "paste_here",
+      "value": "粘贴"
     }
   ]
 }

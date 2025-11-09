@@ -24,6 +24,16 @@ interface Entry {
   detail: string
 }
 
+
+type PasteAction = 'copy' | 'move'
+
+interface PasteContent {
+  action: PasteAction
+  dir: string
+  name: string
+  type: Type
+}
+
 @Component
 export struct SharedFolderContent {
   @Require @Prop host: string
@@ -31,6 +41,7 @@ export struct SharedFolderContent {
   @State files: Entry[] = []
   @State current: string[] = []
   @State tempFolderName: string = ''
+  @State tempClipboard?: PasteContent = undefined
   importProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.importing_file_to_shared_folder'),
@@ -144,6 +155,12 @@ export struct SharedFolderContent {
                 }, {
                   value: $r('app.string.delete_this'),
                   action: () => this.askForDeleteCurrent(item)
+                }, {
+                  value: $r('app.string.copy_this'),
+                  action: () => this.prepareToCopy(item)
+                }, {
+                  value: $r('app.string.move_this'),
+                  action: () => this.prepareToMove(item)
                 }])
             } else if (item.type == Type.Folder) {
               SymbolGlyph($r('sys.symbol.dot_grid_1x2'))
@@ -157,6 +174,12 @@ export struct SharedFolderContent {
                 }, {
                   value: $r('app.string.delete_this'),
                   action: () => this.askForDeleteCurrent(item)
+                }, {
+                  value: $r('app.string.copy_this'),
+                  action: () => this.prepareToCopy(item)
+                }, {
+                  value: $r('app.string.move_this'),
+                  action: () => this.prepareToMove(item)
                 }])
             }
           }
@@ -177,6 +200,24 @@ export struct SharedFolderContent {
     .borderRadius(12)
     .margin({ left: 8, right: 4, bottom: 8 })
     .scrollBarWidth(1)
+  }
+
+  prepareToMove(item: Entry): void {
+    this.tempClipboard = {
+      action: 'move',
+      dir: this.current.join('/'),
+      name: item.name,
+      type: item.type
+    }
+  }
+
+  prepareToCopy(item: Entry): void {
+    this.tempClipboard = {
+      action: 'copy',
+      dir: this.current.join('/'),
+      name: item.name,
+      type: item.type
+    }
   }
 
   async askForDeleteCurrent(item: Entry): Promise<void> {
@@ -276,6 +317,11 @@ export struct SharedFolderContent {
           .maxLines(1)
           .layoutWeight(1)
 
+        if (this.tempClipboard) {
+          Button($r('app.string.paste_here'), { buttonStyle: ButtonStyleMode.TEXTUAL })
+            .onClick(() => this.onPasteToHere())
+        }
+
         SymbolGlyph($r('sys.symbol.arrow_clockwise'))
           .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
@@ -324,6 +370,56 @@ export struct SharedFolderContent {
       }
     }
     .margin({ left: 5, right: 5 })
+  }
+
+  async onPasteToHere(): Promise<void> {
+
+    const board = this.tempClipboard!!
+    this.tempClipboard = undefined
+
+    const dir = this.current.join('/')
+    if (board.dir === dir) {
+      this.getUIContext().getPromptAction().showToast({
+        message: '不能粘贴到同一个位置',
+        duration: 3000
+      })
+    } else {
+      const target = [...this.current, board.name].join('/')
+      if (fs.accessSync(target, fs.AccessModeType.EXIST)) {
+        this.getUIContext().getPromptAction().showToast({
+          message: '目标文件已存在',
+          duration: 3000
+        })
+      } else {
+
+        const title = board.action === 'move' ? '正在移动' : '正在复制'
+        const progress = new CustomDialogController({
+          builder: LoadingDialog({
+            content: title,
+          })
+        })
+        progress.open()
+
+        const src = [board.dir, board.name].join('/')
+        try {
+          if (board.action === 'move') {
+            fs.renameSync(src, target)
+          } else if (board.action === 'copy') {
+            if (board.type === Type.Folder) {
+              const to: string = [...this.current].join('/');
+              await fs.copyDir(src, to)
+            } else if (board.type === Type.File) {
+              await fs.copyFile(src, target)
+            }
+          }
+        } catch (e) {
+          hilog.info(1, 'SharedFolderContent', 'failed to execute paste action %{public}s', e)
+        } finally {
+          progress.close()
+          this.refreshFileList()
+        }
+      }
+    }
   }
 
   private getGuestPath() {

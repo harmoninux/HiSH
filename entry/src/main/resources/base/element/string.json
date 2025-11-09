@@ -227,6 +227,18 @@
     {
       "name": "delete_this",
       "value": "Delete"
+    },
+    {
+      "name": "copy_this",
+      "value": "Copy to"
+    },
+    {
+      "name": "move_this",
+      "value": "Move to"
+    },
+    {
+      "name": "paste_here",
+      "value": "Paste here"
     }
   ]
 }
