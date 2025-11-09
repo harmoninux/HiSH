@@ -7,7 +7,7 @@ export struct OpenSourceContent {
   webController: webview.WebviewController = new webview.WebviewController()
 
   build() {
-    Web({ src: $rawfile('pages/osl.html'), controller: this.webController })
+    Web({ src: $rawfile('pages/license.html'), controller: this.webController })
       .onLoadIntercept((e: OnLoadInterceptEvent) => {
         let url = e.data.getRequestUrl();
         if (url.startsWith('http')) {
