@@ -219,6 +219,6 @@ export default class EntryAbility extends UIAbility {
     } else if (deviceInfo.deviceType === 'tablet') {
       return 13;
     }
-    return 14;
+    return 15;
   }
 }

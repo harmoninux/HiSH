@@ -21,6 +21,10 @@ const fontSizeOptions: SelectOption[] = [{
   value: '15'
 }, {
   value: '16'
+}, {
+  value: '17'
+}, {
+  value: '18'
 }]
 
 @Component
