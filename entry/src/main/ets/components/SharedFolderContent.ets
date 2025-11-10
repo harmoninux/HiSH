@@ -273,7 +273,7 @@ export struct SharedFolderContent {
   }
 
   async deleteCurrent(item: Entry) {
-    const hostPath = [this.current, item.name].join('/')
+    const hostPath = [...this.current, item.name].join('/')
     this.deletingProgress.open()
     try {
       if (item.type === Type.File) {
