@@ -21,6 +21,7 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 export default struct WebTerminal {
   @Require showVirtKey: boolean
   @State ctrlPressed: boolean = false
+  @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) terminalFontSize: number | null = null
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
 
@@ -177,7 +178,11 @@ export default struct WebTerminal {
   }
 
   getFontSize(): number | null {
-    return AppStorage.get(appOption.terminalFontSize) as number
+    return this.terminalFontSize
+  }
+
+  onFontSizeChanged() {
+    this.webviewController.runJavaScript(`exports.setFontSize(${this.terminalFontSize})`)
   }
 
   private onData(ab: ArrayBuffer) {

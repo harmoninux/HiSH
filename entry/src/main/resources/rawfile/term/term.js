@@ -133,6 +133,8 @@ function onTerminalReady() {
 
     exports.clearScrollback = () => term.clearScrollback();
 
+    exports.setFontSize = (fontSize) => term.getPrefs().set('font-size', fontSize);
+
     hterm.openUrl = (url) => native.openLink(url);
 
     io.print(

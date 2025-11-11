@@ -112,7 +112,7 @@ export default struct SettingsContent {
 
             SettingItem({
               title: '终端字体大小',
-              subTitle: '设置终端字体大小（重启后生效）',
+              subTitle: '设置终端字体大小',
               content: () => {
                 this.buildTerminalFontSize()
               }
