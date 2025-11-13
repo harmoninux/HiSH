@@ -1,8 +1,8 @@
 import { cpuOptions, getCpuCount, getMemSize, memOptions } from "../lib/systemProfile"
-import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
+import { defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
 import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
-import { BlockTitle, ItemTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
+import { BlockTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
 import { util } from "@kit.ArkTS"
 import appOption, { savePreference } from "../model/appOption"
 import { PromptAction } from "@kit.ArkUI"
@@ -90,7 +90,6 @@ export default struct EditEmulatorContent {
           .margin({ bottom: 10 })
         TextInput({ placeholder: '名称', text: this.emulator.name })
           .maxLength(64)
-          .enabled(this.emulator.id !== defaultEmulator.id)
           .onChange((value) => {
             this.emulator.name = value.trim()
           })

@@ -183,11 +183,15 @@ export default class EntryAbility extends UIAbility {
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2');
     this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64');
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom');
-    this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'vm/rootfs_aarch64.qcow2');
+
+    const defaultStartEmulator = AppStorage.get(appOption.defaultStartEmulator)!! as string
+    if (defaultStartEmulator === defaultEmulator.id) {
+      this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', defaultEmulator.rootFilesystem);
+    }
   }
 
   private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, toFileName: string) {
-    let filePath = appContext.filesDir + "/" + toFileName;
+    let filePath = toFileName.startsWith('/') ? toFileName : (appContext.filesDir + "/" + toFileName);
     if (!fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
       let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
       let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);

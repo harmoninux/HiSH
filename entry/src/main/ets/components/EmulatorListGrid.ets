@@ -1,5 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { defaultEmulator, Emulator, RootFilesystem } from '../model/Emulator';
+import { Emulator, RootFilesystem } from '../model/Emulator';
 import { RepeatGrid } from './RepeatGrid';
 import { util } from '@kit.ArkTS';
 import appOption, { savePreference } from '../model/appOption';
@@ -169,8 +169,6 @@ export default struct EmulatorListGrid {
           this.promptAction.showToast({ message: '不支持删除运行中的模拟器' })
         } else if (item.id === this.defaultStart) {
           this.promptAction.showToast({ message: '不支持删除默认启动的模拟器' })
-        } else if (item.id === defaultEmulator.id) {
-          this.promptAction.showToast({ message: '不支持删除默认模拟器' })
         } else {
           this.askForDeleteEmulator(item);
         }
