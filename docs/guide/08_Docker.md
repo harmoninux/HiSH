@@ -1,10 +1,10 @@
 # Docker
 
-开发者可以使用 HiSH 提供的 Linux 环境中下载并运行 Docker 容器。
+开发者可以在 HiSH 提供的 Linux 环境中下载并运行 Docker 容器。
 
 ## 准备
 
-Docker 需要依赖 OpenRC 对 `dockerd` 相关服务进行管理，故使用 `docker` 前，需要先确保 OpenRC 在运行中。具体内容参考“OpenRC”部分内容。
+Docker 需要依赖 OpenRC 对 `dockerd` 相关服务进行管理，故使用 `docker` 前，需要先确保 OpenRC 在运行中。具体内容参考指南中的“OpenRC”部分内容。
 
 在 Alpine Linux 中使用 apk 安装 `docker` 软件包。
 
