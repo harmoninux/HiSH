@@ -21,7 +21,7 @@ export default struct EmulatorListGrid {
   @StorageLink(appOption.defaultStartEmulator) defaultStart?: string = undefined
   @StorageProp(appOption.currentRunningEmulator) currentRunning?: string = undefined
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
-  @Require onEditEmulator: (item: Emulator) => void
+  @Require onEditEmulator: (item: Emulator, edit: boolean) => void
   @Prop specifiedBreak?: string = undefined
   emulatorNameController = new CustomDialogController({
     builder: CustomContentDialog({
@@ -162,7 +162,7 @@ export default struct EmulatorListGrid {
       isRunning: emulator.id === this.currentRunning,
       isDefault: emulator.id === this.defaultStart,
       onEdit: (item) => {
-        this.onEditEmulator(item)
+        this.onEditEmulator(item, true)
       },
       onDelete: (item) => {
         if (item.id === this.currentRunning) {
@@ -187,6 +187,8 @@ export default struct EmulatorListGrid {
         this.selectedId = item.id
         this.rootfsNameController.open()
       }
+    }).onClick(() => {
+      this.onEditEmulator(emulator, false)
     })
   }
 

@@ -22,6 +22,7 @@ export default struct EditEmulatorContent {
   @StorageLink(appOption.emulators) emulators: Emulator[] = []
   @Prop specifiedBreak?: string = undefined
   @Prop titleBar: boolean = true
+  @Prop editing: boolean = true
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   private promptAction: PromptAction = this.getUIContext().getPromptAction();
 
@@ -176,6 +177,7 @@ export default struct EditEmulatorContent {
       }
       .attributeModifier(this.blockStyle)
     }
+    .enabled(this.editing)
     .width('100%')
   }
 
@@ -192,14 +194,16 @@ export default struct EditEmulatorContent {
     Column() {
       if (this.titleBar) {
         Row() {
-          Text('编辑模拟器')
+          Text(this.editing ? '编辑模拟器' : this.emulator.name)
             .fontSize(18)
             .padding({ left: 15 })
 
           Blank().layoutWeight(1)
 
-          Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
-            .onClick(() => this.onEditFinished())
+          if (this.editing) {
+            Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
+              .onClick(() => this.onEditFinished())
+          }
         }
         .height(56)
       }
@@ -218,7 +222,7 @@ export default struct EditEmulatorContent {
       .layoutWeight(1)
       .align(Alignment.Top)
 
-      if (!this.titleBar) {
+      if (!this.titleBar && this.editing) {
         Button('完成')
           .width('100%')
           .onClick(() => this.onEditFinished())
