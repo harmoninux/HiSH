@@ -82,6 +82,13 @@ export default struct EditEmulatorContent {
   }
 
   @Builder
+  private vdaSetting() {
+    TextInput({ text: this.emulator.rootVda })
+      .width(120)
+      .onChange((value) => this.emulator.rootVda = value.trim())
+  }
+
+  @Builder
   buildEmulatorEdit() {
     Column() {
       Column() {
@@ -172,6 +179,13 @@ export default struct EditEmulatorContent {
           subTitle: '模拟器Linux启动脚本',
           content: () => {
             this.initSetting()
+          }
+        })
+        SettingItem({
+          title: 'root',
+          subTitle: '根文件系统设备路径',
+          content: () => {
+            this.vdaSetting()
           }
         })
       }

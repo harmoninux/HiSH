@@ -189,6 +189,7 @@ struct PcIndex {
             cpu: 1,
             memory: 512,
             portMapping: [],
+            rootVda: '/dev/vda',
             rootFilesystem: '',
             sharedFolderReadonly: false
           }
@@ -205,6 +206,7 @@ struct PcIndex {
       cpu: item.cpu,
       memory: item.memory,
       portMapping: item.portMapping,
+      rootVda: item.rootVda,
       rootFilesystem: item.rootFilesystem,
       sharedFolderReadonly: item.sharedFolderReadonly
     };

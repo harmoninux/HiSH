@@ -298,6 +298,7 @@ export default struct EmulatorListGrid {
         memory: src.memory,
         init: src.init,
         portMapping: src.portMapping,
+        rootVda: src.rootVda,
         rootFilesystem: target,
         sharedFolderReadonly: src.sharedFolderReadonly
       }
