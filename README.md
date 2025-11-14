@@ -27,6 +27,12 @@
 
 参考 [使用指南](docs/guide)
 
+## 讨论交流
+
+微信群二维码（截至2025/11/22）
+
+<img src="docs/images/hish_wechat_group.png" width="200"/>
+
 # 构建指南
 
 - HAP包
