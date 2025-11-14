@@ -71,6 +71,7 @@ export default class EntryAbility extends UIAbility {
 
     const cpuCount = emulatorToStart.cpu;
     const memSize = emulatorToStart.memory;
+    const rootVda = emulatorToStart.rootVda;
     const rootFilesystem = emulatorToStart.rootFilesystem
     const sharedFolderReadonly = emulatorToStart.sharedFolderReadonly
     const portMappingRaw = emulatorToStart.portMapping
@@ -112,6 +113,7 @@ export default class EntryAbility extends UIAbility {
       memory: memSize,
       portMapping: portMapping,
       kernel: kernelFile,
+      rootVda,
       rootFilesystem,
       sharedFolder,
       serialUnixSocket,

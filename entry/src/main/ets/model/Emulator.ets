@@ -16,6 +16,7 @@ interface Emulator {
   memory: number,
   init: string
   portMapping: PortMapping[]
+  rootVda: string,
   rootFilesystem: string
   sharedFolderReadonly: boolean
 }
@@ -33,6 +34,7 @@ const defaultEmulator: Emulator = {
   memory: 512,
   init: '/init',
   portMapping: [],
+  rootVda: '/dev/vda',
   rootFilesystem: 'vm/rootfs_aarch64.qcow2',
   sharedFolderReadonly: false
 }

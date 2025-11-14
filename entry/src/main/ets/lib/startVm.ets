@@ -8,6 +8,7 @@ interface VmOptions {
   memory: number
   portMapping: PortMapping[]
   kernel: string
+  rootVda: string
   rootFilesystem: string
   sharedFolder: string
   serialUnixSocket: string
@@ -32,7 +33,7 @@ function startVm(options: VmOptions) {
   const drive = ["-drive", "if=none,format=qcow2,file=" + options.rootFilesystem + ",id=hd0", "-device",
     "virtio-blk-device,drive=hd0"]
   const kernelParam = ["-append",
-    "root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 TERM=ansi init=" + options.init]
+    "root=" + options.rootVda + " rw rootfstype=ext4 console=ttyAMA0 TERM=ansi init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
 
   const args =

@@ -22,6 +22,7 @@ struct EditEmulator {
         cpu: 1,
         memory: 512,
         portMapping: [],
+        rootVda: '/dev/vda',
         rootFilesystem: '',
         sharedFolderReadonly: false
       }
@@ -33,6 +34,7 @@ struct EditEmulator {
         cpu: found.cpu,
         memory: found.memory,
         portMapping: found.portMapping,
+        rootVda: found.rootVda,
         rootFilesystem: found.rootFilesystem,
         sharedFolderReadonly: found.sharedFolderReadonly
       }
