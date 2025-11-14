@@ -1,5 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { defaultEmulator, Emulator, RootFilesystem } from '../model/Emulator';
+import { Emulator, RootFilesystem } from '../model/Emulator';
 import { RepeatGrid } from './RepeatGrid';
 import { util } from '@kit.ArkTS';
 import appOption, { savePreference } from '../model/appOption';
@@ -21,7 +21,7 @@ export default struct EmulatorListGrid {
   @StorageLink(appOption.defaultStartEmulator) defaultStart?: string = undefined
   @StorageProp(appOption.currentRunningEmulator) currentRunning?: string = undefined
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
-  @Require onEditEmulator: (item: Emulator) => void
+  @Require onEditEmulator: (item: Emulator, edit: boolean) => void
   @Prop specifiedBreak?: string = undefined
   emulatorNameController = new CustomDialogController({
     builder: CustomContentDialog({
@@ -162,15 +162,13 @@ export default struct EmulatorListGrid {
       isRunning: emulator.id === this.currentRunning,
       isDefault: emulator.id === this.defaultStart,
       onEdit: (item) => {
-        this.onEditEmulator(item)
+        this.onEditEmulator(item, true)
       },
       onDelete: (item) => {
         if (item.id === this.currentRunning) {
           this.promptAction.showToast({ message: '不支持删除运行中的模拟器' })
         } else if (item.id === this.defaultStart) {
           this.promptAction.showToast({ message: '不支持删除默认启动的模拟器' })
-        } else if (item.id === defaultEmulator.id) {
-          this.promptAction.showToast({ message: '不支持删除默认模拟器' })
         } else {
           this.askForDeleteEmulator(item);
         }
@@ -189,6 +187,8 @@ export default struct EmulatorListGrid {
         this.selectedId = item.id
         this.rootfsNameController.open()
       }
+    }).onClick(() => {
+      this.onEditEmulator(emulator, false)
     })
   }
 

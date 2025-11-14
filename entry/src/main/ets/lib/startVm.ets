@@ -1,6 +1,7 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import napi from 'libentry.so'
 import { PortMapping } from '../model/Emulator'
+import deviceInfo from '@ohos.deviceInfo'
 
 interface VmOptions {
   baseDir: string
@@ -36,8 +37,23 @@ function startVm(options: VmOptions) {
     "root=" + options.rootVda + " rw rootfstype=ext4 console=ttyAMA0 TERM=ansi init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
 
-  const args =
-    ['qemu-system-aarch64', ...basic, ...serial, ...cpuMem, ...kernel, ...network, ...shared, ...drive, ...kernelParam, ...monitor]
+  const sharedUserFolder = deviceInfo.deviceType !== '2in1' ? [] :
+    ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
+      "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
+
+  const args = [
+    'qemu-system-aarch64',
+    ...basic,
+    ...serial,
+    ...cpuMem,
+    ...kernel,
+    ...network,
+    ...shared,
+    ...sharedUserFolder,
+    ...drive,
+    ...kernelParam,
+    ...monitor
+  ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
     fs.unlinkSync(options.serialUnixSocket)

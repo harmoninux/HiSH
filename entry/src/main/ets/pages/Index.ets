@@ -18,7 +18,6 @@ import { webview } from "@kit.ArkWeb";
 struct PcIndex {
   @StorageProp(appOption.sharedHost) sharedHost: string = ''
   @StorageProp(appOption.sharedGuest) sharedGuest: string = ''
-  @State emulatorToEdit?: Emulator = undefined
   emulatorManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: '模拟器管理',
@@ -48,14 +47,6 @@ struct PcIndex {
       primaryTitle: $r('app.string.Setting_title'),
       contentBuilder: () => {
         this.buildSettings();
-      }
-    })
-  })
-  editEmulatorController: CustomDialogController = new CustomDialogController({
-    builder: CustomContentDialog({
-      primaryTitle: '编辑模拟器',
-      contentBuilder: () => {
-        this.buildEditEmulator();
       }
     })
   })
@@ -182,19 +173,8 @@ struct PcIndex {
   buildSimulatorManagement() {
     Column() {
       EmulatorListGrid({
-        onEditEmulator: (item) => {
-          this.emulatorToEdit = {
-            id: item.id,
-            name: item.name,
-            init: item.init,
-            cpu: item.cpu,
-            memory: item.memory,
-            rootVda: item.rootVda,
-            portMapping: item.portMapping,
-            rootFilesystem: item.rootFilesystem,
-            sharedFolderReadonly: item.sharedFolderReadonly
-          }
-          this.editEmulatorController.open()
+        onEditEmulator: (item, edit) => {
+          this.openEditEmulatorDialog(item, edit);
         },
         specifiedBreak: 'xs'
       })
@@ -202,7 +182,7 @@ struct PcIndex {
         .width('100%')
         .onClick(() => {
           const id = util.generateRandomUUID()
-          this.emulatorToEdit = {
+          const emulatorToEdit: Emulator = {
             id,
             name: '',
             init: '/init',
@@ -213,9 +193,31 @@ struct PcIndex {
             rootFilesystem: '',
             sharedFolderReadonly: false
           }
-          this.editEmulatorController.open()
+          this.openEditEmulatorDialog(emulatorToEdit, true)
         })
     }
+  }
+
+  private openEditEmulatorDialog(item: Emulator, edit: boolean) {
+    const emulatorToEdit: Emulator = {
+      id: item.id,
+      name: item.name,
+      init: item.init,
+      cpu: item.cpu,
+      memory: item.memory,
+      portMapping: item.portMapping,
+      rootFilesystem: item.rootFilesystem,
+      sharedFolderReadonly: item.sharedFolderReadonly
+    };
+    const controller = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: edit ? '编辑模拟器' : item.name,
+        contentBuilder: () => {
+          this.buildEditEmulator(emulatorToEdit, edit, (): void => controller.close());
+        }
+      })
+    });
+    controller.open();
   }
 
   @Builder
@@ -229,14 +231,13 @@ struct PcIndex {
   }
 
   @Builder
-  buildEditEmulator() {
+  buildEditEmulator(emulator: Emulator, edit: boolean, onFinished: (item: Emulator) => void) {
     EditEmulatorContent({
-      emulator: this.emulatorToEdit,
-      onFinished: () => {
-        this.editEmulatorController.close()
-      },
+      emulator: emulator,
+      onFinished: onFinished,
       specifiedBreak: 'xs',
-      titleBar: false
+      titleBar: false,
+      editing: edit
     })
   }
 
@@ -245,7 +246,7 @@ struct PcIndex {
     UserGuide({
       toolBar: false,
       openPage: (title: string, url: string) => {
-        const controller =  new CustomDialogController({
+        const controller = new CustomDialogController({
           builder: CustomContentDialog({
             primaryTitle: title,
             contentBuilder: () => {

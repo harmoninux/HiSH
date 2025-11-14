@@ -1,8 +1,8 @@
 import { cpuOptions, getCpuCount, getMemSize, memOptions } from "../lib/systemProfile"
-import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
+import { defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
 import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
-import { BlockTitle, ItemTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
+import { BlockTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
 import { util } from "@kit.ArkTS"
 import appOption, { savePreference } from "../model/appOption"
 import { PromptAction } from "@kit.ArkUI"
@@ -22,6 +22,7 @@ export default struct EditEmulatorContent {
   @StorageLink(appOption.emulators) emulators: Emulator[] = []
   @Prop specifiedBreak?: string = undefined
   @Prop titleBar: boolean = true
+  @Prop editing: boolean = true
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   private promptAction: PromptAction = this.getUIContext().getPromptAction();
 
@@ -97,7 +98,6 @@ export default struct EditEmulatorContent {
           .margin({ bottom: 10 })
         TextInput({ placeholder: '名称', text: this.emulator.name })
           .maxLength(64)
-          .enabled(this.emulator.id !== defaultEmulator.id)
           .onChange((value) => {
             this.emulator.name = value.trim()
           })
@@ -191,6 +191,7 @@ export default struct EditEmulatorContent {
       }
       .attributeModifier(this.blockStyle)
     }
+    .enabled(this.editing)
     .width('100%')
   }
 
@@ -207,14 +208,16 @@ export default struct EditEmulatorContent {
     Column() {
       if (this.titleBar) {
         Row() {
-          Text('编辑模拟器')
+          Text(this.editing ? '编辑模拟器' : this.emulator.name)
             .fontSize(18)
             .padding({ left: 15 })
 
           Blank().layoutWeight(1)
 
-          Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
-            .onClick(() => this.onEditFinished())
+          if (this.editing) {
+            Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
+              .onClick(() => this.onEditFinished())
+          }
         }
         .height(56)
       }
@@ -233,7 +236,7 @@ export default struct EditEmulatorContent {
       .layoutWeight(1)
       .align(Alignment.Top)
 
-      if (!this.titleBar) {
+      if (!this.titleBar && this.editing) {
         Button('完成')
           .width('100%')
           .onClick(() => this.onEditFinished())

@@ -49,7 +49,8 @@ struct EditEmulator {
           onFinished: (item: Emulator) => {
             this.getUIContext().getRouter().back()
           },
-          titleBar: true
+          titleBar: true,
+          editing: true
         })
       }
     }
