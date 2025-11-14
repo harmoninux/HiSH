@@ -1,6 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import napi from 'libentry.so'
-import { PortMapping } from '../model/Emulator'
+import { defaultEmulator, PortMapping } from '../model/Emulator'
 import deviceInfo from '@ohos.deviceInfo'
 
 interface VmOptions {
@@ -19,7 +19,7 @@ interface VmOptions {
 }
 
 function startVm(options: VmOptions) {
-
+  const root = options.rootVda ? options.rootVda : defaultEmulator.rootVda;
   const sharedFolderOption = options.sharedFolderReadonly ? ",readonly" : ""
 
   const basic = ['-machine', 'virt', '-cpu', 'cortex-a53', '-nographic', '-L', options.baseDir]
@@ -34,7 +34,7 @@ function startVm(options: VmOptions) {
   const drive = ["-drive", "if=none,format=qcow2,file=" + options.rootFilesystem + ",id=hd0", "-device",
     "virtio-blk-device,drive=hd0"]
   const kernelParam = ["-append",
-    "root=" + options.rootVda + " rw rootfstype=ext4 console=ttyAMA0 TERM=ansi init=" + options.init]
+    "root=" + root + " rw rootfstype=ext4 console=ttyAMA0 TERM=ansi init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
 
   const sharedUserFolder = deviceInfo.deviceType !== '2in1' ? [] :
