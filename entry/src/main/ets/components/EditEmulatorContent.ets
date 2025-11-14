@@ -183,7 +183,7 @@ export default struct EditEmulatorContent {
         })
         SettingItem({
           title: 'root',
-          subTitle: '文件根目录',
+          subTitle: 'default root filesystem',
           content: () => {
             this.vdaSetting()
           }

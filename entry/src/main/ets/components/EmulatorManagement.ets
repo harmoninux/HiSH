@@ -73,6 +73,7 @@ export default struct EmulatorManagement {
       cpu: item.cpu,
       memory: item.memory,
       portMapping: item.portMapping,
+      rootVda: item.rootVda,
       rootFilesystem: item.rootFilesystem,
       sharedFolderReadonly: item.sharedFolderReadonly
     };
