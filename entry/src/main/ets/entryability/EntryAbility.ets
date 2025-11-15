@@ -1,6 +1,6 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window, KeyboardAvoidMode } from '@kit.ArkUI';
+import { window, KeyboardAvoidMode, PromptAction } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
@@ -10,6 +10,7 @@ import appOption from '../model/appOption'
 import napi from 'libentry.so';
 import { startVm } from '../lib/startVm';
 import { defaultEmulator, defaultRootfs, Emulator, PortMapping, RootFilesystem } from '../model/Emulator';
+import { util } from '@kit.ArkTS';
 
 const DOMAIN = 0x0000;
 
@@ -37,17 +38,16 @@ export default class EntryAbility extends UIAbility {
 
     await this.extractKernelAndRootFilesystem(appContext);
 
-    await this.startDefaultEmulator(appContext);
-
-    windowStage.loadContent('pages/Index', (err) => {
+    windowStage.loadContent('pages/Index', async (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
 
-      let mainWindow = windowStage.getMainWindowSync();
-      mainWindow.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
+      const mainWindow = windowStage.getMainWindowSync();
+      const uiContext = mainWindow.getUIContext();
+      uiContext.setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
       mainWindow.setWindowKeepScreenOn(AppStorage.get(appOption.keepScreenOn) as boolean);
 
       AppStorage.setOrCreate('mainWindow', mainWindow)
@@ -57,10 +57,22 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorVisible(false);
         mainWindow.setWindowDecorHeight(48);
       }
+
+      await this.prepareForSharedFolder(appContext)
+      await this.startDefaultEmulator(uiContext);
     });
   }
 
-  private async startDefaultEmulator(appContext: common.ApplicationContext) {
+  async prepareForSharedFolder(appContext: common.ApplicationContext) {
+    const sharedGuest = '/mnt/share'
+    const sharedHost = appContext.filesDir + '/' + 'share'
+    AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
+    AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
+  }
+
+  private async startDefaultEmulator(uiContext: UIContext) {
+
+    const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
     const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string
     const defaultStart: string | undefined = temporaryStart || AppStorage.get(appOption.defaultStartEmulator) as string
@@ -82,28 +94,17 @@ export default class EntryAbility extends UIAbility {
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernelFile = AppStorage.get(appOption.kernel) as string
 
-    const portMapping: PortMapping[] = []
-    const portUsed: number[] = []
-    const candidates = portMappingRaw
-    for (let i = 0; i < candidates.length; i++) {
-      let item = candidates[i];
-      let port: number = item.host!!;
-      const used = napi.checkPortUsed(port)
-      if (!used) {
-        portMapping.push(item)
-      } else {
-        portUsed.push(port)
-        hilog.info(DOMAIN, 'testTag', 'host port %{public}d of PortMapping is used by others', port)
-      }
-    }
+    const portUsed = portMappingRaw.map(it => it.host!!).filter(p => napi.checkPortUsed(p))
+    const portMapping = portMappingRaw.filter(it => portUsed.indexOf(it.host!!) < 0)
 
-    AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed)
+    hilog.info(DOMAIN, 'testTag', 'host port %{public}s of PortMapping is used by others', portUsed)
+    this.promptPortUsedMessage(uiContext, portUsed)
 
     hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
       cpuCount, memSize, portMapping)
 
-    const serialUnixSocket = appContext.tempDir + '/serial_socket'
-    const qmpUnixSocket = appContext.tempDir + '/qmp_socket'
+    const serialUnixSocket = appTempDir + '/serial_socket'
+    const qmpUnixSocket = appTempDir + '/qmp_socket'
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
@@ -125,11 +126,21 @@ export default class EntryAbility extends UIAbility {
 
   private async loadPreferences(appContext: common.ApplicationContext) {
 
+    const appTempDir: string = appContext.tempDir;
+    const appFilesDir: string = appContext.filesDir;
+    AppStorage.setOrCreate(appOption.appTempDir, appTempDir)
+    AppStorage.setOrCreate(appOption.appFilesDir, appFilesDir)
+
+    defaultRootfs.path = defaultRootfs.path.startsWith('/')
+      ? defaultRootfs.path
+      : appFilesDir + '/' + defaultRootfs.path
+    defaultEmulator.rootFilesystem = defaultEmulator.rootFilesystem.startsWith('/')
+      ? defaultEmulator.rootFilesystem
+      : appFilesDir + '/' + defaultEmulator.rootFilesystem
+
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
 
-    const temporaryStart = await appPref.get(appOption.temporaryStartEmulator, undefined) as string | undefined
-    appPref.deleteSync(appOption.temporaryStartEmulator)
-    appPref.flush()
+    const temporaryStart = await this.getAndClearTemporaryStartEmulator(appPref)
     if (temporaryStart) {
       AppStorage.setOrCreate(appOption.temporaryStartEmulator, temporaryStart)
     }
@@ -138,13 +149,6 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
     const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;
     AppStorage.setOrCreate(appOption.terminalFontSize, terminalFontSize);
-
-    defaultRootfs.path = defaultRootfs.path.startsWith('/')
-      ? defaultRootfs.path
-      : appContext.filesDir + '/' + defaultRootfs.path
-    defaultEmulator.rootFilesystem = defaultEmulator.rootFilesystem.startsWith('/')
-      ? defaultEmulator.rootFilesystem
-      : appContext.filesDir + '/' + defaultEmulator.rootFilesystem
 
     const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
     AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)
@@ -160,19 +164,17 @@ export default class EntryAbility extends UIAbility {
 
   private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext): Promise<void> {
 
+    const filesDir = AppStorage.get(appOption.appFilesDir)!!
+
     hilog.info(DOMAIN, 'testTag',
       'extractResourcesForVM, filesDir: %{public}s, tempDir: %{public}s',
       appContext.filesDir, appContext.tempDir);
 
-    const vmBaseDir = appContext.filesDir + "/vm";
-    const rootfsBaseDir = appContext.filesDir + "/roots";
+    const vmBaseDir = filesDir + "/vm";
+    const rootfsBaseDir = filesDir + "/roots";
 
-    const sharedGuest = '/mnt/share'
-    const sharedHost = appContext.filesDir + '/' + 'share'
     AppStorage.setOrCreate(appOption.vmBaseDir, vmBaseDir)
     AppStorage.setOrCreate(appOption.rootfsBaseDir, rootfsBaseDir)
-    AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
-    AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
     AppStorage.setOrCreate(appOption.kernel, vmBaseDir + '/kernel_aarch64')
 
     if (!fs.accessSync(vmBaseDir, fs.AccessModeType.EXIST)) {
@@ -193,7 +195,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, toFileName: string) {
-    let filePath = toFileName.startsWith('/') ? toFileName : (appContext.filesDir + "/" + toFileName);
+    const filesDir = AppStorage.get(appOption.appFilesDir)!!
+    const filePath = toFileName.startsWith('/') ? toFileName : (filesDir + "/" + toFileName);
     if (!fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
       let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
       let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
@@ -218,7 +221,14 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
   }
 
-  getDefaultTerminalFontSize(): number {
+  private async getAndClearTemporaryStartEmulator(appPref: preference.Preferences) {
+    const temporaryStart = await appPref.get(appOption.temporaryStartEmulator, undefined) as string | undefined;
+    appPref.deleteSync(appOption.temporaryStartEmulator);
+    appPref.flush();
+    return temporaryStart;
+  }
+
+  private getDefaultTerminalFontSize(): number {
     if (deviceInfo.deviceType === 'phone'
       || deviceInfo.deviceType === 'default') {
       return 11;
@@ -226,5 +236,22 @@ export default class EntryAbility extends UIAbility {
       return 13;
     }
     return 15;
+  }
+
+  private promptPortUsedMessage(uiContext: UIContext, portUsedByOthers: number[]) {
+    const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt');
+    if (portUsedByOthers.length > 0) {
+      try {
+        const ports = portUsedByOthers.map(i => i.toString()).join(',');
+        const prompt = util.format(promptFormat, ports);
+        const promptAction: PromptAction = uiContext.getPromptAction();
+        promptAction.showToast({
+          message: prompt,
+          duration: 4000
+        });
+      } catch (e) {
+        console.error(`showToast error`, e);
+      }
+    }
   }
 }

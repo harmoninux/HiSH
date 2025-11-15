@@ -1,19 +1,22 @@
 import { Controller, SharedFolderContent } from '../components/SharedFolderContent';
-import { common } from '@kit.AbilityKit';
+import appOption from '../model/appOption';
 
 @Entry
 @Component
 struct SharedFolder {
-  appContext: common.ApplicationContext = this.getUIContext().getHostContext()?.getApplicationContext()!!
+  @StorageProp(appOption.sharedHost) sharedHost?: string = undefined
+  @StorageProp(appOption.sharedGuest) sharedGuest?: string = undefined
   controller: Controller = new Controller()
 
   build() {
     Column() {
-      SharedFolderContent({
-        host: this.appContext.filesDir + '/share',
-        guest: '/mnt/share',
-        controller: this.controller
-      })
+      if (this.sharedHost) {
+        SharedFolderContent({
+          host: this.sharedHost,
+          guest: this.sharedGuest,
+          controller: this.controller
+        })
+      }
     }
   }
 

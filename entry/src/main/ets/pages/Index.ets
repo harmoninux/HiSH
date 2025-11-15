@@ -1,5 +1,5 @@
 import { common } from "@kit.AbilityKit"
-import { CustomContentDialog, PromptAction } from '@kit.ArkUI';
+import { CustomContentDialog } from '@kit.ArkUI';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import WebTerminal from '../components/WebTerminal'
 import SettingsContent from '../components/SettingsContent';
@@ -16,8 +16,8 @@ import { webview } from "@kit.ArkWeb";
 
 @Component
 struct PcIndex {
-  @StorageProp(appOption.sharedHost) sharedHost: string = ''
-  @StorageProp(appOption.sharedGuest) sharedGuest: string = ''
+  @StorageProp(appOption.sharedHost) sharedHost?: string = undefined
+  @StorageProp(appOption.sharedGuest) sharedGuest?: string = undefined
   emulatorManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: '模拟器管理',
@@ -285,7 +285,7 @@ struct PcIndex {
     })
       .width('100%')
       .height('100%')
-      .backgroundColor('#000000');
+      .backgroundColor($r('sys.color.black'));
   }
 
   @Builder
@@ -295,10 +295,14 @@ struct PcIndex {
 
   @Builder
   buildSharedFolder() {
-    SharedFolderContent({
-      host: this.sharedHost,
-      guest: this.sharedGuest
-    })
+    Row() {
+      if (this.sharedHost) {
+        SharedFolderContent({
+          host: this.sharedHost,
+          guest: this.sharedGuest
+        })
+      }
+    }
   }
 }
 
@@ -390,26 +394,9 @@ struct PhoneOrTablet {
 @Component
 struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
-  private uiContext: UIContext = this.getUIContext();
-  private promptAction: PromptAction = this.uiContext.getPromptAction();
 
   aboutToAppear(): void {
     // webview.WebviewController.setWebDebuggingAccess(true)
-    const promptFormat = this.uiContext
-      .getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt')
-    const portUsedByOthers = AppStorage.get(appOption.portUsedByOthers) as number[]
-    if (portUsedByOthers.length > 0) {
-      try {
-        const ports = portUsedByOthers.map(i => i.toString()).join(',')
-        const prompt = util.format(promptFormat, ports)
-        this.promptAction.showToast({
-          message: prompt,
-          duration: 4000
-        })
-      } catch (e) {
-        console.error(`showToast error`, e);
-      }
-    }
   }
 
   build() {
