@@ -2,7 +2,8 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import napi from 'libentry.so'
 import { defaultEmulator, PortMapping } from '../model/Emulator'
 import deviceInfo from '@ohos.deviceInfo'
-import { socket } from '@kit.NetworkKit'
+import SerialChannel from './serialChannel'
+import { ShellChannel } from './shellChannel'
 
 interface VmOptions {
   baseDir: string
@@ -13,56 +14,11 @@ interface VmOptions {
   rootVda: string
   rootFilesystem: string
   sharedFolder: string
-  serialUnixSocket: string
+  terminalUnixSocket: string
+  controlUnixSocket: string
   qmpUnixSocket: string
   sharedFolderReadonly: boolean
   init: string
-}
-
-const sleep = (ms: number): Promise<void> => {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-class SerialChannel {
-  private buffer: ArrayBuffer[]
-  private socket?: socket.LocalSocket
-  private receiver?: (buf: ArrayBuffer) => void
-
-  constructor() {
-    this.buffer = []
-  }
-
-  async connect(socketPath: string) {
-    this.socket = socket.constructLocalSocketInstance()
-    while (true) {
-      const exist = await fs.access(socketPath, fs.AccessModeType.EXIST)
-      if (!exist) {
-        await sleep(10)
-      } else {
-        break
-      }
-    }
-    await this.socket.connect({ address: { address: socketPath } })
-    this.socket.on('message', info => {
-      if (this.receiver) {
-        this.receiver(info.message)
-      } else {
-        this.buffer.push(info.message)
-      }
-    })
-  }
-
-  onMessage(receiver: (buf: ArrayBuffer) => void) {
-    this.receiver = receiver
-    if (this.buffer.length > 0) {
-      this.buffer.forEach(it => receiver(it))
-      this.buffer.splice(0, this.buffer.length)
-    }
-  }
-
-  async sendMessage(buf: ArrayBuffer) {
-    return await this.socket!!.send({ data: buf })
-  }
 }
 
 interface StartResult {
@@ -71,6 +27,7 @@ interface StartResult {
 }
 
 const serialChannel = new SerialChannel()
+const shellChannel = new ShellChannel()
 
 function startVm(options: VmOptions): StartResult {
 
@@ -81,7 +38,8 @@ function startVm(options: VmOptions): StartResult {
   const portMapping = options.portMapping.filter(it => portUsed.indexOf(it.host!!) < 0)
 
   const basic = ['-machine', 'virt', '-cpu', 'cortex-a53', '-nographic', '-L', options.baseDir]
-  const serial = ['-serial', "unix:" + options.serialUnixSocket + ",server"]
+  const serial = [options.terminalUnixSocket, options.controlUnixSocket]
+    .flatMap(s => ['-serial', "unix:" + s + ",server,nowait"])
   const cpuMem = ['-smp', options.cpu.toString(), '-m', options.memory + 'M']
   const kernel = ['-kernel', options.kernel]
   const network = ["-device", "virtio-net-device,netdev=eth0",
@@ -113,8 +71,11 @@ function startVm(options: VmOptions): StartResult {
     ...monitor
   ]
 
-  if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
-    fs.unlinkSync(options.serialUnixSocket)
+  if (fs.accessSync(options.terminalUnixSocket, fs.AccessModeType.EXIST)) {
+    fs.unlinkSync(options.terminalUnixSocket)
+  }
+  if (fs.accessSync(options.controlUnixSocket, fs.AccessModeType.EXIST)) {
+    fs.unlinkSync(options.controlUnixSocket)
   }
   if (fs.accessSync(options.qmpUnixSocket, fs.AccessModeType.EXIST)) {
     fs.unlinkSync(options.qmpUnixSocket)
@@ -124,12 +85,11 @@ function startVm(options: VmOptions): StartResult {
   }
 
   napi.startVM({
-    argsLines: args.join('\n'),
-    unixSocket: options.serialUnixSocket,
-    qmpSocket: options.qmpUnixSocket
+    argsLines: args.join('\n')
   })
 
-  serialChannel.connect(options.serialUnixSocket)
+  serialChannel.connect(options.terminalUnixSocket)
+  shellChannel.connect(options.controlUnixSocket)
   return { portsSkipped: portUsed, serial: serialChannel }
 }
 

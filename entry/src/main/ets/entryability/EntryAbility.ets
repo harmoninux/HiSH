@@ -94,7 +94,8 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
       cpuCount, memSize, portMapping)
 
-    const serialUnixSocket = appTempDir + '/serial_socket'
+    const terminalUnixSocket = appTempDir + '/serial_socket0'
+    const controlUnixSocket = appTempDir + '/serial_socket1'
     const qmpUnixSocket = appTempDir + '/qmp_socket'
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
@@ -108,7 +109,8 @@ export default class EntryAbility extends UIAbility {
       rootVda,
       rootFilesystem,
       sharedFolder,
-      serialUnixSocket,
+      terminalUnixSocket,
+      controlUnixSocket,
       sharedFolderReadonly,
       init,
       qmpUnixSocket

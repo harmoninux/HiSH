@@ -160,8 +160,9 @@ export default struct WebTerminal {
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
-    hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
     let buffer = stringToArrayBuffer(data, 'utf-8');
+    const hex = codeEscape(buffer);
+    hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', hex);
     serialChannel.sendMessage(buffer)
 
     if (this.ctrlPressed) {
@@ -187,7 +188,7 @@ export default struct WebTerminal {
 
   private onData(ab: ArrayBuffer) {
     const hex = codeEscape(ab);
-    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', hex);
+    hilog.info(DOMAIN, 'WebTerminal', 'write, data: \'%{public}s\'', hex);
     this.webviewController.runJavaScript('exports.write("' + hex + '")');
   }
 
