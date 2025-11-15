@@ -11,8 +11,13 @@ import appOption, { CursorShape } from '../model/appOption'
 import { startVm } from '../lib/startVm';
 import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
+import { fileUri, picker } from '@kit.CoreFileKit';
 
 const DOMAIN = 0x0000;
+
+interface StartResult {
+  portsSkipped: number[]
+}
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -38,10 +43,6 @@ export default class EntryAbility extends UIAbility {
 
     await this.extractKernelAndRootFilesystem(appContext);
 
-    await this.prepareForSharedFolder(appContext)
-
-    this.startDefaultEmulator();
-
     windowStage.loadContent('pages/Index', async (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
@@ -62,19 +63,27 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorHeight(48);
       }
 
+      await this.prepareForSharedFolder(appContext)
+      const result = this.startDefaultEmulator()
+
       this.promptRootVdaMessage(uiContext)
-      this.promptPortUsedMessage(uiContext)
+      this.promptPortUsedMessage(uiContext, result.portsSkipped)
     });
   }
 
   async prepareForSharedFolder(appContext: common.ApplicationContext) {
+
     const sharedGuest = '/mnt/share'
-    const sharedHost = appContext.filesDir + '/' + 'share'
+
+    const documentViewPicker = new picker.DocumentViewPicker()
+    let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
+    const sharedHost = new fileUri.FileUri(documentSaveResult[0]).path + '/'
+
     AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
 
-  private startDefaultEmulator() {
+  private startDefaultEmulator(): StartResult {
 
     const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
@@ -121,6 +130,8 @@ export default class EntryAbility extends UIAbility {
       init,
       qmpUnixSocket
     })
+
+    return { portsSkipped: portUsed }
   }
 
   private getEmulatorToStart() {
@@ -256,12 +267,11 @@ export default class EntryAbility extends UIAbility {
     return 15;
   }
 
-  private promptPortUsedMessage(uiContext: UIContext) {
-    const portUsedByOthers: number[] = AppStorage.get(appOption.portUsedByOthers)!! as number[]
+  private promptPortUsedMessage(uiContext: UIContext, portSkipped: number[]) {
     const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt');
-    if (portUsedByOthers.length > 0) {
+    if (portSkipped.length > 0) {
       try {
-        const ports = portUsedByOthers.map(i => i.toString()).join(',');
+        const ports = portSkipped.map(i => i.toString()).join(',');
         const prompt = util.format(promptFormat, ports);
         const promptAction: PromptAction = uiContext.getPromptAction();
         promptAction.showToast({
