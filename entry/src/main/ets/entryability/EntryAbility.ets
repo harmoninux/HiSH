@@ -10,6 +10,7 @@ import appOption from '../model/appOption'
 import { StartResult, startVm } from '../lib/startVm';
 import { defaultEmulator, defaultRootfs, Emulator, PortMapping, RootFilesystem } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
+import { fileUri, picker } from '@kit.CoreFileKit';
 
 const DOMAIN = 0x0000;
 
@@ -37,10 +38,6 @@ export default class EntryAbility extends UIAbility {
 
     await this.extractKernelAndRootFilesystem(appContext);
 
-    await this.prepareForSharedFolder(appContext)
-
-    const result = this.startDefaultEmulator();
-
     windowStage.loadContent('pages/Index', async (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
@@ -61,13 +58,19 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorHeight(48);
       }
 
+      await this.prepareForSharedFolder(appContext)
+      const result = this.startDefaultEmulator();
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
     });
   }
 
   async prepareForSharedFolder(appContext: common.ApplicationContext) {
+
+    const documentViewPicker = new picker.DocumentViewPicker()
+    let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
+    const sharedHost = new fileUri.FileUri(documentSaveResult[0]).path + '/'
+
     const sharedGuest = '/mnt/share'
-    const sharedHost = appContext.filesDir + '/' + 'share'
     AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
