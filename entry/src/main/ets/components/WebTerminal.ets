@@ -1,10 +1,11 @@
 import util from '@ohos.util';
 import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit'
 import appOption from '../model/appOption';
+import { serialChannel } from '../lib/startVm';
+import codeEscape from '../lib/codeEscape';
 
 const DOMAIN = 0x0000;
 
@@ -23,7 +24,6 @@ export default struct WebTerminal {
   @State ctrlPressed: boolean = false
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) terminalFontSize: number | null = null
   webviewController: WebviewController = new webview.WebviewController()
-  utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -162,7 +162,7 @@ export default struct WebTerminal {
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
     let buffer = stringToArrayBuffer(data, 'utf-8');
-    napi.sendInput(buffer)
+    serialChannel.sendMessage(buffer)
 
     if (this.ctrlPressed) {
       this.toggleCtrl()
@@ -171,7 +171,7 @@ export default struct WebTerminal {
 
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
-    napi.onData((d: ArrayBuffer) => this.onData(d))
+    serialChannel.onMessage((d: ArrayBuffer): void => this.onData(d))
   }
 
   async resize(): Promise<void> {
@@ -186,9 +186,9 @@ export default struct WebTerminal {
   }
 
   private onData(ab: ArrayBuffer) {
-    let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
-    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
-    this.webviewController.runJavaScript('exports.write("' + s + '")');
+    const hex = codeEscape(ab);
+    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', hex);
+    this.webviewController.runJavaScript('exports.write("' + hex + '")');
   }
 
   private onClose() {

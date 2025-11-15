@@ -11,12 +11,12 @@ class appOption {
   static sharedGuest = 'sharedGuest'
   static sharedHost = 'sharedHost'
   static kernel = 'kernel'
-  static portUsedByOthers = 'portUsedByOthers'
   static emulators = 'emulators'
   static rootFilesystems = 'rootFilesystems'
   static defaultStartEmulator = 'defaultStartEmulator'
   static currentRunningEmulator = 'currentRunningEmulator'
   static temporaryStartEmulator = 'temporaryStartEmulator'
+  static serialChannel = 'serialChannel'
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {
