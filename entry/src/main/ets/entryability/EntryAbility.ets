@@ -38,6 +38,10 @@ export default class EntryAbility extends UIAbility {
 
     await this.extractKernelAndRootFilesystem(appContext);
 
+    await this.prepareForSharedFolder(appContext)
+
+    this.startDefaultEmulator();
+
     windowStage.loadContent('pages/Index', async (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
@@ -58,8 +62,7 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorHeight(48);
       }
 
-      await this.prepareForSharedFolder(appContext)
-      await this.startDefaultEmulator(uiContext);
+      this.promptPortUsedMessage(uiContext)
     });
   }
 
@@ -70,16 +73,11 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
 
-  private async startDefaultEmulator(uiContext: UIContext) {
+  private startDefaultEmulator() {
 
     const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
-    const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string
-    const defaultStart: string | undefined = temporaryStart || AppStorage.get(appOption.defaultStartEmulator) as string
-
-    const emulators = AppStorage.get(appOption.emulators) as Emulator[]
-
-    const emulatorToStart = emulators.find(it => it.id === defaultStart)!!
+    const emulatorToStart = this.getEmulatorToStart();
 
     const cpuCount = emulatorToStart.cpu;
     const memSize = emulatorToStart.memory;
@@ -98,7 +96,7 @@ export default class EntryAbility extends UIAbility {
     const portMapping = portMappingRaw.filter(it => portUsed.indexOf(it.host!!) < 0)
 
     hilog.info(DOMAIN, 'testTag', 'host port %{public}s of PortMapping is used by others', portUsed)
-    this.promptPortUsedMessage(uiContext, portUsed)
+    AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed)
 
     hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
       cpuCount, memSize, portMapping)
@@ -122,6 +120,14 @@ export default class EntryAbility extends UIAbility {
       init,
       qmpUnixSocket
     })
+  }
+
+  private getEmulatorToStart() {
+    const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string;
+    const defaultStart: string | undefined = temporaryStart || AppStorage.get(appOption.defaultStartEmulator) as string;
+    const emulators = AppStorage.get(appOption.emulators) as Emulator[];
+    const emulatorToStart = emulators.find(it => it.id === defaultStart)!!;
+    return emulatorToStart;
   }
 
   private async loadPreferences(appContext: common.ApplicationContext) {
@@ -238,7 +244,8 @@ export default class EntryAbility extends UIAbility {
     return 15;
   }
 
-  private promptPortUsedMessage(uiContext: UIContext, portUsedByOthers: number[]) {
+  private promptPortUsedMessage(uiContext: UIContext) {
+    const portUsedByOthers: number[] = AppStorage.get(appOption.portUsedByOthers)!! as number[]
     const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt');
     if (portUsedByOthers.length > 0) {
       try {
