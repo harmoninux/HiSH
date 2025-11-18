@@ -5,6 +5,8 @@
     "pages/EditEmulator",
     "pages/RootfsManagement",
     "pages/SharedFolder",
-    "pages/GuideWebPage"
+    "pages/GuideWebPage",
+    "pages/toolbox/DnsResolvePage",
+    "pages/toolbox/PortScannerPage"
   ]
 }

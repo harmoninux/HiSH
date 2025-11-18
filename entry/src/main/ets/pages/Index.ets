@@ -13,6 +13,7 @@ import { Emulator } from "../model/Emulator";
 import RootfsManagementContent from "../components/RootfsManagementContent";
 import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
+import { ToolBox } from "../components/ToolBox";
 
 @Component
 struct PcIndex {
@@ -355,17 +356,10 @@ struct PhoneOrTablet {
 
       TabContent() {
         Column() {
-          UserGuide({
-            openPage: (title: string, url: string) => {
-              this.getUIContext().getRouter().pushUrl({
-                url: 'pages/GuideWebPage',
-                params: { page: url }
-              })
-            }
-          })
+          ToolBox()
         }
       }
-      .tabBar(this.tabBuilder('使用指南', 2, $r('sys.symbol.book_pages')))
+      .tabBar(this.tabBuilder('开发者工具', 2, $r('sys.symbol.briefcase')))
 
       TabContent() {
         Column() {
