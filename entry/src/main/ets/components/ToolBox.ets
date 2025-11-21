@@ -92,13 +92,6 @@ export struct ToolBox {
             })
             LinkItem({
               icon: $r('sys.symbol.house'),
-              title: 'whois',
-              subTitle: '查看whois信息',
-              click: () => {
-              }
-            })
-            LinkItem({
-              icon: $r('sys.symbol.house'),
               title: 'ping',
               subTitle: '检测网络延迟',
               click: () => {
@@ -125,6 +118,9 @@ export struct ToolBox {
               title: '哈希校验',
               subTitle: '验证文件完整性',
               click: () => {
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/toolbox/HashVerifyPage'
+                })
               }
             })
             LinkItem({

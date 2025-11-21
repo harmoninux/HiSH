@@ -7,6 +7,7 @@
     "pages/SharedFolder",
     "pages/GuideWebPage",
     "pages/toolbox/DnsResolvePage",
-    "pages/toolbox/PortScannerPage"
+    "pages/toolbox/PortScannerPage",
+    "pages/toolbox/HashVerifyPage"
   ]
 }
