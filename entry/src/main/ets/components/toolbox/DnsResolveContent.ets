@@ -1,4 +1,5 @@
 import connection from '@ohos.net.connection'
+import { LoadingDialog } from '@kit.ArkUI'
 
 @Component
 export struct DnsResolveContent {
@@ -36,12 +37,20 @@ export struct DnsResolveContent {
   }
 
   async queryDns() {
+    const progress = new CustomDialogController({
+      builder: LoadingDialog({
+        content: '正在解析' + this.domain
+      })
+    })
+    progress.open()
     try {
       const handle = await connection.getDefaultNet()
       const data = await handle.getAddressesByName(this.domain)
       this.address = data.map(it => it.address)
     } catch (e) {
       this.address = []
+    } finally {
+      progress.close()
     }
   }
 }

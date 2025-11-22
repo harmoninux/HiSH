@@ -2,6 +2,7 @@ import { common } from "@kit.AbilityKit"
 import { hash, picker } from "@kit.CoreFileKit"
 import { uri } from "@kit.ArkTS"
 import { pasteboard } from "@kit.BasicServicesKit"
+import { LoadingDialog } from "@kit.ArkUI"
 
 const algorithms: SelectOption[] = [{
   value: 'MD5'
@@ -120,14 +121,22 @@ export struct HashVerifyContent {
   }
 
   async computeHash() {
-    if (this.filePath) {
-      try {
+    const progress = new CustomDialogController({
+      builder: LoadingDialog({
+        content: '正在计算哈希'
+      })
+    })
+    progress.open()
+    try {
+      if (this.filePath) {
         this.fileHash = await hash.hash(this.filePath!!, this.algo.toLowerCase())
-      } catch (e) {
+      } else {
         this.fileHash = undefined
       }
-    } else {
+    } catch (e) {
       this.fileHash = undefined
+    } finally {
+      progress.close()
     }
   }
 }
