@@ -206,7 +206,7 @@ export struct PortMappingEdit {
         .justifyContent(FlexAlign.SpaceBetween)
         .alignItems(VerticalAlign.Center)
 
-        SymbolGlyph($r('sys.symbol.minus_circle'))
+        SymbolGlyph($r('sys.symbol.xmark'))
           .fontColor([$r('sys.color.alert')])
           .fontSize(18)
           .onClick(() => remove())

@@ -8,6 +8,7 @@
     "pages/GuideWebPage",
     "pages/toolbox/DnsResolvePage",
     "pages/toolbox/PortScannerPage",
+    "pages/toolbox/HttpRequestPage",
     "pages/toolbox/HashVerifyPage",
     "pages/toolbox/HashGeneratePage",
     "pages/toolbox/Base64EncodePage",

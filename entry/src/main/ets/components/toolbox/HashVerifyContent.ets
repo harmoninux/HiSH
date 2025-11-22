@@ -3,6 +3,7 @@ import { hash, picker } from "@kit.CoreFileKit"
 import { uri } from "@kit.ArkTS"
 import { pasteboard } from "@kit.BasicServicesKit"
 import { LoadingDialog } from "@kit.ArkUI"
+import copyToClipboard from "../../lib/copyToClipboard"
 
 const algorithms: SelectOption[] = [{
   value: 'MD5'
@@ -83,18 +84,7 @@ export struct HashVerifyContent {
   }
 
   async copyHashValue() {
-    try {
-      const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.fileHash!!);
-      const systemPasteboard = pasteboard.getSystemPasteboard();
-      await systemPasteboard.setData(pasteboardData);
-
-      this.getUIContext().getPromptAction().showToast({
-        message: '已复制到剪贴板',
-        duration: 2000
-      })
-    } catch (e) {
-      console.log(e)
-    }
+    await copyToClipboard(this.fileHash!!)
   }
 
   async selectFileToVerify() {

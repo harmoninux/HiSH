@@ -102,6 +102,9 @@ export struct ToolBox {
               title: 'HTTP',
               subTitle: '测试HTTP请求',
               click: () => {
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/toolbox/HttpRequestPage'
+                })
               }
             })
           }
