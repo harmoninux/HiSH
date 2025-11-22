@@ -161,6 +161,9 @@ export struct ToolBox {
               title: '正则验证',
               subTitle: '验证正则表达式',
               click: () => {
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/toolbox/RegexVerifyPage'
+                })
               }
             })
           }

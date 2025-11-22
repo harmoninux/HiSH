@@ -12,6 +12,7 @@
     "pages/toolbox/HashVerifyPage",
     "pages/toolbox/HashGeneratePage",
     "pages/toolbox/Base64EncodePage",
-    "pages/toolbox/UrlEncodePage"
+    "pages/toolbox/UrlEncodePage",
+    "pages/toolbox/RegexVerifyPage"
   ]
 }
