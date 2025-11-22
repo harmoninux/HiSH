@@ -6,8 +6,9 @@ import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
+import napi from 'libentry.so';
 import appOption, { CursorShape } from '../model/appOption'
-import { StartResult, startVm } from '../lib/startVm';
+import { startVm } from '../lib/startVm';
 import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
 
@@ -39,7 +40,7 @@ export default class EntryAbility extends UIAbility {
 
     await this.prepareForSharedFolder(appContext)
 
-    const result = this.startDefaultEmulator();
+    this.startDefaultEmulator();
 
     windowStage.loadContent('pages/Index', async (err) => {
       if (err.code) {
@@ -61,7 +62,7 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorHeight(48);
       }
 
-      this.promptPortUsedMessage(uiContext, result.portsSkipped)
+      this.promptPortUsedMessage(uiContext)
     });
   }
 
@@ -72,7 +73,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
 
-  private startDefaultEmulator(): StartResult {
+  private startDefaultEmulator() {
 
     const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
@@ -83,13 +84,19 @@ export default class EntryAbility extends UIAbility {
     const rootVda = emulatorToStart.rootVda;
     const rootFilesystem = emulatorToStart.rootFilesystem
     const sharedFolderReadonly = emulatorToStart.sharedFolderReadonly
+    const portMappingRaw = emulatorToStart.portMapping
     const init = emulatorToStart.init
-    const portMapping = emulatorToStart.portMapping
 
     const sharedFolder = AppStorage.get(appOption.sharedHost) as string
 
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernelFile = AppStorage.get(appOption.kernel) as string
+
+    const portUsed = portMappingRaw.map(it => it.host!!).filter(p => napi.checkPortUsed(p))
+    const portMapping = portMappingRaw.filter(it => portUsed.indexOf(it.host!!) < 0)
+
+    hilog.info(DOMAIN, 'testTag', 'host port %{public}s of PortMapping is used by others', portUsed)
+    AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed)
 
     hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
       cpuCount, memSize, portMapping)
@@ -99,7 +106,7 @@ export default class EntryAbility extends UIAbility {
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
-    return startVm({
+    startVm({
       baseDir: vmBaseDir,
       cpu: cpuCount,
       memory: memSize,
@@ -247,11 +254,12 @@ export default class EntryAbility extends UIAbility {
     return 15;
   }
 
-  private promptPortUsedMessage(uiContext: UIContext, portsSkipped: number[]) {
-    if (portsSkipped.length > 0) {
+  private promptPortUsedMessage(uiContext: UIContext) {
+    const portUsedByOthers: number[] = AppStorage.get(appOption.portUsedByOthers)!! as number[]
+    const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt');
+    if (portUsedByOthers.length > 0) {
       try {
-        const ports = portsSkipped.map(i => i.toString()).join(',');
-        const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt');
+        const ports = portUsedByOthers.map(i => i.toString()).join(',');
         const prompt = util.format(promptFormat, ports);
         const promptAction: PromptAction = uiContext.getPromptAction();
         promptAction.showToast({

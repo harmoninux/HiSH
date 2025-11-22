@@ -1,11 +1,10 @@
 import util from '@ohos.util';
 import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit'
 import appOption, { CursorShape } from '../model/appOption';
-import { serialChannel } from '../lib/startVm';
-import codeEscape from '../lib/codeEscape';
 
 const DOMAIN = 0x0000;
 
@@ -26,6 +25,7 @@ export default struct WebTerminal {
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) terminalCursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) terminalCursorBlink: boolean | null = null
   webviewController: WebviewController = new webview.WebviewController()
+  utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -164,7 +164,7 @@ export default struct WebTerminal {
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
     let buffer = stringToArrayBuffer(data, 'utf-8');
-    serialChannel.sendMessage(buffer)
+    napi.sendInput(buffer)
 
     if (this.ctrlPressed) {
       this.toggleCtrl()
@@ -173,7 +173,7 @@ export default struct WebTerminal {
 
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
-    serialChannel.onMessage((d: ArrayBuffer): void => this.onData(d))
+    napi.onData((d: ArrayBuffer) => this.onData(d))
   }
 
   async resize(): Promise<void> {
@@ -188,9 +188,9 @@ export default struct WebTerminal {
   }
 
   private onData(ab: ArrayBuffer) {
-    const hex = codeEscape(ab);
-    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', hex);
-    this.webviewController.runJavaScript('exports.write("' + hex + '")');
+    let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
+    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
+    this.webviewController.runJavaScript('exports.write("' + s + '")');
   }
 
   private onClose() {
