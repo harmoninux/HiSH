@@ -10,6 +10,8 @@ struct DnsResolvePage {
         title: 'DNS解析'
       })
       DnsResolveContent()
+        .layoutWeight(1)
+        .margin({ left: 15, right: 15 })
     }
   }
 }

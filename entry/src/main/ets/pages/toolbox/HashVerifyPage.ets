@@ -8,9 +8,12 @@ struct HashVerifyPage {
   build() {
     Column() {
       ComposeTitleBar({
-        title: '哈希校验'
+        title: '哈希校验',
+        subtitle: '通过哈希值验证文件的完整性'
       })
       HashVerifyContent()
+        .layoutWeight(1)
+        .margin({ left: 15, right: 15 })
     }
   }
 }

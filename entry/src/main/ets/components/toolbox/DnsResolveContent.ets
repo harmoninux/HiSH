@@ -2,12 +2,12 @@ import connection from '@ohos.net.connection'
 
 @Component
 export struct DnsResolveContent {
-  @State domain: string = 'developer.huawei.com'
+  @State domain: string = ''
   @State address: string[] = []
 
   build() {
     Column() {
-      TextInput({ text: this.domain, placeholder: '输入域名' })
+      TextInput({ text: this.domain, placeholder: '输入域名，例如：huawei.com' })
         .margin({ bottom: 15 })
         .onChange((value) => {
           this.domain = value

@@ -11,6 +11,8 @@ struct PortScannerPage {
         title: '端口扫描'
       })
       PortScannerContent()
+        .layoutWeight(1)
+        .margin({ left: 15, right: 15 })
     }
   }
 }
