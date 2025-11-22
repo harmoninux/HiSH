@@ -8,7 +8,7 @@ import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
 import appOption, { CursorShape } from '../model/appOption'
 import { StartResult, startVm } from '../lib/startVm';
-import { defaultEmulator, defaultRootfs, Emulator, PortMapping, RootFilesystem } from '../model/Emulator';
+import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
 
 const DOMAIN = 0x0000;
@@ -187,9 +187,15 @@ export default class EntryAbility extends UIAbility {
       fs.mkdirSync(rootfsBaseDir);
     }
 
-    this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2');
-    this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64');
-    this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom');
+    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+    const lastResourceVersion = await appPref.get(appOption.lastResourceVersion, undefined) as number | undefined
+    const bundleInfo = AppStorage.get('bundleInfo') as bundleManager.BundleInfo
+    const forceOverride = lastResourceVersion === undefined || lastResourceVersion < bundleInfo.versionCode
+    this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
+    this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
+    this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
+    await appPref.put(appOption.lastResourceVersion, bundleInfo.versionCode)
+    await appPref.flush()
 
     const defaultStartEmulator = AppStorage.get(appOption.defaultStartEmulator)!! as string
     if (defaultStartEmulator === defaultEmulator.id) {
@@ -197,10 +203,10 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
-  private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, toFileName: string) {
+  private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, toFileName: string, forceOverride?: boolean) {
     const filesDir = AppStorage.get(appOption.appFilesDir)!!
     const filePath = toFileName.startsWith('/') ? toFileName : (filesDir + "/" + toFileName);
-    if (!fs.accessSync(filePath, fs.AccessModeType.EXIST)) {
+    if (!fs.accessSync(filePath, fs.AccessModeType.EXIST) || forceOverride) {
       let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
       let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
       fs.writeSync(file.fd, value.buffer);
