@@ -1,5 +1,4 @@
-import { util } from "@kit.ArkTS"
-import { pasteboard } from "@kit.BasicServicesKit"
+import copyToClipboard from "../../lib/copyToClipboard"
 
 @Component
 struct UrlEncoder {
@@ -10,6 +9,7 @@ struct UrlEncoder {
     Column() {
       TextArea({ placeholder: '输入内容', text: this.content })
         .height(200)
+        .margin({ bottom: 10 })
         .onChange((value) => this.content = value)
       Column() {
         Row() {
@@ -20,10 +20,17 @@ struct UrlEncoder {
           Button('复制', { buttonStyle: ButtonStyleMode.TEXTUAL })
             .onClick(() => this.copyEncoded())
         }
-        .padding(10)
+        .padding({ left: 10, right: 10 })
 
-        Text(this.encoded)
-          .padding(5)
+        Scroll() {
+          Text(this.encoded)
+            .padding(5)
+        }
+        .scrollable(ScrollDirection.Vertical)
+        .scrollBar(BarState.Auto)
+        .scrollBarWidth(1)
+        .layoutWeight(1)
+        .align(Alignment.Top)
       }
       .layoutWeight(1)
       .borderRadius(10)
@@ -37,17 +44,7 @@ struct UrlEncoder {
   }
 
   private async copyEncoded() {
-    try {
-      const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.encoded!!);
-      const systemPasteboard = pasteboard.getSystemPasteboard();
-      await systemPasteboard.setData(pasteboardData);
-      this.getUIContext().getPromptAction().showToast({
-        message: '已复制到剪贴板',
-        duration: 2000
-      })
-    } catch (e) {
-      console.log(e)
-    }
+    await copyToClipboard(this.encoded!!, this.getUIContext())
   }
 }
 
@@ -60,6 +57,7 @@ struct UrlDecoder {
     Column() {
       TextArea({ placeholder: '输入URL Encoding', text: this.content })
         .height(200)
+        .margin({ bottom: 10 })
         .onChange((value) => this.content = value)
       Column() {
         Row() {
@@ -70,10 +68,17 @@ struct UrlDecoder {
           Button('复制', { buttonStyle: ButtonStyleMode.TEXTUAL })
             .onClick(() => this.copyEncoded())
         }
-        .padding(10)
+        .padding({ left: 10, right: 10 })
 
-        Text(this.decoded)
-          .padding(5)
+        Scroll() {
+          Text(this.decoded)
+            .padding(5)
+        }
+        .scrollable(ScrollDirection.Vertical)
+        .scrollBar(BarState.Auto)
+        .scrollBarWidth(1)
+        .layoutWeight(1)
+        .align(Alignment.Top)
       }
       .layoutWeight(1)
       .borderRadius(10)
@@ -87,17 +92,7 @@ struct UrlDecoder {
   }
 
   private async copyEncoded() {
-    try {
-      const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.decoded!!);
-      const systemPasteboard = pasteboard.getSystemPasteboard();
-      await systemPasteboard.setData(pasteboardData);
-      this.getUIContext().getPromptAction().showToast({
-        message: '已复制到剪贴板',
-        duration: 2000
-      })
-    } catch (e) {
-      console.log(e)
-    }
+    await copyToClipboard(this.decoded!!, this.getUIContext())
   }
 }
 
