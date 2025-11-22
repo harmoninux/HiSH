@@ -1,10 +1,12 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
-import { bundleManager, common, Want } from '@kit.AbilityKit';
+import { abilityAccessCtrl, bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 import deviceInfo from '@ohos.deviceInfo';
+import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import { geoLocationManager } from '@kit.LocationKit';
 
 const fontSizeOptions: SelectOption[] = [{
   value: '9'
@@ -36,6 +38,7 @@ export default struct SettingsContent {
   @Watch('saveTermFontSize') @StorageProp(appOption.terminalFontSize) terminalFontSize: number = 12
   @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
+  @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -108,6 +111,15 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private setRunningInBackground() {
+    Checkbox()
+      .select(this.runningInBackground)
+      .onChange((value: boolean) => {
+        this.runningInBackground = value
+      })
+  }
+
+  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -160,6 +172,20 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalCursorBlink, !this.termCursorBlink)
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: $r('app.string.setting_running') })
+          Column() {
+            SettingItem({
+              title: $r('app.string.force_run_in_background'),
+              subTitle: $r('app.string.force_background_desc'),
+              content: () => {
+                this.setRunningInBackground()
+              }
+            }).onClick(() => {
+              this.runningInBackground = !this.runningInBackground
             })
           }
           .attributeModifier(this.blockStyle)
@@ -261,5 +287,22 @@ export default struct SettingsContent {
 
   async saveTermCursorBlink() {
     await savePreference(appOption.terminalCursorBlink, this.termCursorBlink, this.getUIContext())
+  }
+
+  async saveRunningInBackground() {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    if (this.runningInBackground) {
+      const success = await backgroundRunningManager.startBackground(context)
+      if (!success) {
+        this.runningInBackground = false
+        this.getUIContext().getPromptAction().showToast({
+          message: $r('app.string.failed_to_force_background'),
+          duration: 3000
+        })
+      }
+    } else {
+      await backgroundRunningManager.stopBackground(context)
+    }
+    await savePreference(appOption.runningInBackground, this.runningInBackground, this.getUIContext())
   }
 }

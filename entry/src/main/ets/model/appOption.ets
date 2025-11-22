@@ -24,6 +24,7 @@ class appOption {
   static temporaryStartEmulator = 'temporaryStartEmulator'
   static serialChannel = 'serialChannel'
   static lastResourceVersion = 'lastResourceVersion';
+  static runningInBackground = 'runningInBackground';
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

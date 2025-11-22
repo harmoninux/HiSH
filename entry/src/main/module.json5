@@ -24,6 +24,29 @@
         "name": "ohos.permission.GET_NETWORK_INFO"
       },
       {
+        "name": "ohos.permission.KEEP_BACKGROUND_RUNNING"
+      },
+      {
+        "name": "ohos.permission.APPROXIMATELY_LOCATION",
+        "reason": "$string:location_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.LOCATION_IN_BACKGROUND",
+        "reason": "$string:location_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      },
+      {
         "name": "ohos.permission.READ_WRITE_USER_FILE"
       }
     ],
@@ -41,6 +64,9 @@
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "orientation": "auto_rotation_restricted",
+        "backgroundModes": [
+          "location"
+        ],
         "skills": [
           {
             "entities": [

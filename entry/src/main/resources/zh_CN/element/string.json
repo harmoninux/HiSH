@@ -255,6 +255,26 @@
     {
       "name": "root_outdated_prompt",
       "value": "当前模拟器的root路径为%s，可能导致Linux无法正常启动\n可以前往模拟器管理中修改模拟器的root设置，例如修改为/dev/sda"
+    },
+    {
+      "name": "location_reason",
+      "value": "强制应用在后台运行"
+    },
+    {
+      "name": "failed_to_force_background",
+      "value": "模拟后台定位失败，请授予应用定位权限"
+    },
+    {
+      "name": "setting_running",
+      "value": "运行设置"
+    },
+    {
+      "name": "force_run_in_background",
+      "value": "强制后台"
+    },
+    {
+      "name": "force_background_desc",
+      "value": "强制应用在后台运行"
     }
   ]
 }

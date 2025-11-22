@@ -253,8 +253,28 @@
       "value": "Dev toolbox"
     },
     {
+      "name": "location_reason",
+      "value": "Keep running in background"
+    },
+    {
       "name": "setting_terminal",
       "value": "Terminal"
+    },
+    {
+      "name": "failed_to_force_background",
+      "value": "Simulated background location failed. Please grant the app location permission"
+    },
+    {
+      "name": "setting_running",
+      "value": "Running"
+    },
+    {
+      "name": "force_run_in_background",
+      "value": "Run in background"
+    },
+    {
+      "name": "force_background_desc",
+      "value": "Force the app run in background"
     }
   ]
 }

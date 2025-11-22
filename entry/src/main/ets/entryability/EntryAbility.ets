@@ -12,6 +12,7 @@ import { startVm } from '../lib/startVm';
 import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
+import { backgroundRunningManager } from '../lib/backgroundRunningManager';
 
 const DOMAIN = 0x0000;
 
@@ -68,6 +69,7 @@ export default class EntryAbility extends UIAbility {
 
       this.promptRootVdaMessage(uiContext)
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
+      this.startRunInBackground(uiContext)
     });
   }
 
@@ -169,6 +171,8 @@ export default class EntryAbility extends UIAbility {
 
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
+    const runningInBackground = await appPref.get(appOption.runningInBackground, false) as boolean;
+    AppStorage.setOrCreate(appOption.runningInBackground, runningInBackground);
     const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;
     AppStorage.setOrCreate(appOption.terminalFontSize, terminalFontSize);
     const terminalCursorShape = await appPref.get(appOption.terminalCursorShape, 'BLOCK') as CursorShape;
@@ -326,6 +330,20 @@ export default class EntryAbility extends UIAbility {
       }
     } catch (e) {
       console.log(e)
+    }
+  }
+
+  private async startRunInBackground(uiContext: UIContext) {
+    try {
+      const runInBackground = AppStorage.get(appOption.runningInBackground) as boolean
+      if (runInBackground) {
+        await backgroundRunningManager.startBackground(uiContext.getHostContext() as common.UIAbilityContext)
+      }
+    } catch (e) {
+      uiContext.getPromptAction().showToast({
+        message: $r('app.string.failed_to_force_background'),
+        duration: 3000
+      })
     }
   }
 }
