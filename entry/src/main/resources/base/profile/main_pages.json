@@ -10,6 +10,7 @@
     "pages/toolbox/PortScannerPage",
     "pages/toolbox/HashVerifyPage",
     "pages/toolbox/HashGeneratePage",
-    "pages/toolbox/Base64EncodePage"
+    "pages/toolbox/Base64EncodePage",
+    "pages/toolbox/UrlEncodePage"
   ]
 }

@@ -148,6 +148,9 @@ export struct ToolBox {
               title: 'URL',
               subTitle: '编码/解码',
               click: () => {
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/toolbox/UrlEncodePage'
+                })
               }
             })
             LinkItem({
