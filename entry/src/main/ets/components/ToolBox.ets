@@ -11,29 +11,25 @@ struct BlockTitle {
 
 @Component
 export struct LinkItem {
-  @Prop icon: Resource
-  @Prop title: string | Resource
-  @Prop subTitle: string | Resource
+  @Require icon: Resource
+  @Require title: string | Resource
+  @Require subTitle: string | Resource
   click?: () => void
 
   build() {
     Row() {
-      Row() {
-        Image($r('app.media.startIcon'))
+      Column() {
+        Image(this.icon)
           .width(28)
           .height(28)
-          .margin({ right: 5 })
-        Column() {
-          Text(this.title)
-            .fontSize($r('sys.float.Body_L'))
-            .fontColor($r('sys.color.font_primary'))
-          Text(this.subTitle)
-            .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('sys.color.font_tertiary'))
-            .margin({ top: 5 })
-        }
-        .flexGrow(1)
-        .alignItems(HorizontalAlign.Start)
+        Text(this.title)
+          .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
+          .margin({ top: 10 })
+        Text(this.subTitle)
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+          .margin({ top: 5 })
       }
       .onClick(() => {
         if (this.click) {
@@ -41,7 +37,7 @@ export struct LinkItem {
         }
       })
       .clickEffect({ level: ClickEffectLevel.MIDDLE })
-      .alignItems(VerticalAlign.Center)
+      .alignItems(HorizontalAlign.Center)
       .width('100%')
       .padding({
         left: 5,
@@ -50,10 +46,9 @@ export struct LinkItem {
         bottom: 10
       })
       .borderRadius(10)
-      .backgroundColor($r('app.color.setting_block_background'))
     }
     .padding(5)
-    .width(160)
+    .width(110)
   }
 }
 
@@ -71,7 +66,17 @@ export struct ToolBox {
             justifyContent: FlexAlign.Start
           }) {
             LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
+              icon: $r('app.media.http'),
+              title: 'HTTP',
+              subTitle: '测试HTTP请求',
+              click: () => {
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/toolbox/HttpRequestPage'
+                })
+              }
+            })
+            LinkItem({
+              icon: $r('app.media.dns'),
               title: 'DNS解析',
               subTitle: 'DNS解析工具',
               click: () => {
@@ -81,7 +86,7 @@ export struct ToolBox {
               }
             })
             LinkItem({
-              icon: $r('sys.symbol.house'),
+              icon: $r('app.media.port_scan'),
               title: '端口扫描',
               subTitle: '扫描开放端口',
               click: () => {
@@ -90,24 +95,10 @@ export struct ToolBox {
                 })
               }
             })
-            LinkItem({
-              icon: $r('sys.symbol.house'),
-              title: 'ping',
-              subTitle: '检测网络延迟',
-              click: () => {
-              }
-            })
-            LinkItem({
-              icon: $r('sys.symbol.house'),
-              title: 'HTTP',
-              subTitle: '测试HTTP请求',
-              click: () => {
-                this.getUIContext().getRouter().pushUrl({
-                  url: 'pages/toolbox/HttpRequestPage'
-                })
-              }
-            })
           }
+          .backgroundColor($r('app.color.setting_block_background'))
+          .borderRadius(10)
+          .padding(10)
           .margin({ bottom: 20 })
 
           BlockTitle({ content: '数据工具' })
@@ -117,7 +108,7 @@ export struct ToolBox {
             justifyContent: FlexAlign.Start
           }) {
             LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
+              icon: $r('app.media.hash_check'),
               title: '哈希校验',
               subTitle: '验证文件完整性',
               click: () => {
@@ -127,7 +118,7 @@ export struct ToolBox {
               }
             })
             LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
+              icon: $r('app.media.hash'),
               title: '哈希生成',
               subTitle: '生成哈希值',
               click: () => {
@@ -137,7 +128,7 @@ export struct ToolBox {
               }
             })
             LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
+              icon: $r('app.media.base64'),
               title: 'Base64',
               subTitle: '编码/解码',
               click: () => {
@@ -147,8 +138,8 @@ export struct ToolBox {
               }
             })
             LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
-              title: 'URL',
+              icon: $r('app.media.url_codec'),
+              title: 'URL Encoding',
               subTitle: '编码/解码',
               click: () => {
                 this.getUIContext().getRouter().pushUrl({
@@ -157,7 +148,7 @@ export struct ToolBox {
               }
             })
             LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
+              icon: $r('app.media.regex'),
               title: '正则验证',
               subTitle: '验证正则表达式',
               click: () => {
@@ -167,6 +158,9 @@ export struct ToolBox {
               }
             })
           }
+          .borderRadius(10)
+          .backgroundColor($r('app.color.setting_block_background'))
+          .padding(10)
           .margin({ bottom: 20 })
         }
         .margin(10)

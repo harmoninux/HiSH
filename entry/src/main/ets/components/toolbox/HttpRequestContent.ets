@@ -1,7 +1,6 @@
 import { util } from "@kit.ArkTS"
 import { CommonModifier, LoadingDialog } from "@kit.ArkUI"
 import { http } from "@kit.NetworkKit"
-import { Exception } from "@ohos/commons-compress"
 import { BusinessError } from '@kit.BasicServicesKit';
 import copyToClipboard from "../../lib/copyToClipboard";
 
@@ -12,7 +11,13 @@ const methods: SelectOption[] = [{
 }, {
   value: 'PUT'
 }, {
+  value: 'PATCH'
+}, {
   value: 'DELETE'
+}, {
+  value: 'OPTIONS'
+}, {
+  value: 'HEADS'
 }]
 
 interface KvPair {
@@ -100,7 +105,6 @@ struct ParamsList {
     this.onChange(this.params)
   }
 }
-
 
 @Component
 export struct HttpRequestContent {
