@@ -9,6 +9,7 @@
     "pages/toolbox/DnsResolvePage",
     "pages/toolbox/PortScannerPage",
     "pages/toolbox/HashVerifyPage",
-    "pages/toolbox/HashGeneratePage"
+    "pages/toolbox/HashGeneratePage",
+    "pages/toolbox/Base64EncodePage"
   ]
 }

@@ -17,7 +17,7 @@ export struct PortScannerContent {
   @State range: string = ''
   @State results: PortStatus[] = []
   @State scanning: boolean = false
-  @State timeout: number = 1000
+  @State timeout: number = 200
 
   @Builder
   build() {

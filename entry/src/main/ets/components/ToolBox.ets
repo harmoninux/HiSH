@@ -135,22 +135,25 @@ export struct ToolBox {
             })
             LinkItem({
               icon: $r('sys.symbol.doc_text_badge_checkmark'),
-              title: '正则验证',
-              subTitle: '验证正则表达式',
-              click: () => {
-              }
-            })
-            LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
               title: 'Base64',
               subTitle: '编码/解码',
               click: () => {
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/toolbox/Base64EncodePage'
+                })
               }
             })
             LinkItem({
               icon: $r('sys.symbol.doc_text_badge_checkmark'),
               title: 'URL',
               subTitle: '编码/解码',
+              click: () => {
+              }
+            })
+            LinkItem({
+              icon: $r('sys.symbol.doc_text_badge_checkmark'),
+              title: '正则验证',
+              subTitle: '验证正则表达式',
               click: () => {
               }
             })
