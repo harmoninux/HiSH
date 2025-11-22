@@ -128,6 +128,9 @@ export struct ToolBox {
               title: '哈希生成',
               subTitle: '生成哈希值',
               click: () => {
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/toolbox/HashGeneratePage'
+                })
               }
             })
             LinkItem({
