@@ -239,6 +239,14 @@
     {
       "name": "paste_here",
       "value": "粘贴"
+    },
+    {
+      "name": "ToolboxAbility_desc",
+      "value": "开发者工具"
+    },
+    {
+      "name": "ToolboxAbility_label",
+      "value": "开发者工具"
     }
   ]
 }

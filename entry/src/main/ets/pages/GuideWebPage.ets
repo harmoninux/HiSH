@@ -15,16 +15,16 @@ struct GuideWebPage {
         .javaScriptProxy({
           permission: `{
           "javascriptProxyPermission": {
-            "urlPermissionList": [
-              {
-                "scheme": "resource",
-                "host": "rawfile",
-                "port": "",
-                "path": ""
-              }
-            ]
-          }
-        }`,
+              "urlPermissionList": [
+                {
+                  "scheme": "resource",
+                  "host": "rawfile",
+                  "port": "",
+                  "path": ""
+                }
+              ]
+            }
+          }`,
           object: this,
           name: 'native',
           methodList: [],
@@ -32,7 +32,7 @@ struct GuideWebPage {
         })
         .width('100%')
         .height('100%')
-        .backgroundColor('#000000')
+        .backgroundColor($r('sys.color.black'))
     }
     .height('100%')
   }

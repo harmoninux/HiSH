@@ -239,6 +239,14 @@
     {
       "name": "paste_here",
       "value": "Paste here"
+    },
+    {
+      "name": "ToolboxAbility_desc",
+      "value": "Dev toolbox"
+    },
+    {
+      "name": "ToolboxAbility_label",
+      "value": "Dev toolbox"
     }
   ]
 }

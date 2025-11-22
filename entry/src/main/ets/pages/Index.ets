@@ -1,4 +1,4 @@
-import { common } from "@kit.AbilityKit"
+import { bundleManager, common, Want } from "@kit.AbilityKit"
 import { CustomContentDialog } from '@kit.ArkUI';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import WebTerminal from '../components/WebTerminal'
@@ -129,6 +129,24 @@ struct PcIndex {
             buttonStyle: ButtonStyleMode.TEXTUAL,
             controlSize: ControlSize.SMALL
           }) {
+            SymbolGlyph($r('sys.symbol.briefcase'))
+              .fontSize('20vp')
+              .width(20)
+              .height(20)
+              .fontColor(['#ffffff'])
+          }
+          .borderRadius(4)
+          .padding(4)
+          .margin({ right: 10 })
+          .onClick((event: ClickEvent) => {
+            this.openToolbox()
+          })
+
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
             Image($r('app.media.gearshape')).width(20)
           }
           .borderRadius(4)
@@ -168,6 +186,16 @@ struct PcIndex {
     }
     .width("100%")
     .height('100%')
+  }
+
+  private async openToolbox() {
+    const bundleInfo = AppStorage.get(appOption.bundleInfo)!! as bundleManager.BundleInfo
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    let want: Want = {
+      bundleName: bundleInfo.name,
+      abilityName: 'ToolboxAbility'
+    };
+    context.startAbility(want)
   }
 
   @Builder

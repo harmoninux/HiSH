@@ -5,6 +5,7 @@
     "pages/EditEmulator",
     "pages/RootfsManagement",
     "pages/SharedFolder",
+    "pages/UserGuidePage",
     "pages/GuideWebPage",
     "pages/toolbox/DnsResolvePage",
     "pages/toolbox/PortScannerPage",
@@ -13,6 +14,7 @@
     "pages/toolbox/HashGeneratePage",
     "pages/toolbox/Base64EncodePage",
     "pages/toolbox/UrlEncodePage",
-    "pages/toolbox/RegexVerifyPage"
+    "pages/toolbox/RegexVerifyPage",
+    "pages/ToolboxPage"
   ]
 }

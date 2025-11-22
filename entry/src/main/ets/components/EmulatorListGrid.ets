@@ -20,7 +20,7 @@ export default struct EmulatorListGrid {
   @State displayEmulators: Emulator[] = []
   @StorageLink(appOption.defaultStartEmulator) defaultStart?: string = undefined
   @StorageProp(appOption.currentRunningEmulator) currentRunning?: string = undefined
-  @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
+  @StorageProp(appOption.bundleInfo) bundleInfo?: bundleManager.BundleInfo = undefined
   @Require onEditEmulator: (item: Emulator, edit: boolean) => void
   @Prop specifiedBreak?: string = undefined
   emulatorNameController = new CustomDialogController({

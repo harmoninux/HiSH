@@ -139,7 +139,7 @@ export struct ToolBox {
             })
             LinkItem({
               icon: $r('app.media.url_codec'),
-              title: 'URL Encoding',
+              title: 'URLEncode',
               subTitle: '编码/解码',
               click: () => {
                 this.getUIContext().getRouter().pushUrl({

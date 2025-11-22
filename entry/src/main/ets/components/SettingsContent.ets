@@ -4,6 +4,7 @@ import preference from '@ohos.data.preferences';
 import appOption, { savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
+import deviceInfo from '@ohos.deviceInfo';
 
 const fontSizeOptions: SelectOption[] = [{
   value: '9'
@@ -122,6 +123,19 @@ export default struct SettingsContent {
 
           BlockTitle({ content: $r('app.string.setting_block_about') })
           Column() {
+
+            if (deviceInfo.deviceType !== '2in1') {
+              LinkItem({
+                icon: $r('sys.symbol.book_pages'),
+                title: '使用指南',
+                click: () => {
+                  this.getUIContext().getRouter().pushUrl({
+                    url: 'pages/UserGuidePage'
+                  })
+                }
+              })
+            }
+
             LinkItem({
               icon: $r('sys.symbol.house'),
               title: $r('app.string.code_repository'),
