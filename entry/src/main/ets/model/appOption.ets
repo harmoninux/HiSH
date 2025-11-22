@@ -1,9 +1,13 @@
 import preference from '@ohos.data.preferences';
 
+type CursorShape = 'BLOCK' | 'BEAM' | 'UNDERLINE'
+
 class appOption {
   static preferenceName = 'vm_pref'
   static keepScreenOn = 'appKeepScreenOn'
   static terminalFontSize = 'terminalFontSize'
+  static terminalCursorBlink = 'terminalCursorBlink'
+  static terminalCursorShape = 'terminalCursorShape'
   static appTempDir = 'appTempDir'
   static appFilesDir = 'appFilesDir'
   static vmBaseDir = 'vmBaseDir'
@@ -33,4 +37,4 @@ async function savePreference(key: string, value: object | string | boolean | nu
 
 export default appOption
 
-export { savePreference }
+export { savePreference, CursorShape }

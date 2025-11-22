@@ -134,6 +134,8 @@ function onTerminalReady() {
     exports.clearScrollback = () => term.clearScrollback();
 
     exports.setFontSize = (fontSize) => term.getPrefs().set('font-size', fontSize);
+    exports.setCursorShape = (shape) => term.getPrefs().set('cursor-shape', shape);
+    exports.setCursorBlink = (blink) => term.getPrefs().set('cursor-blink', blink);
 
     hterm.openUrl = (url) => native.openLink(url);
 

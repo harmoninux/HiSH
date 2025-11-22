@@ -3,7 +3,7 @@ import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit'
-import appOption from '../model/appOption';
+import appOption, { CursorShape } from '../model/appOption';
 import { serialChannel } from '../lib/startVm';
 import codeEscape from '../lib/codeEscape';
 
@@ -23,6 +23,8 @@ export default struct WebTerminal {
   @Require showVirtKey: boolean
   @State ctrlPressed: boolean = false
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) terminalFontSize: number | null = null
+  @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) terminalCursorShape: CursorShape | null = null
+  @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) terminalCursorBlink: boolean | null = null
   webviewController: WebviewController = new webview.WebviewController()
 
   @Builder
@@ -192,5 +194,13 @@ export default struct WebTerminal {
   }
 
   private onClose() {
+  }
+
+  onCursorShapeChanged() {
+    this.webviewController.runJavaScript(`exports.setCursorShape('${this.terminalCursorShape}')`)
+  }
+
+  onCursorBlinkChanged() {
+    this.webviewController.runJavaScript(`exports.setCursorBlink(${this.terminalCursorBlink})`)
   }
 }

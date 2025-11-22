@@ -6,7 +6,7 @@ import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import bundleManager from '@ohos.bundle.bundleManager';
-import appOption from '../model/appOption'
+import appOption, { CursorShape } from '../model/appOption'
 import { StartResult, startVm } from '../lib/startVm';
 import { defaultEmulator, defaultRootfs, Emulator, PortMapping, RootFilesystem } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
@@ -148,6 +148,10 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
     const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;
     AppStorage.setOrCreate(appOption.terminalFontSize, terminalFontSize);
+    const terminalCursorShape = await appPref.get(appOption.terminalCursorShape, 'BLOCK') as CursorShape;
+    AppStorage.setOrCreate(appOption.terminalCursorShape, terminalCursorShape);
+    const terminalCursorBlink = await appPref.get(appOption.terminalCursorBlink, false) as boolean;
+    AppStorage.setOrCreate(appOption.terminalCursorBlink, terminalCursorBlink);
 
     const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
     AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)

@@ -1,7 +1,7 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
-import appOption, { savePreference } from '../model/appOption';
+import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 import deviceInfo from '@ohos.deviceInfo';
@@ -28,10 +28,14 @@ const fontSizeOptions: SelectOption[] = [{
   value: '18'
 }]
 
+const cursorShapeOptions: SelectOption[] = [{ value: 'BLOCK' }, { value: 'BEAM' }, { value: 'UNDERLINE' }]
+
 @Component
 export default struct SettingsContent {
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
   @Watch('saveTermFontSize') @StorageProp(appOption.terminalFontSize) terminalFontSize: number = 12
+  @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
+  @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -94,6 +98,23 @@ export default struct SettingsContent {
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalFontSize, parseInt(value)))
   }
 
+  @Builder
+  private buildTerminalCursorBlink() {
+    Checkbox()
+      .select(this.termCursorBlink)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.terminalCursorBlink, value)
+      })
+  }
+
+  @Builder
+  private buildTerminalCursorShape() {
+    Select(cursorShapeOptions)
+      .width(140)
+      .value(this.termCursorShape.toString())
+      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalCursorShape, value))
+  }
+
   build() {
     Column() {
       Scroll() {
@@ -117,6 +138,24 @@ export default struct SettingsContent {
               content: () => {
                 this.buildTerminalFontSize()
               }
+            })
+
+            SettingItem({
+              title: '终端光标样式',
+              subTitle: '设置终端光标样式',
+              content: () => {
+                this.buildTerminalCursorShape()
+              }
+            })
+
+            SettingItem({
+              title: '终端光标闪烁',
+              subTitle: '设置终端光标闪烁',
+              content: () => {
+                this.buildTerminalCursorBlink()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.terminalCursorBlink, !this.termCursorBlink)
             })
           }
           .attributeModifier(this.blockStyle)
@@ -210,5 +249,13 @@ export default struct SettingsContent {
 
   async saveTermFontSize() {
     await savePreference(appOption.terminalFontSize, this.terminalFontSize, this.getUIContext())
+  }
+
+  async saveTermCursorShape() {
+    await savePreference(appOption.terminalCursorShape, this.termCursorShape, this.getUIContext())
+  }
+
+  async saveTermCursorBlink() {
+    await savePreference(appOption.terminalCursorBlink, this.termCursorBlink, this.getUIContext())
   }
 }
