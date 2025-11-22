@@ -1,10 +1,13 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
-import { bundleManager, common, Want } from '@kit.AbilityKit';
+import { abilityAccessCtrl, bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 import deviceInfo from '@ohos.deviceInfo';
+import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import { PermissionUtil } from '@pura/harmony-utils';
+import { geoLocationManager } from '@kit.LocationKit';
 
 const fontSizeOptions: SelectOption[] = [{
   value: '9'
@@ -36,6 +39,7 @@ export default struct SettingsContent {
   @Watch('saveTermFontSize') @StorageProp(appOption.terminalFontSize) terminalFontSize: number = 12
   @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
+  @Watch('saveRunningInBackground') @State runningInBackground: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -108,6 +112,15 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private setRunningInBackground() {
+    Checkbox()
+      .select(this.runningInBackground)
+      .onChange((value: boolean) => {
+        this.runningInBackground = value
+      })
+  }
+
+  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(140)
@@ -156,6 +169,20 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalCursorBlink, !this.termCursorBlink)
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: '运行设置' })
+          Column() {
+            SettingItem({
+              title: '强制后台',
+              subTitle: '强制应用在后台运行',
+              content: () => {
+                this.setRunningInBackground()
+              }
+            }).onClick(() => {
+              this.runningInBackground = !this.runningInBackground
             })
           }
           .attributeModifier(this.blockStyle)
@@ -257,5 +284,35 @@ export default struct SettingsContent {
 
   async saveTermCursorBlink() {
     await savePreference(appOption.terminalCursorBlink, this.termCursorBlink, this.getUIContext())
+  }
+
+  async saveRunningInBackground() {
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      if (this.runningInBackground) {
+        if (!await PermissionUtil.checkPermissions('ohos.permission.APPROXIMATELY_LOCATION')) {
+          await PermissionUtil.requestPermissions(['ohos.permission.APPROXIMATELY_LOCATION'])
+        }
+        if (!await PermissionUtil.checkPermissions('ohos.permission.LOCATION_IN_BACKGROUND')) {
+          await PermissionUtil.requestPermissionOnSetting(['ohos.permission.LOCATION_IN_BACKGROUND'])
+        }
+        const locationGranted = await PermissionUtil.checkPermissions('ohos.permission.APPROXIMATELY_LOCATION')
+        const backgroundGranted = await PermissionUtil.checkPermissions('ohos.permission.LOCATION_IN_BACKGROUND')
+        if (locationGranted && backgroundGranted) {
+          geoLocationManager.on("locationChange", {
+            interval: 15,
+            locationScenario: geoLocationManager.PowerConsumptionScenario.NO_POWER_CONSUMPTION
+          }, () => {
+          })
+          backgroundRunningManager.startContinuousTask(context)
+        } else {
+          this.runningInBackground = false
+        }
+      } else {
+        backgroundRunningManager.stopContinuousTask(context)
+      }
+    } catch (e) {
+      console.log(e)
+    }
   }
 }

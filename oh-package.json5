@@ -2,7 +2,8 @@
   "modelVersion": "5.0.1",
   "description": "HiSH App",
   "dependencies": {
-    "@ohos/commons-compress": "^2.0.6"
+    "@ohos/commons-compress": "^2.0.6",
+    "@pura/harmony-utils": "^1.3.8"
   },
   "devDependencies": {
     "@ohos/hypium": "1.0.21",

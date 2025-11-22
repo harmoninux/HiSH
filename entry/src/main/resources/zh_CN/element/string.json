@@ -247,6 +247,10 @@
     {
       "name": "ToolboxAbility_label",
       "value": "开发者工具"
+    },
+    {
+      "name": "location_reason",
+      "value": "强制应用在后台运行"
     }
   ]
 }

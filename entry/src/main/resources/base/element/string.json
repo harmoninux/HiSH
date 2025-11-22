@@ -247,6 +247,10 @@
     {
       "name": "ToolboxAbility_label",
       "value": "Dev toolbox"
+    },
+    {
+      "name": "location_reason",
+      "value": "Keep running in background"
     }
   ]
 }
