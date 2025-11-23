@@ -110,7 +110,7 @@ export default struct SettingsContent {
   @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
-      .width(140)
+      .width(160)
       .value(this.termCursorShape.toString())
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalCursorShape, value))
   }
@@ -131,9 +131,13 @@ export default struct SettingsContent {
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.keepScreenOn, !this.keepScreenOn)
             })
+          }
+          .attributeModifier(this.blockStyle)
 
+          BlockTitle({ content: $r("app.string.setting_terminal") })
+          Column() {
             SettingItem({
-              title: '终端字体大小',
+              title: '字体大小',
               subTitle: '设置终端字体大小',
               content: () => {
                 this.buildTerminalFontSize()
@@ -141,7 +145,7 @@ export default struct SettingsContent {
             })
 
             SettingItem({
-              title: '终端光标样式',
+              title: '光标样式',
               subTitle: '设置终端光标样式',
               content: () => {
                 this.buildTerminalCursorShape()
@@ -149,7 +153,7 @@ export default struct SettingsContent {
             })
 
             SettingItem({
-              title: '终端光标闪烁',
+              title: '光标闪烁',
               subTitle: '设置终端光标闪烁',
               content: () => {
                 this.buildTerminalCursorBlink()

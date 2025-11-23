@@ -247,6 +247,10 @@
     {
       "name": "ToolboxAbility_label",
       "value": "开发者工具"
+    },
+    {
+      "name": "setting_terminal",
+      "value": "终端"
     }
   ]
 }

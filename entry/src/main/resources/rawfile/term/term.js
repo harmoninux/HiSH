@@ -91,6 +91,14 @@ window.onload = async function () {
     if (fontSize) {
         term.getPrefs().set('font-size', fontSize);
     }
+    var cursorShape = native.getCursorShape();
+    if (cursorShape) {
+        term.getPrefs().set('cursor-shape', cursorShape);
+    }
+    var cursorBlink = native.getCursorBlink();
+    if (cursorBlink) {
+        term.getPrefs().set('cursor-blink', cursorBlink);
+    }
 
     term.onTerminalReady = onTerminalReady;
     term.decorate(document.getElementById('terminal'));

@@ -247,6 +247,10 @@
     {
       "name": "ToolboxAbility_label",
       "value": "Dev toolbox"
+    },
+    {
+      "name": "setting_terminal",
+      "value": "Terminal"
     }
   ]
 }

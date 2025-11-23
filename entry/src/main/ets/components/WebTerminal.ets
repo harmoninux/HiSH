@@ -22,7 +22,8 @@ export default struct WebTerminal {
   @Require showVirtKey: boolean
   @State ctrlPressed: boolean = false
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) terminalFontSize: number | null = null
-  @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) terminalCursorShape: CursorShape | null = null
+  @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) terminalCursorShape: CursorShape | null =
+    null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) terminalCursorBlink: boolean | null = null
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
@@ -72,7 +73,8 @@ export default struct WebTerminal {
         .javaScriptProxy({
           object: this,
           name: 'native',
-          methodList: ['sendInput', 'resize', 'load', 'getFontSize'],
+          methodList: ['sendInput', 'resize', 'load',
+            'getFontSize', 'getCursorShape', 'getCursorBlink'],
           controller: this.webviewController,
           asyncMethodList: [],
           permission: `{
@@ -179,14 +181,6 @@ export default struct WebTerminal {
   async resize(): Promise<void> {
   }
 
-  getFontSize(): number | null {
-    return this.terminalFontSize
-  }
-
-  onFontSizeChanged() {
-    this.webviewController.runJavaScript(`exports.setFontSize(${this.terminalFontSize})`)
-  }
-
   private onData(ab: ArrayBuffer) {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
@@ -194,6 +188,22 @@ export default struct WebTerminal {
   }
 
   private onClose() {
+  }
+
+  getFontSize(): number | null {
+    return this.terminalFontSize
+  }
+
+  getCursorShape(): string | null {
+    return this.terminalCursorShape
+  }
+
+  getCursorBlink(): boolean | null {
+    return this.terminalCursorBlink
+  }
+
+  onFontSizeChanged() {
+    this.webviewController.runJavaScript(`exports.setFontSize(${this.terminalFontSize})`)
   }
 
   onCursorShapeChanged() {
