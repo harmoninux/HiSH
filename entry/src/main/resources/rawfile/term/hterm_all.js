@@ -21748,7 +21748,6 @@ hterm.VT.prototype.parseSgrExtendedColors = function(parseState, i, attrs) {
 
   // Figure out which form to parse.
   switch (parseInt(ary[0], 10)) {
-    default:  // Unknown.
     case 0:  // Implementation defined.  We ignore it.
       return {skipCount: 0};
 
@@ -21864,6 +21863,7 @@ hterm.VT.prototype.parseSgrExtendedColors = function(parseState, i, attrs) {
       }
       return ret;
     }
+    default:  // Unknown.
   }
 };
 
