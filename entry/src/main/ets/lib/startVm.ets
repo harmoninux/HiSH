@@ -22,7 +22,7 @@ function startVm(options: VmOptions) {
   const root = options.rootVda ? options.rootVda : defaultEmulator.rootVda;
   const sharedFolderOption = options.sharedFolderReadonly ? ",readonly" : ""
 
-  const basic = ['-machine', 'virt', '-cpu', 'cortex-a53', '-nographic', '-L', options.baseDir]
+  const basic = ['-machine', 'virt', '-cpu', 'cortex-a76', '-nographic', '-L', options.baseDir]
   const serial = ['-serial', "unix:" + options.serialUnixSocket + ",server,nowait"]
   const cpuMem = ['-smp', options.cpu.toString(), '-m', options.memory + 'M']
   const kernel = ['-kernel', options.kernel]
@@ -31,8 +31,8 @@ function startVm(options: VmOptions) {
   const shared =
     ["-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + options.sharedFolder + sharedFolderOption,
       "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
-  const drive = ["-drive", "if=none,format=qcow2,file=" + options.rootFilesystem + ",id=hd0", "-device",
-    "virtio-blk-device,drive=hd0"]
+  const drive = ["-drive", "if=none,format=qcow2,file=" + options.rootFilesystem + ",id=hd0",
+    "-object", "iothread,id=iothread0", "-device", "virtio-blk-device,drive=hd0,iothread=iothread0"]
   const kernelParam = ["-append",
     "root=" + root + " rw rootfstype=ext4 console=ttyAMA0 TERM=ansi init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
