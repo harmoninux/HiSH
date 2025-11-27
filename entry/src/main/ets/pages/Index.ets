@@ -397,6 +397,7 @@ struct PhoneOrTablet {
             .width('100%')
             .padding({ left: 15, right: 15 })
           SettingsContent()
+            .layoutWeight(1)
         }
         .width('100%')
         .height('100%')
