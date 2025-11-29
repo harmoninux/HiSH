@@ -46,8 +46,8 @@
 * 克隆代码到本地
 * 复制`build-profile.template.json5`到`build-profile.json5`
 * 下载以下文件到指定位置：
-  - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/arm64-v8a.libqemu-system-aarch64.so)
-  - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/x86_64.libqemu-system-aarch64.so)
+  - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251129/tcg.arm64.libqemu-system-aarch64.so)
+  - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251129/tcg.x86_64.libqemu-system-aarch64.so)
   - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/release-20251129/kernel_aarch64)
   - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/release-20251104/rootfs_aarch64.qcow2)
 * 在DevEco Studio中构建项目
