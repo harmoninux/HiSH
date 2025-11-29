@@ -79,7 +79,9 @@ cd deps
 * 安装依赖：
 
 ```shell 
-sudo apt install build-essential gcc bc bison flex libssl-dev libncurses5-dev libelf-dev gcc-aarch64-linux-gnu 
+sudo apt install build-essential gcc bc bison flex libssl-dev \
+ libncurses5-dev libelf-dev gcc-aarch64-linux-gnu \
+ clang lld llvm make 
 ```
 
 * 克隆Linux内核源码：
@@ -97,8 +99,9 @@ curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master
 
 * 编译内核：
 
-```shell 
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
+```shell
+env KCFLAGS='-march=armv8.5-a+crc+crypto+lse+rcpc+rng -mtune=cortex-a76 -O2 -falign-functions=64 -fno-strict-aliasing -mllvm -vectorize-loops -mllvm -force-vector-width=2' \
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc)
 ```
 
 * 内核镜像位于`arch/arm64/boot/Image`，复制到项目对应目录

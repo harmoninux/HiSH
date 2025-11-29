@@ -71,7 +71,9 @@ Build your own Linux kernel for HiSH, for customizing Linux kernel
 
 - Install dependencies
 ```shell
-sudo apt install build-essential gcc bc bison flex libssl-dev libncurses5-dev libelf-dev gcc-aarch64-linux-gnu
+sudo apt install build-essential gcc bc bison flex libssl-dev \
+ libncurses5-dev libelf-dev gcc-aarch64-linux-gnu \
+ clang lld llvm make 
 ```
 - Clone linux kernel source to local
 ```shell
@@ -84,7 +86,8 @@ curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master
 ```
 - Build Linux kernel
 ```shell
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
+env KCFLAGS='-march=armv8.5-a+crc+crypto+lse+rcpc+rng -mtune=cortex-a76 -O2 -falign-functions=64 -fno-strict-aliasing -mllvm -vectorize-loops -mllvm -force-vector-width=2' \
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc)
 ```
 - The kernel image is at `arch/arm64/boot/Image`, copy it to `entry/src/main/resources/rawfile/vm/kernel_aarch64`
 
