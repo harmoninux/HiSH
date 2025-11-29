@@ -22,6 +22,7 @@ You can try one of following methods to get HiSH:
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
 - Shared Folder
 - JIT (Only available for developer)
+- Image import（[Debian12](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
 
 # How to build
 
