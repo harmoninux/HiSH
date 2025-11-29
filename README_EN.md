@@ -37,7 +37,7 @@ You can try one of following methods to get HiSH:
 - Download files and move to corresponding location as following
   - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/arm64-v8a.libqemu-system-aarch64.so)
   - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/HiSH/releases/download/release-20251022/x86_64.libqemu-system-aarch64.so)
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/release-20251101/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/release-20251129/kernel_aarch64)
   - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/release-20251104/rootfs_aarch64.qcow2)
 - Build project in DevEco Studio
 - Sign and run in your device or emulator
