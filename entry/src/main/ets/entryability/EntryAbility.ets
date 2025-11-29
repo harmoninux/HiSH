@@ -1,6 +1,6 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window, KeyboardAvoidMode, PromptAction } from '@kit.ArkUI';
+import { window, KeyboardAvoidMode, PromptAction, UIContext } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
@@ -62,6 +62,7 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorHeight(48);
       }
 
+      this.promptRootVdaMessage(uiContext)
       this.promptPortUsedMessage(uiContext)
     });
   }
@@ -210,7 +211,8 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
-  private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, toFileName: string, forceOverride?: boolean) {
+  private extractVmResourceFile(appContext: common.ApplicationContext, filename: string, toFileName: string,
+    forceOverride?: boolean) {
     const filesDir = AppStorage.get(appOption.appFilesDir)!!
     const filePath = toFileName.startsWith('/') ? toFileName : (filesDir + "/" + toFileName);
     if (!fs.accessSync(filePath, fs.AccessModeType.EXIST) || forceOverride) {
@@ -264,11 +266,24 @@ export default class EntryAbility extends UIAbility {
         const promptAction: PromptAction = uiContext.getPromptAction();
         promptAction.showToast({
           message: prompt,
-          duration: 4000
+          duration: 3000
         });
       } catch (e) {
         console.error(`showToast error`, e);
       }
+    }
+  }
+
+  private promptRootVdaMessage(uiContext: UIContext) {
+    const emulatorToStart = this.getEmulatorToStart();
+    if (emulatorToStart.rootVda
+      && emulatorToStart.rootVda.startsWith('/dev/vda')) {
+      const promptAction: PromptAction = uiContext.getPromptAction();
+      promptAction.showToast({
+        message: '当前模拟器的root路径为' + emulatorToStart.rootVda +
+          '，可能导致Linux无法正常启动。可以前往模拟器管理中修改模拟器的root设置，例如修改为/dev/sda',
+        duration: 5000
+      });
     }
   }
 }

@@ -177,6 +177,10 @@
       "value": "Port %s used by other APPs, removed in port mapping"
     },
     {
+      "name": "root_outdated_prompt",
+      "value": "Port %s used by other APPs, removed in port mapping"
+    },
+    {
       "name": "confirm_remove",
       "value": "Confirm remove"
     },
