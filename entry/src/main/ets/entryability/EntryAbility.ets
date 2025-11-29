@@ -79,6 +79,10 @@ export default class EntryAbility extends UIAbility {
     let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
     const sharedHost = new fileUri.FileUri(documentSaveResult[0]).path + '/'
 
+    //  曾经使用 oldSharedHost 作为共享文件夹，现将内容迁移到新的 sharedHost
+    const oldSharedHost = appContext.filesDir + '/' + 'share'
+    await this.moveToNewSharedFolder(oldSharedHost, sharedHost);
+
     AppStorage.setOrCreate(appOption.sharedHost, sharedHost)
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
@@ -299,6 +303,29 @@ export default class EntryAbility extends UIAbility {
       } catch (e) {
         console.error(`showToast error`, e);
       }
+    }
+  }
+
+  private async moveToNewSharedFolder(oldSharedHost: string, sharedHost: string) {
+    try {
+      if (await fs.access(oldSharedHost, fs.AccessModeType.EXIST)) {
+        const dirEntries = await fs.listFile(oldSharedHost, { recursion: false });
+        if (dirEntries.length > 0) {
+          for (let i = 0; i < dirEntries.length; i++) {
+            const entry = dirEntries[i];
+            const src: string = [oldSharedHost, entry].join('/')
+            const dst: string = [sharedHost, entry].join('/')
+            const s = await fs.stat(src)
+            if (s.isFile()) {
+              await fs.moveFile(src, dst)
+            } else if (s.isDirectory()) {
+              await fs.moveDir(src, sharedHost, 2)
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.log(e)
     }
   }
 }
