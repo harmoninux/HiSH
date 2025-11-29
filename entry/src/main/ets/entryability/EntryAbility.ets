@@ -266,7 +266,7 @@ export default class EntryAbility extends UIAbility {
         const promptAction: PromptAction = uiContext.getPromptAction();
         promptAction.showToast({
           message: prompt,
-          duration: 3000
+          duration: 5000
         });
       } catch (e) {
         console.error(`showToast error`, e);
@@ -278,12 +278,17 @@ export default class EntryAbility extends UIAbility {
     const emulatorToStart = this.getEmulatorToStart();
     if (emulatorToStart.rootVda
       && emulatorToStart.rootVda.startsWith('/dev/vda')) {
-      const promptAction: PromptAction = uiContext.getPromptAction();
-      promptAction.showToast({
-        message: '当前模拟器的root路径为' + emulatorToStart.rootVda +
-          '，可能导致Linux无法正常启动。可以前往模拟器管理中修改模拟器的root设置，例如修改为/dev/sda',
-        duration: 5000
-      });
+      try {
+        const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('root_outdated_prompt');
+        const prompt = util.format(promptFormat, emulatorToStart.rootVda)
+        const promptAction: PromptAction = uiContext.getPromptAction();
+        promptAction.showToast({
+          message: prompt,
+          duration: 10000
+        });
+      } catch (e) {
+        console.error(`showToast error`, e);
+      }
     }
   }
 }

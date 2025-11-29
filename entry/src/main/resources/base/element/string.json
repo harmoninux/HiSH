@@ -178,7 +178,7 @@
     },
     {
       "name": "root_outdated_prompt",
-      "value": "Port %s used by other APPs, removed in port mapping"
+      "value": "The current simulator's root path is set to %s, which may prevent Linux from booting properly.\nYou can adjust the root settings in the simulator management, for example, changing it to /dev/sda"
     },
     {
       "name": "confirm_remove",

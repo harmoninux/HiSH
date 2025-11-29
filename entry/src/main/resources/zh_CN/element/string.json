@@ -254,7 +254,7 @@
     },
     {
       "name": "root_outdated_prompt",
-      "value": "The current simulator's root path is set to %s, which may prevent Linux from booting properly.\nYou can adjust the root settings in the simulator management, for example, changing it to /dev/sda"
+      "value": "当前模拟器的root路径为%s，可能导致Linux无法正常启动\n可以前往模拟器管理中修改模拟器的root设置，例如修改为/dev/sda"
     }
   ]
 }
