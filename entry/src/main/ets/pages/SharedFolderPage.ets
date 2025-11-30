@@ -1,12 +1,12 @@
-import { Controller, SharedFolderContent } from '../components/SharedFolderContent';
+import { SharedFolderController, SharedFolderContent } from '../components/SharedFolderContent';
 import appOption from '../model/appOption';
 
 @Entry
 @Component
-struct SharedFolder {
+struct SharedFolderPage {
   @StorageProp(appOption.sharedHost) sharedHost?: string = undefined
   @StorageProp(appOption.sharedGuest) sharedGuest?: string = undefined
-  controller: Controller = new Controller()
+  controller: SharedFolderController = new SharedFolderController()
 
   build() {
     Column() {

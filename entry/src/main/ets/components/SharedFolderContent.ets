@@ -35,7 +35,7 @@ interface PasteContent {
   type: Type
 }
 
-class Controller {
+class SharedFolderController {
   backToParentImpl?: () => boolean
 
   backToParent(): boolean {
@@ -55,7 +55,7 @@ export struct SharedFolderContent {
   @State current: string[] = []
   @State tempFolderName: string = ''
   @State tempClipboard?: PasteContent = undefined
-  controller?: Controller = undefined
+  controller?: SharedFolderController = undefined
   importProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.importing_file_to_shared_folder'),
@@ -645,4 +645,4 @@ function formatDetail(entry: Entry): string {
   }
 }
 
-export { Controller }
+export { SharedFolderController }

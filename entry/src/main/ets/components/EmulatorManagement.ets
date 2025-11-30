@@ -33,13 +33,6 @@ export default struct EmulatorManagement {
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .margin({ right: 5 })
           .bindMenu([{
-            value: '共享文件夹',
-            action: () => {
-              this.getUIContext().getRouter().pushUrl({
-                url: 'pages/SharedFolder'
-              })
-            }
-          }, {
             value: '镜像管理',
             action: () => {
               this.getUIContext().getRouter().pushUrl({
