@@ -2,6 +2,12 @@ include ../utils/Makefrag
 
 # to disable jit, add --enable-tcg-interpreter option
 
+ifeq ($(OHOS_ARCH), aarch64)
+export ARCH_FLAGS := -march=armv8.5-a+crc+crypto+lse+sve+fp16+rcpc+dotprod+sm4+sha3+bf16+i8mm
+else
+export ARCH_FLAGS := 
+endif
+
 all: download/qemu
 	rm -rf temp build
 	mkdir -p temp build
@@ -11,7 +17,7 @@ all: download/qemu
 	PKG_CONFIG_PATH= \
 	PKG_CONFIG_LIBDIR=$(shell pwd)/../buildroot/lib/pkgconfig:$(shell pwd)/../buildroot/share/pkgconfig \
 	PKG_CONFIG_buildroot_DIR=$(shell pwd)/../buildroot \
-	CFLAGS="-O3 -march=armv8.5-a+crc+crypto+lse+sve+fp16+rcpc+dotprod+sm4+sha3+bf16+i8mm -flto -funroll-loops -fno-semantic-interposition -fno-plt -fno-math-errno -falign-functions=64 -falign-loops=32 -fno-common -fno-stack-protector -fno-asynchronous-unwind-tables -D__ARM_LSE_ATOMIC_INLINES -D_UAPI_LINUX_VIRTIO_VSOCK_H -D_UAPI_LINUX_VIRTIO_TYPES_H -D_UAPI_LINUX_VIRTIO_RING_H -D_UAPI_LINUX_VIRTIO_PMEM_H -D_UAPI_LINUX_VIRTIO_NET_H -D_UAPI_LINUX_VIRTIO_IOMMU_H -D_UAPI_LINUX_VIRTIO_FS_H -D_UAPI_LINUX_VIRTIO_CONSOLE_H -D_UAPI_LINUX_VIRTIO_CONFIG_H -D_LINUX_SYSINFO_H -UHAVE_OPENAT2_H -D__user= -D__force= ${CFLAGS} -Wno-unused-command-line-argument -I$(shell pwd)/../buildroot/include/glib-2.0 -I$(shell pwd)/../buildroot/lib/glib-2.0/include -L$(shell pwd)/../buildroot/lib" \
+	CFLAGS="-O3 ${ARCH_FLAGS} -flto -funroll-loops -fno-semantic-interposition -fno-plt -fno-math-errno -falign-functions=64 -falign-loops=32 -fno-common -fno-stack-protector -fno-asynchronous-unwind-tables -D__ARM_LSE_ATOMIC_INLINES -D_UAPI_LINUX_VIRTIO_VSOCK_H -D_UAPI_LINUX_VIRTIO_TYPES_H -D_UAPI_LINUX_VIRTIO_RING_H -D_UAPI_LINUX_VIRTIO_PMEM_H -D_UAPI_LINUX_VIRTIO_NET_H -D_UAPI_LINUX_VIRTIO_IOMMU_H -D_UAPI_LINUX_VIRTIO_FS_H -D_UAPI_LINUX_VIRTIO_CONSOLE_H -D_UAPI_LINUX_VIRTIO_CONFIG_H -D_LINUX_SYSINFO_H -UHAVE_OPENAT2_H -D__user= -D__force= ${CFLAGS} -Wno-unused-command-line-argument -I$(shell pwd)/../buildroot/include/glib-2.0 -I$(shell pwd)/../buildroot/lib/glib-2.0/include -L$(shell pwd)/../buildroot/lib" \
 	LDFLAGS="-O3 -flto -Wl,-Bsymbolic -Wl,--gc-sections" \
 	./configure --target-list=aarch64-softmmu --cross-prefix= --host-cc=cc --disable-kvm --disable-xen --disable-rust --disable-docs --disable-werror \
 	 --enable-tcg --enable-lto --enable-strip --with-coroutine=sigaltstack \
