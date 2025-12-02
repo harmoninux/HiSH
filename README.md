@@ -11,7 +11,7 @@
 可以选择下面任一方法获取HiSH：
 
 - 从[Releases](https://github.com/harmoninux/HiSH/releases)下载hap文件，自行签名后安装到设备或模拟器（支持JIT，运行效率更高）
-- 通过[内测邀请链接](https://appgallery.huawei.com/link/invite-test-wap?taskId=166edd60d66c1006d7ef9565e449185e&invitationCode=A2w5fWZD2Wf)安装。
+- 通过[内测邀请链接](https://appgallery.huawei.com/link/invite-test-wap?taskId=166edd60d66c1006d7ef9565e449185e&invitationCode=JvskBvD1Ox)安装。
 - 使用DevEco Studio编译源码，参考 [构建HAP](#构建hap)
 
 ## 核心功能
