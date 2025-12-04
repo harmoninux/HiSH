@@ -9,6 +9,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { Want } from '@kit.AbilityKit';
 import { bundleManager } from '@kit.MDMKit';
 import EmulatorItem from './EmulatorItem';
+import PowerManagementContent from './PowerManagementContent';
 
 @Component
 export default struct EmulatorListGrid {
@@ -50,6 +51,14 @@ export default struct EmulatorListGrid {
     builder: LoadingDialog({
       content: '正在导出',
     }),
+  })
+  powerManagementController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '电源管理',
+      contentBuilder: () => {
+        this.buildPowerManagement();
+      }
+    })
   })
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   promptAction = this.getUIContext().getPromptAction()
@@ -186,6 +195,9 @@ export default struct EmulatorListGrid {
       onExport: (item) => {
         this.selectedId = item.id
         this.rootfsNameController.open()
+      },
+      onPowerManage: (item) => {
+        this.openPowerManageDialog()
       }
     }).onClick(() => {
       this.onEditEmulator(emulator, false)
@@ -326,6 +338,15 @@ export default struct EmulatorListGrid {
     .scrollBarWidth(1)
     .layoutWeight(1)
     .align(Alignment.Top)
+  }
+
+  openPowerManageDialog() {
+    this.powerManagementController.open()
+  }
+
+  @Builder
+  buildPowerManagement() {
+    PowerManagementContent()
   }
 
   onEmulatorsChange() {
