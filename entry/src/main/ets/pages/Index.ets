@@ -12,6 +12,7 @@ import { Emulator } from "../model/Emulator";
 import RootfsManagementContent from "../components/RootfsManagementContent";
 import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
+import PowerManagementContent from '../components/PowerManagementContent';
 
 @Component
 struct PcIndex {
@@ -54,6 +55,14 @@ struct PcIndex {
       primaryTitle: '使用指南',
       contentBuilder: () => {
         this.buildGuideList();
+      }
+    })
+  })
+  powerManagementController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '电源管理',
+      contentBuilder: () => {
+        this.buildPowerManagement();
       }
     })
   })
@@ -302,6 +311,11 @@ struct PcIndex {
         })
       }
     }
+  }
+
+  @Builder
+  buildPowerManagement() {
+    PowerManagementContent()
   }
 }
 
