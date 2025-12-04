@@ -14,6 +14,7 @@ interface VmOptions {
   sharedFolder: string
   serialUnixSocket: string
   qmpUnixSocket: string
+  qgaUnixSocket: string
   sharedFolderReadonly: boolean
   init: string
 }
@@ -56,6 +57,11 @@ function startVm(options: VmOptions) {
     "rcu_expedited=1 init_on_free=0 init_on_alloc=1 page_poison=0 slub_debug=- " +
     "TERM=ansi init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
+  const qga = [
+    '-device', 'virtio-serial-pci-non-transitional,id=virtio-serial0',
+    '-chardev', 'socket,path=' + options.qgaUnixSocket + ',server=on,wait=off,id=qga0',
+    '-device', 'virtserialport,chardev=qga0,bus=virtio-serial0.0,name=org.qemu.guest_agent.0'
+  ]
 
   const sharedUserFolder = deviceInfo.deviceType !== '2in1' ? [] :
     ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
@@ -72,7 +78,8 @@ function startVm(options: VmOptions) {
     ...sharedUserFolder,
     ...drive,
     ...kernelParam,
-    ...monitor
+    ...monitor,
+    ...qga
   ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
@@ -80,6 +87,9 @@ function startVm(options: VmOptions) {
   }
   if (fs.accessSync(options.qmpUnixSocket, fs.AccessModeType.EXIST)) {
     fs.unlinkSync(options.qmpUnixSocket)
+  }
+  if (fs.accessSync(options.qgaUnixSocket, fs.AccessModeType.EXIST)) {
+    fs.unlinkSync(options.qgaUnixSocket)
   }
   if (!fs.accessSync(options.sharedFolder, fs.AccessModeType.EXIST)) {
     fs.mkdirSync(options.sharedFolder)
