@@ -11,7 +11,7 @@ Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com
 You can try one of following methods to get HiSH:
 
 - Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster).
-- Install from [Invite Test of AppGallery](https://appgallery.huawei.com/link/invite-test-wap?taskId=166edd60d66c1006d7ef9565e449185e&invitationCode=JvskBvD1Ox)
+- Install from [Invite Test of AppGallery](https://appgallery.huawei.com/link/invite-test-wap?taskId=3c72d01b2acd729077d5a60e1c950e54&invitationCode=JvskBvD1Ox)
 - Build from source code in DevEco Studio, see [Build HAP](#build-hap)
 
 ## Core Features
@@ -38,8 +38,8 @@ You can try one of following methods to get HiSH:
 - Download files and move to corresponding location as following
   - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251203/tcg.arm64.libqemu-system-aarch64.so)
   - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251203/tcg.x86_64.libqemu-system-aarch64.so)
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251202/kernel_aarch64)
-  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/alpine-20251203/rootfs_aarch64.qcow2)
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251205/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/alpine-20251205/rootfs_aarch64.qcow2)
 - Build project in DevEco Studio
 - Sign and run in your device or emulator
 
@@ -78,7 +78,7 @@ sudo apt install build-essential gcc bc bison flex libssl-dev \
 ```
 - Clone linux kernel source to local
 ```shell
-git clone --depth=1 -b v6.16 https://github.com/torvalds/linux
+git clone --depth=1 -b v6.12 https://github.com/torvalds/linux
 ```
 - Download linux kernel build config
 ```shell
@@ -87,8 +87,9 @@ curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master
 ```
 - Build Linux kernel
 ```shell
-env KCFLAGS='-march=armv8.5-a+crc+crypto+lse+rcpc+rng -mtune=cortex-a76 -O2 -falign-functions=64 -fno-strict-aliasing -mllvm -vectorize-loops -mllvm -force-vector-width=2' \
-  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc)
+export KCFLAGS='-march=armv8.5-a+crc+crypto+lse+rcpc+rng+sm4+sha3+dotprod+fp16 -mtune=neoverse-n1 -O2 -falign-functions=64 -fno-strict-aliasing -mllvm -vectorize-loops -mllvm -force-vector-width=2'
+env KCFLAGS="$KCFLAGS" make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 menuconfig
+env KCFLAGS="$KCFLAGS" make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc)
 ```
 - The kernel image is at `arch/arm64/boot/Image`, copy it to `entry/src/main/resources/rawfile/vm/kernel_aarch64`
 
