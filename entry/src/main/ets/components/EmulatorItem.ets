@@ -12,6 +12,7 @@ export default struct EmulatorItem {
   @Require onCopy: (item: Emulator) => void
   @Require onSetDefault: (item: Emulator) => void
   @Require onStart: (item: Emulator) => void
+  @Require onPowerManage: (item: Emulator) => void
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
 
@@ -35,9 +36,9 @@ export default struct EmulatorItem {
             .fontSize($r('sys.float.Body_M'))
             .fontColor('#388E3C')
             .height(20)
-          Button('重启', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          Button('电源管理', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
-            .onClick(() => this.onStart(this.emulator))
+            .onClick(() => this.onPowerManage(this.emulator))
             .height(20)
         } else {
           Button('运行', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
