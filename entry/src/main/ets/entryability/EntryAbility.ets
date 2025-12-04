@@ -119,6 +119,7 @@ export default class EntryAbility extends UIAbility {
 
     const serialUnixSocket = appTempDir + '/serial_socket'
     const qmpUnixSocket = appTempDir + '/qmp_socket'
+    const qgaUnixSocket = appTempDir + '/qga_socket'
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
@@ -134,7 +135,8 @@ export default class EntryAbility extends UIAbility {
       serialUnixSocket,
       sharedFolderReadonly,
       init,
-      qmpUnixSocket
+      qmpUnixSocket,
+      qgaUnixSocket
     })
 
     return { portsSkipped: portUsed }
