@@ -5,6 +5,7 @@ import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit'
 import appOption, { CursorShape } from '../model/appOption';
+import { common } from '@kit.AbilityKit';
 
 const DOMAIN = 0x0000;
 
@@ -21,10 +22,9 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 export default struct WebTerminal {
   @Require showVirtKey: boolean
   @State ctrlPressed: boolean = false
-  @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) terminalFontSize: number | null = null
-  @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) terminalCursorShape: CursorShape | null =
-    null
-  @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) terminalCursorBlink: boolean | null = null
+  @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
+  @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
+  @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
 
@@ -176,6 +176,7 @@ export default struct WebTerminal {
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
     napi.onData((d: ArrayBuffer) => this.onData(d))
+    napi.onShutdown(() => this.onShutdown())
   }
 
   async resize(): Promise<void> {
@@ -187,30 +188,33 @@ export default struct WebTerminal {
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }
 
-  private onClose() {
+  private async onShutdown() {
+    hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    await context?.terminateSelf()
   }
 
   getFontSize(): number | null {
-    return this.terminalFontSize
+    return this.fontSize
   }
 
   getCursorShape(): string | null {
-    return this.terminalCursorShape
+    return this.cursorShape
   }
 
   getCursorBlink(): boolean | null {
-    return this.terminalCursorBlink
+    return this.cursorBlink
   }
 
   onFontSizeChanged() {
-    this.webviewController.runJavaScript(`exports.setFontSize(${this.terminalFontSize})`)
+    this.webviewController.runJavaScript(`exports.setFontSize(${this.fontSize})`)
   }
 
   onCursorShapeChanged() {
-    this.webviewController.runJavaScript(`exports.setCursorShape('${this.terminalCursorShape}')`)
+    this.webviewController.runJavaScript(`exports.setCursorShape('${this.cursorShape}')`)
   }
 
   onCursorBlinkChanged() {
-    this.webviewController.runJavaScript(`exports.setCursorBlink(${this.terminalCursorBlink})`)
+    this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
   }
 }

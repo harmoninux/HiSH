@@ -34,6 +34,7 @@ struct data_buffer {
 
 int serial_input_fd = -1;
 napi_threadsafe_function on_data_callback = nullptr;
+napi_threadsafe_function on_shutdown_callback = nullptr;
 
 std::mutex buffer_mtx;
 std::string temp_buffer = "";
@@ -80,6 +81,14 @@ static void call_on_data_callback(napi_env env, napi_value js_callback, void *co
 
     delete[] buffer->buf;
     delete buffer;
+}
+
+static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void *context, void *data) {
+
+    napi_value global;
+    napi_get_global(env, &global);
+
+    napi_call_function(env, global, js_callback, 0, nullptr, nullptr);
 }
 
 std::string convert_to_hex(const uint8_t *buffer, int r) {
@@ -181,6 +190,11 @@ void serial_output_worker(const char *unix_socket_path) {
         }
     }
 
+    if (on_data_callback != nullptr) {
+        napi_release_threadsafe_function(on_data_callback, napi_threadsafe_function_release_mode::napi_tsfn_release);
+        on_data_callback = nullptr;
+    }
+
     OH_LOG_INFO(LOG_APP, "Serial unix socket broken: %{public}d", errno);
 }
 
@@ -243,10 +257,15 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         int argc = argsVector.size();
 
         auto qemuEntry = getQemuSystemEntry();
-        qemuEntry(argc, argv);
+        int status = qemuEntry(argc, argv);
 
-        //  cannot reach here
         delete[] argv;
+
+        OH_LOG_INFO(LOG_APP, "qemuEntry exited with: %{public}d", status);
+
+        if (on_shutdown_callback != nullptr) {
+            napi_call_threadsafe_function(on_shutdown_callback, nullptr, napi_tsfn_nonblocking);
+        }
     });
     vm_loop.detach();
 
@@ -305,6 +324,20 @@ static napi_value onData(napi_env env, napi_callback_info info) {
         }
         on_data_callback = data_callback;
     }
+
+    return nullptr;
+}
+
+static napi_value onShutdown(napi_env env, napi_callback_info info) {
+
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    napi_value data_cb_name;
+    napi_create_string_utf8(env, "shutdown_callback", NAPI_AUTO_LENGTH, &data_cb_name);
+    napi_create_threadsafe_function(env, args[0], nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
+                                    call_on_shutdown_callback, &on_shutdown_callback);
 
     return nullptr;
 }
@@ -384,6 +417,7 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
         {"startVM", nullptr, startVM, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onData", nullptr, onData, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onShutdown", nullptr, onShutdown, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"sendInput", nullptr, sendInput, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"checkPortUsed", nullptr, checkPortUsed, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);

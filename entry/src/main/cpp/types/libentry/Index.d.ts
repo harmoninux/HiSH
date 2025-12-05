@@ -1,12 +1,14 @@
-export type appOptions = {
+export type NapiVmOptions = {
   argsLines: string
   unixSocket: string
   qmpSocket: string
 }
 
-export const startVM: (options: appOptions) => void;
+export const startVM: (options: NapiVmOptions) => void;
 
-export const onData: (onData: (ArrayBuffer) => void) => void;
+export const onData: (callback: (ArrayBuffer) => void) => void;
+
+export const onShutdown: (callback: () => void) => void;
 
 export const sendInput: (content: ArrayBuffer) => void;
 
