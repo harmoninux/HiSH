@@ -262,7 +262,7 @@
     },
     {
       "name": "failed_to_force_background",
-      "value": "模拟后台定位失败，请授予应用定位权限"
+      "value": "模拟后台定位失败，请授予应用定位权限并在系统设置中开启定位"
     },
     {
       "name": "setting_running",
@@ -275,6 +275,10 @@
     {
       "name": "force_background_desc",
       "value": "切换到后台后继续保持Linux运行"
+    },
+    {
+      "name": "user_guide",
+      "value": "使用指南"
     }
   ]
 }

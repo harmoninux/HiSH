@@ -262,7 +262,7 @@
     },
     {
       "name": "failed_to_force_background",
-      "value": "Simulated background location failed. Please grant the app location permission"
+      "value": "Simulated background location failed. Please grant the app location permission and enable location in system settings"
     },
     {
       "name": "setting_running",
@@ -275,6 +275,10 @@
     {
       "name": "force_background_desc",
       "value": "Force the app run in background"
+    },
+    {
+      "name": "user_guide",
+      "value": "User guide"
     }
   ]
 }

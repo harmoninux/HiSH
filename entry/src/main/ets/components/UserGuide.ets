@@ -58,20 +58,10 @@ const blocks: GuidBlock[] = [{
 export default struct UserGuide {
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
   guideBlocks: GuidBlock[] = [...blocks]
-  @Prop toolBar: boolean = true
   @Require openPage: (title: string, url: string) => void
 
   build() {
     Column() {
-      if (this.toolBar) {
-        Row() {
-          Text('使用指南')
-            .fontSize(18)
-            .padding({ left: 15 })
-          Blank().layoutWeight(1)
-        }
-        .height(56)
-      }
       Scroll() {
         Column() {
           ForEach(this.guideBlocks, (block: GuidBlock) => {

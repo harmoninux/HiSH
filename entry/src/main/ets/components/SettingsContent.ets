@@ -1,12 +1,11 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
-import { abilityAccessCtrl, bundleManager, common, Want } from '@kit.AbilityKit';
+import { bundleManager, common, Want } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 import deviceInfo from '@ohos.deviceInfo';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
-import { geoLocationManager } from '@kit.LocationKit';
 
 const fontSizeOptions: SelectOption[] = [{
   value: '9'

@@ -422,7 +422,7 @@ export struct SharedFolderContent {
     } else {
       this.getUIContext().getRouter().pushUrl({
         url: 'pages/GuideWebPage',
-        params: { page: 'guide/06_Shared_Folder.html' }
+        params: { page: 'guide/06_Shared_Folder.html', title: '共享文件夹' }
       })
     }
   }

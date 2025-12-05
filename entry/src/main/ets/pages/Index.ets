@@ -244,7 +244,6 @@ struct PcIndex {
   @Builder
   buildGuideList() {
     UserGuide({
-      toolBar: false,
       openPage: (title: string, url: string) => {
         const controller = new CustomDialogController({
           builder: CustomContentDialog({
