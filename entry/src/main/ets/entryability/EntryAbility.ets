@@ -119,9 +119,11 @@ export default class EntryAbility extends UIAbility {
 
     const serialUnixSocket = appTempDir + '/serial_socket'
     const qmpUnixSocket = appTempDir + '/qmp_socket'
+    const qmpUnixSocketUI = appTempDir + '/qmp_socket_ui'
     const qgaUnixSocket = appTempDir + '/qga_socket'
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
+    AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
 
     startVm({
       baseDir: vmBaseDir,
@@ -136,6 +138,7 @@ export default class EntryAbility extends UIAbility {
       sharedFolderReadonly,
       init,
       qmpUnixSocket,
+      qmpUnixSocketUI,
       qgaUnixSocket
     })
 
