@@ -106,7 +106,7 @@ export default struct PowerManagementContent {
     return null
   }
 
-  async performResume() {
+/*  async performResume() {
     this.statusMessage = '正在恢复虚拟机...'
     try {
       const qmpClient = await this.connectToQmp()
@@ -136,9 +136,9 @@ export default struct PowerManagementContent {
       this.statusMessage = '恢复失败: ' + JSON.stringify(e)
       hilog.error(DOMAIN, 'PowerManagement', '恢复失败: %{public}s', JSON.stringify(e))
     }
-  }
+  }*/
 
-  async performPause() {
+/*  async performPause() {
     this.statusMessage = '正在暂停虚拟机...'
     try {
       const qmpClient = await this.connectToQmp()
@@ -163,7 +163,7 @@ export default struct PowerManagementContent {
       this.statusMessage = '暂停失败: ' + JSON.stringify(e)
       hilog.error(DOMAIN, 'PowerManagement', '暂停失败: %{public}s', JSON.stringify(e))
     }
-  }
+  }*/
 
   async performShutdown() {
     if (!this.qgaAgent || !this.isConnected) {
@@ -352,7 +352,7 @@ export default struct PowerManagementContent {
           this.performReboot()
         })
 
-        // 暂停按钮
+/*        // 暂停按钮
         Button({
           type: ButtonType.Normal,
           stateEffect: true
@@ -394,7 +394,7 @@ export default struct PowerManagementContent {
         .borderRadius(8)
         .onClick(() => {
           this.performResume()
-        })
+        })*/
 
         // 开机按钮
 /*        Button({
