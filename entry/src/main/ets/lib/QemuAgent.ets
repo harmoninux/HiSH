@@ -93,7 +93,7 @@ export class QemuAgent {
   /**
    * 向 QGA 发送 JSON-RPC 命令
    */
-  private async sendCommand(command: string, args?: QGAArguments): Promise<ESObject | null> {
+  private async sendCommand(command: string, args?: QGAArguments, waitForResponse: boolean = true): Promise<ESObject | null> {
     if (!this.client) {
       hilog.error(DOMAIN, 'QemuAgent', '未连接到 QGA')
       return null
@@ -118,6 +118,10 @@ export class QemuAgent {
       
       await this.client.send(sendOptions)
       hilog.info(DOMAIN, 'QemuAgent', '发送命令: %{public}s', command)
+
+      if (!waitForResponse) {
+        return {}
+      }
 
       // 等待响应（简单的轮询，实际应用中可以使用 Promise）
       const startTime: number = Date.now()
@@ -153,7 +157,7 @@ export class QemuAgent {
    */
   async shutdown(): Promise<boolean> {
     const args: QGAArguments = { mode: 'powerdown' }
-    const result: ESObject | null = await this.sendCommand('guest-shutdown', args)
+    const result: Record<string, Object> | null = await this.sendCommand('guest-shutdown', args, false)
     return result !== null
   }
 
@@ -162,7 +166,7 @@ export class QemuAgent {
    */
   async reboot(): Promise<boolean> {
     const args: QGAArguments = { mode: 'reboot' }
-    const result: ESObject | null = await this.sendCommand('guest-shutdown', args)
+    const result: Record<string, Object> | null = await this.sendCommand('guest-shutdown', args, false)
     return result !== null
   }
 
@@ -170,7 +174,7 @@ export class QemuAgent {
    * 暂停（挂起到 RAM）
    */
   async suspend(): Promise<boolean> {
-    const result: ESObject | null = await this.sendCommand('guest-suspend-ram')
+    const result: ESObject | null = await this.sendCommand('guest-suspend-ram', undefined, false)
     return result !== null
   }
 
