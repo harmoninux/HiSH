@@ -378,6 +378,19 @@ export struct SharedFolderContent {
               this.importFileToCurrent()
             }
           }])
+
+        SymbolGlyph($r('sys.symbol.dot_grid_2x2'))
+          .fontSize(24)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .padding(4)
+          .borderRadius(4)
+          .hoverEffect(HoverEffect.Highlight)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
+          .margin({ right: 5 })
+          .bindMenu([{
+            value: '打开文件管理',
+            action: () => this.openInFileManager(),
+          }])
       }
       .height(56)
 
@@ -406,6 +419,23 @@ export struct SharedFolderContent {
       }
     }
     .margin({ left: 5, right: 5 })
+  }
+
+  private async openInFileManager() {
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      const uri = fileUri.getUriFromPath(this.host)
+      const want: Want = {
+        bundleName: 'com.huawei.hmos.filemanager',
+        abilityName: 'MainAbility',
+        parameters: {
+          'fileUri': uri
+        }
+      }
+      await context.startAbility(want)
+    } catch (e) {
+      hilog.error(1, 'SharedFolderContent', `failed to launch file manager, error: ${JSON.stringify(e)}`)
+    }
   }
 
   gotoSharedFolderGuide() {
