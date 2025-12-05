@@ -20,6 +20,7 @@ class appOption {
   static rootFilesystems = 'rootFilesystems'
   static defaultStartEmulator = 'defaultStartEmulator'
   static currentRunningEmulator = 'currentRunningEmulator'
+  static currentEmulatorStatus = 'currentEmulatorStatus'
   static bundleInfo = 'bundleInfo'
   static temporaryStartEmulator = 'temporaryStartEmulator'
   static serialChannel = 'serialChannel'

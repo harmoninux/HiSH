@@ -156,4 +156,15 @@ function onTerminalReady() {
     );
 
     native.load();
+
+    let selectionTimeout;
+    document.addEventListener('selectionchange', () => {
+        clearTimeout(selectionTimeout);
+        selectionTimeout = setTimeout(() => {
+            const text = term.getSelectionText();
+            if (text) {
+                native.onSelectionChange(text);
+            }
+        }, 200);
+    });
 }

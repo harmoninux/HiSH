@@ -232,8 +232,16 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
     OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}s", argsLines.c_str());
 
-    std::thread vm_loop([argsVector]() {
-
+    // 使用fork创建子进程运行QEMU
+    pid_t pid = fork();
+    
+    if (pid < 0) {
+        OH_LOG_ERROR(LOG_APP, "Failed to fork QEMU process: %{public}d", errno);
+        return nullptr;
+    } else if (pid == 0) {
+        // 子进程：运行QEMU
+        OH_LOG_INFO(LOG_APP, "Child process started, running QEMU");
+        
         const char **argv = new const char *[argsVector.size() + 1];
         for (auto i = 0; i < argsVector.size(); i += 1) {
             argv[i] = argsVector[i].c_str();
@@ -245,10 +253,14 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         auto qemuEntry = getQemuSystemEntry();
         qemuEntry(argc, argv);
 
-        //  cannot reach here
+        // QEMU退出，子进程也退出
+        OH_LOG_INFO(LOG_APP, "QEMU process exited in child process");
         delete[] argv;
-    });
-    vm_loop.detach();
+        _exit(0);
+    } else {
+        // 父进程：继续运行
+        OH_LOG_INFO(LOG_APP, "QEMU started in child process with PID: %{public}d", pid);
+    }
 
     std::thread worker([=]() { serial_output_worker(unixSocket.c_str()); });
     worker.detach();
