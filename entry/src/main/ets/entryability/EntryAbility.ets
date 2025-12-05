@@ -258,6 +258,27 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
   }
 
+  async onWillBackground() {
+    const runningInBackground = AppStorage.get(appOption.runningInBackground) as boolean || false
+    if (runningInBackground) {
+      const success = await backgroundRunningManager.startBackground(this.context)
+      if (!success) {
+        const window = AppStorage.get('mainWindow')!! as window.Window
+        window.getUIContext().getPromptAction().showToast({
+          message: $r('app.string.failed_to_force_background'),
+          duration: 3000
+        })
+      }
+    }
+  }
+
+  async onDidForeground() {
+    const runningInBackground = AppStorage.get(appOption.runningInBackground) as boolean || false
+    if (runningInBackground) {
+      await backgroundRunningManager.stopBackground(this.context)
+    }
+  }
+
   private async getAndClearTemporaryStartEmulator(appPref: preference.Preferences) {
     const temporaryStart = await appPref.get(appOption.temporaryStartEmulator, undefined) as string | undefined;
     appPref.deleteSync(appOption.temporaryStartEmulator);
@@ -337,7 +358,7 @@ export default class EntryAbility extends UIAbility {
     try {
       const runInBackground = AppStorage.get(appOption.runningInBackground) as boolean
       if (runInBackground) {
-        await backgroundRunningManager.startBackground(uiContext.getHostContext() as common.UIAbilityContext)
+        await backgroundRunningManager.grantLocationPermission(uiContext.getHostContext() as common.UIAbilityContext)
       }
     } catch (e) {
       uiContext.getPromptAction().showToast({

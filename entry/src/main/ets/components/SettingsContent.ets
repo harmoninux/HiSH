@@ -114,7 +114,7 @@ export default struct SettingsContent {
     Checkbox()
       .select(this.runningInBackground)
       .onChange((value: boolean) => {
-        this.runningInBackground = value
+        AppStorage.setOrCreate(appOption.runningInBackground, value)
       })
   }
 
@@ -184,7 +184,7 @@ export default struct SettingsContent {
                 this.setRunningInBackground()
               }
             }).onClick(() => {
-              this.runningInBackground = !this.runningInBackground
+              AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
             })
           }
           .attributeModifier(this.blockStyle)
@@ -291,16 +291,13 @@ export default struct SettingsContent {
   async saveRunningInBackground() {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     if (this.runningInBackground) {
-      const success = await backgroundRunningManager.startBackground(context)
+      const success = await backgroundRunningManager.grantLocationPermission(context)
       if (!success) {
-        this.runningInBackground = false
         this.getUIContext().getPromptAction().showToast({
           message: $r('app.string.failed_to_force_background'),
           duration: 3000
         })
       }
-    } else {
-      await backgroundRunningManager.stopBackground(context)
     }
     await savePreference(appOption.runningInBackground, this.runningInBackground, this.getUIContext())
   }
