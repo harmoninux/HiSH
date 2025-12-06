@@ -1,4 +1,4 @@
-#include "napi/native_api.h"
+ï»¿#include "napi/native_api.h"
 #include <assert.h>
 #include <cerrno>
 #include <cstdint>
@@ -27,22 +27,22 @@
 #define LOG_DOMAIN 0x3300
 #define LOG_TAG "HiSH"
 
-// ÓÃÓÚ²¶»ñ QEMU exit µ÷ÓÃµÄÌø×ª»º³åÇø
+// ç”¨äºæ•è· QEMU exit è°ƒç”¨çš„è·³è½¬ç¼“å†²åŒº
 static thread_local jmp_buf qemu_exit_jmp;
 static thread_local bool qemu_exit_jmp_set = false;
 static thread_local int qemu_exit_code = 0;
 
-// ±êÊ¶µ±Ç°Ïß³ÌÊÇ·ñÊÇ QEMU Ïß³Ì
+// æ ‡è¯†å½“å‰çº¿ç¨‹æ˜¯å¦æ˜¯ QEMU çº¿ç¨‹
 static thread_local bool is_qemu_thread = false;
 
-// ¸²¸Ç exit º¯Êı
+// è¦†ç›– exit å‡½æ•°
 extern "C" void exit(int status) {
     if (is_qemu_thread && qemu_exit_jmp_set) {
         OH_LOG_INFO(LOG_APP, "QEMU called exit(%{public}d), using longjmp to return", status);
         qemu_exit_code = status;
         longjmp(qemu_exit_jmp, 1);
     } else {
-        // µ÷ÓÃÕæÕıµÄ exit
+        // è°ƒç”¨çœŸæ­£çš„ exit
         OH_LOG_INFO(LOG_APP, "Normal exit(%{public}d) called", status);
         _exit(status);
     }
@@ -275,7 +275,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}s, isPcDevice: %{public}d", argsLines.c_str(), isPcDevice);
 
     if (isPcDevice) {
-        // PC Éè±¸£ºÊ¹ÓÃ fork ×Ó½ø³ÌÔËĞĞ QEMU£¨QEMU ÍË³ö²»Ó°ÏìÖ÷½ø³Ì£©
+        // PC è®¾å¤‡ï¼šä½¿ç”¨ fork å­è¿›ç¨‹è¿è¡Œ QEMUï¼ˆQEMU é€€å‡ºä¸å½±å“ä¸»è¿›ç¨‹ï¼‰
         OH_LOG_INFO(LOG_APP, "Using fork mode for PC device");
         
         pid_t pid = fork();
@@ -283,7 +283,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             OH_LOG_ERROR(LOG_APP, "Failed to fork QEMU process: %{public}d", errno);
             return nullptr;
         } else if (pid == 0) {
-            // ×Ó½ø³Ì£ºÔËĞĞ QEMU
+            // å­è¿›ç¨‹ï¼šè¿è¡Œ QEMU
             const char **argv = new const char *[argsVector.size() + 1];
             for (auto i = 0; i < argsVector.size(); i += 1) {
                 argv[i] = argsVector[i].c_str();
@@ -298,7 +298,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             delete[] argv;
             _exit(0);
         } else {
-            // ¸¸½ø³Ì£ºÆô¶¯Ò»¸öÏß³Ì¼à¿Ø×Ó½ø³Ì×´Ì¬
+            // çˆ¶è¿›ç¨‹ï¼šå¯åŠ¨ä¸€ä¸ªçº¿ç¨‹ç›‘æ§å­è¿›ç¨‹çŠ¶æ€
             OH_LOG_INFO(LOG_APP, "QEMU started in child process with PID: %{public}d", pid);
             
             std::thread monitor_thread([pid]() {
@@ -313,14 +313,14 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             monitor_thread.detach();
         }
     } else {
-        // ·Ç PC Éè±¸£ºÊ¹ÓÃÏß³ÌÔËĞĞ QEMU£¨QEMU ÍË³ö»áµ¼ÖÂÓ¦ÓÃÍË³ö£¬µ«ÕâÀïÎŞ·¨Ê¹ÓÃ fork£©
+        // é PC è®¾å¤‡ï¼šä½¿ç”¨çº¿ç¨‹è¿è¡Œ QEMUï¼ˆQEMU é€€å‡ºä¼šå¯¼è‡´åº”ç”¨é€€å‡ºï¼Œä½†è¿™é‡Œæ— æ³•ä½¿ç”¨ forkï¼‰
         OH_LOG_INFO(LOG_APP, "Using thread mode for non-PC device");
         
         std::thread vm_loop([argsVector]() {
-            // ±ê¼ÇÕâÊÇ QEMU Ïß³Ì
+            // æ ‡è®°è¿™æ˜¯ QEMU çº¿ç¨‹
             is_qemu_thread = true;
             
-            // ÔÚ QEMU Ïß³ÌÖĞÉèÖÃĞÅºÅ´¦Àí
+            // åœ¨ QEMU çº¿ç¨‹ä¸­è®¾ç½®ä¿¡å·å¤„ç†
             struct sigaction thread_sa;
             memset(&thread_sa, 0, sizeof(thread_sa));
             thread_sa.sa_handler = SIG_IGN;
@@ -340,7 +340,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
             OH_LOG_INFO(LOG_APP, "QEMU thread starting...");
 
-            // ÉèÖÃÌø×ªµã£¬³¢ÊÔ²¶»ñ QEMU µÄ exit µ÷ÓÃ
+            // è®¾ç½®è·³è½¬ç‚¹ï¼Œå°è¯•æ•è· QEMU çš„ exit è°ƒç”¨
             if (setjmp(qemu_exit_jmp) == 0) {
                 qemu_exit_jmp_set = true;
                 auto qemuEntry = getQemuSystemEntry();
@@ -348,7 +348,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
                 qemu_exit_jmp_set = false;
                 OH_LOG_INFO(LOG_APP, "qemuEntry returned normally with: %{public}d", status);
             } else {
-                // QEMU µ÷ÓÃÁË exit()£¬Í¨¹ı longjmp Ìø»ØÕâÀï
+                // QEMU è°ƒç”¨äº† exit()ï¼Œé€šè¿‡ longjmp è·³å›è¿™é‡Œ
                 qemu_exit_jmp_set = false;
                 status = qemu_exit_code;
                 OH_LOG_INFO(LOG_APP, "qemuEntry exit was intercepted, exit code: %{public}d", status);

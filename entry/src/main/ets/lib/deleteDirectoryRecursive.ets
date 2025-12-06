@@ -1,4 +1,4 @@
-import fs from '@ohos.file.fs';
+ï»¿import fs from '@ohos.file.fs';
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const DOMAIN = 0x0000
@@ -18,7 +18,7 @@ async function deleteDirectoryRecursive(dirPath: string) {
     }
     await fs.rmdir(dirPath);
   } catch (err) {
-    hilog.error(DOMAIN, 'deleteDirectoryRecursive', 'É¾³ýÄ¿Â¼Ê§°Ü: %{public}s, ´íÎó: %{public}s', 
+    hilog.error(DOMAIN, 'deleteDirectoryRecursive', 'åˆ é™¤ç›®å½•å¤±è´¥: %{public}s, é”™è¯¯: %{public}s', 
       dirPath, JSON.stringify(err));
   }
 }

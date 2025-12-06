@@ -1,4 +1,4 @@
-import { socket } from "@kit.NetworkKit"
+ï»¿import { socket } from "@kit.NetworkKit"
 import { hilog } from "@kit.PerformanceAnalysisKit"
 import { util } from "@kit.ArkTS"
 
@@ -32,7 +32,7 @@ export default struct QemuMonitor {
   }
 
   async aboutToDisappear(): Promise<void> {
-    // ÇåÀí¶¨Ê±Æ÷
+    // æ¸…ç†å®šæ—¶å™¨
     if (this.intervalId !== -1) {
       clearInterval(this.intervalId)
       this.intervalId = -1

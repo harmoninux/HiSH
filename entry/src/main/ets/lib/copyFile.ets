@@ -1,4 +1,4 @@
-import { fileIo as fs } from '@kit.CoreFileKit'
+ï»¿import { fileIo as fs } from '@kit.CoreFileKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const DOMAIN = 0x0000
@@ -12,15 +12,15 @@ async function copyFile(srcPathOrUri: string, destPathOrUri: string) {
     destFile = await fs.open(destPathOrUri, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
     await fs.copyFile(srcFile.fd, destFile.fd)
   } catch (e) {
-    hilog.error(DOMAIN, 'copyFile', '¸´ÖÆÎÄ¼þÊ§°Ü: %{public}s -> %{public}s, ´íÎó: %{public}s', 
+    hilog.error(DOMAIN, 'copyFile', 'å¤åˆ¶æ–‡ä»¶å¤±è´¥: %{public}s -> %{public}s, é”™è¯¯: %{public}s', 
       srcPathOrUri, destPathOrUri, JSON.stringify(e))
-    throw new Error(`¸´ÖÆÎÄ¼þÊ§°Ü: ${srcPathOrUri} -> ${destPathOrUri}`)
+    throw new Error(`å¤åˆ¶æ–‡ä»¶å¤±è´¥: ${srcPathOrUri} -> ${destPathOrUri}`)
   } finally {
     if (srcFile) {
-      try { await fs.close(srcFile.fd) } catch (closeErr) { /* ºöÂÔ¹Ø±Õ´íÎó */ }
+      try { await fs.close(srcFile.fd) } catch (closeErr) { /* å¿½ç•¥å…³é—­é”™è¯¯ */ }
     }
     if (destFile) {
-      try { await fs.close(destFile.fd) } catch (closeErr) { /* ºöÂÔ¹Ø±Õ´íÎó */ }
+      try { await fs.close(destFile.fd) } catch (closeErr) { /* å¿½ç•¥å…³é—­é”™è¯¯ */ }
     }
   }
 }
