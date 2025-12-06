@@ -1,4 +1,4 @@
-﻿import { socket } from "@kit.NetworkKit"
+import { socket } from "@kit.NetworkKit"
 import { hilog } from "@kit.PerformanceAnalysisKit"
 import { util } from "@kit.ArkTS"
 

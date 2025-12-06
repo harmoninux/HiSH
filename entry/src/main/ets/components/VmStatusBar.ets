@@ -148,7 +148,7 @@ export struct VmStatusBar {
   
   /**
    * 虚拟机状态变化时自动处理 Agent 连接
-   * 当状态变为 RUNNING 时，自动尝试连接 Agent
+   * 当状态变为 RUNNING 或 REBOOTING 时，自动尝试连接 Agent
    */
   onEmulatorStatusChange() {
     hilog.info(DOMAIN, 'VmStatusBar', '虚拟机状态变化: %{public}s', this.currentEmulatorStatus)
@@ -164,8 +164,29 @@ export struct VmStatusBar {
           }
         }
       }, 3000)
+    } else if (this.currentEmulatorStatus === 'REBOOTING') {
+      // 重启中状态，等待更长时间后尝试刷新
+      this.status.agentConnected = false
+      setTimeout((): void => {
+        if (this.isComponentActive && !this.isPowerManagementOpen) {
+          // 只要状态不是 SHUTDOWN/PAUSED 就尝试刷新
+          const status = this.currentEmulatorStatus
+          if (status === 'RUNNING' || status === 'REBOOTING' || status === 'ABNORMAL') {
+            this.refreshStatus()
+            if (this.settings.masterSwitch) {
+              this.startRefreshTimer()
+            }
+          }
+        }
+      }, 8000) // 重启需要更长等待时间
+    } else if (this.currentEmulatorStatus === 'ABNORMAL') {
+      // 异常状态，允许刷新以便检测恢复
+      this.status.agentConnected = false
+      if (this.settings.masterSwitch) {
+        this.startRefreshTimer()
+      }
     } else {
-      // 非运行状态，标记 Agent 为断开
+      // 关机或暂停状态，标记 Agent 为断开
       this.status.agentConnected = false
       this.stopRefreshTimer()
     }
@@ -317,7 +338,10 @@ export struct VmStatusBar {
     if (this.isPowerManagementOpen) return
     
     if (!this.isComponentActive || this.isRefreshing) return
-    if (this.currentEmulatorStatus !== 'RUNNING') {
+    // 只有关机和暂停状态不刷新，其他状态（包括 REBOOTING、ABNORMAL）都尝试刷新
+    if (this.currentEmulatorStatus === 'SHUTDOWN' || 
+        this.currentEmulatorStatus === 'PAUSED' ||
+        this.currentEmulatorStatus === '') {
       this.status.agentConnected = false
       return
     }
@@ -345,6 +369,13 @@ export struct VmStatusBar {
       if (!pingResult) {
         await QemuAgentManager.release('VmStatusBar')
         return
+      }
+      
+      // 如果当前状态是异常或重启中，连接成功后自动恢复为 RUNNING
+      const currentStatus = this.currentEmulatorStatus
+      if (currentStatus === 'ABNORMAL' || currentStatus === 'REBOOTING') {
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+        hilog.info(DOMAIN, 'VmStatusBar', '状态已从 %{public}s 恢复为 RUNNING', currentStatus)
       }
       
       // 获取主机名

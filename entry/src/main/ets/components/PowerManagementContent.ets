@@ -77,8 +77,10 @@ export default struct PowerManagementContent {
         return
       }
       
-      // 检查状态是否变化
-      if (this.currentEmulatorStatus !== 'RUNNING' && this.currentEmulatorStatus !== 'REBOOTING') {
+      // 检查状态是否变化（允许 ABNORMAL 状态尝试连接以便恢复）
+      if (this.currentEmulatorStatus !== 'RUNNING' && 
+          this.currentEmulatorStatus !== 'REBOOTING' &&
+          this.currentEmulatorStatus !== 'ABNORMAL') {
         this.isConnecting = false
         return
       }
@@ -106,6 +108,14 @@ export default struct PowerManagementContent {
             this.isConnected = true
             this.statusMessage = '已连接到 Guest Agent'
             this.isConnecting = false
+            
+            // 如果当前状态是异常或重启中，连接成功后自动恢复为 RUNNING
+            const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string
+            if (currentStatus === 'ABNORMAL' || currentStatus === 'REBOOTING') {
+              AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+              hilog.info(DOMAIN, 'PowerManagement', '状态已从 %{public}s 恢复为 RUNNING', currentStatus)
+            }
+            
             return  // 成功，退出
           }
         }
@@ -332,10 +342,13 @@ export default struct PowerManagementContent {
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')
         await this.qgaAgent.disconnect()
         
-        // 使用强制重连（清除历史阻塞）
+        // 状态验证定时器（不依赖组件生命周期）
+        // 15秒后验证虚拟机状态，如果仍为 REBOOTING 则尝试验证或标记异常
+        this.scheduleStatusVerification(15000)
+        
+        // 如果组件仍活跃，5秒后尝试重连（供 UI 使用）
         setTimeout((): void => {
           if (this.isComponentActive) {
-            AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
             this.forceReconnectAgent(true)
           }
         }, 5000)
@@ -348,6 +361,59 @@ export default struct PowerManagementContent {
     } finally {
       this.isOperating = false
     }
+  }
+
+  /**
+   * 状态验证定时器
+   * 在指定时间后验证虚拟机状态，确保 UI 状态与实际状态一致
+   * @param timeout 超时时间（毫秒）
+   */
+  private scheduleStatusVerification(timeout: number) {
+    setTimeout(async (): Promise<void> => {
+      const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string
+      
+      // 只在状态仍为 REBOOTING 时进行验证
+      if (currentStatus !== 'REBOOTING') {
+        return
+      }
+      
+      hilog.info(DOMAIN, 'PowerManagement', '开始验证虚拟机状态...')
+      
+      // 尝试连接 Agent 验证实际状态
+      const verified = await this.verifyVmStatus()
+      
+      if (verified) {
+        hilog.info(DOMAIN, 'PowerManagement', '验证成功，状态更新为 RUNNING')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+      } else {
+        hilog.warn(DOMAIN, 'PowerManagement', '验证失败，状态更新为 ABNORMAL')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'ABNORMAL')
+      }
+      
+      // 如果组件仍活跃，尝试重连
+      if (this.isComponentActive) {
+        this.forceReconnectAgent(true)
+      }
+    }, timeout)
+  }
+
+  /**
+   * 验证虚拟机状态
+   * 尝试通过 Agent ping 验证虚拟机是否正常运行
+   * @returns true 表示虚拟机正常运行，false 表示无法验证
+   */
+  private async verifyVmStatus(): Promise<boolean> {
+    try {
+      const agent = await QemuAgentManager.acquire('PowerManagement', AgentPriority.HIGH, 5000)
+      if (agent) {
+        const ping = await agent.ping()
+        await QemuAgentManager.release('PowerManagement')
+        return ping
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'PowerManagement', '验证虚拟机状态失败: %{public}s', JSON.stringify(e))
+    }
+    return false
   }
 
   async performHardReset() {
@@ -576,7 +642,7 @@ export default struct PowerManagementContent {
           .height(36)
           .backgroundColor('#C0392B')
           .borderRadius(8)
-          .enabled(!this.isOperating && (this.currentEmulatorStatus === 'RUNNING' || this.currentEmulatorStatus === 'PAUSED'))
+          .enabled(!this.isOperating && (this.currentEmulatorStatus === 'RUNNING' || this.currentEmulatorStatus === 'PAUSED' || this.currentEmulatorStatus === 'ABNORMAL' || this.currentEmulatorStatus === 'REBOOTING'))
           .onClick(() => this.performHardReset())
 
           // 关机按钮

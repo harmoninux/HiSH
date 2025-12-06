@@ -1,4 +1,4 @@
-﻿import fs from '@ohos.file.fs';
+import fs from '@ohos.file.fs';
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const DOMAIN = 0x0000

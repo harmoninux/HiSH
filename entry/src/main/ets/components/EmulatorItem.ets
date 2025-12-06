@@ -153,6 +153,8 @@ export default struct EmulatorItem {
         return '重启中'
       case 'SHUTDOWN':
         return '已关机'
+      case 'ABNORMAL':
+        return '异常'
       case 'RUNNING':
       default:
         return '运行中'
@@ -166,6 +168,8 @@ export default struct EmulatorItem {
       case 'REBOOTING':
         return '#F39C12' // Orange
       case 'SHUTDOWN':
+        return '#E74C3C' // Red
+      case 'ABNORMAL':
         return '#E74C3C' // Red
       case 'RUNNING':
       default:

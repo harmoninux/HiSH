@@ -1,4 +1,4 @@
-﻿import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const DOMAIN = 0x0000

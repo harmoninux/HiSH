@@ -377,7 +377,22 @@ struct PhoneOrTablet {
       controller: this.tabsController
     }) {
       TabContent() {
-        WebTerminal({ showVirtKey: true })
+        Column() {
+          // 虚拟机状态监控条
+          Row() {
+            VmStatusBar()
+              .layoutWeight(1)
+          }
+          .width('100%')
+          .height(32)
+          .padding({ left: 12, right: 12 })
+          .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+
+          WebTerminal({ showVirtKey: true })
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .height('100%')
       }
       .tabBar(this.tabBuilder($r('app.string.shell'), 0, $r('sys.symbol.house')))
 

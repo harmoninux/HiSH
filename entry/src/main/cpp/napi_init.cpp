@@ -1,4 +1,4 @@
-﻿#include "napi/native_api.h"
+#include "napi/native_api.h"
 #include <assert.h>
 #include <cerrno>
 #include <cstdint>
