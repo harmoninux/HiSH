@@ -1,5 +1,6 @@
 import { Emulator } from '../model/Emulator';
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
+import appOption from '../model/appOption';
 
 @Component
 export default struct EmulatorItem {
@@ -12,6 +13,8 @@ export default struct EmulatorItem {
   @Require onCopy: (item: Emulator) => void
   @Require onSetDefault: (item: Emulator) => void
   @Require onStart: (item: Emulator) => void
+  @Require onPowerManage: (item: Emulator) => void
+  @StorageProp(appOption.currentEmulatorStatus) currentStatus: string = 'RUNNING'
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
 
@@ -31,13 +34,13 @@ export default struct EmulatorItem {
           .maxLines(1)
           .layoutWeight(1)
         if (this.isRunning) {
-          Text('运行中')
+          Text(this.getStatusText())
             .fontSize($r('sys.float.Body_M'))
-            .fontColor('#388E3C')
+            .fontColor(this.getStatusColor())
             .height(20)
-          Button('重启', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          Button('电源管理', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
-            .onClick(() => this.onStart(this.emulator))
+            .onClick(() => this.onPowerManage(this.emulator))
             .height(20)
         } else {
           Button('运行', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
@@ -140,5 +143,33 @@ export default struct EmulatorItem {
       return (this.emulator.memory / 1024).toFixed(1) + ' GB'
     }
     return this.emulator.memory + ' MB';
+  }
+
+  private getStatusText(): string {
+    switch (this.currentStatus) {
+      case 'PAUSED':
+        return '已暂停'
+      case 'REBOOTING':
+        return '重启中'
+      case 'SHUTDOWN':
+        return '已关机'
+      case 'RUNNING':
+      default:
+        return '运行中'
+    }
+  }
+
+  private getStatusColor(): string {
+    switch (this.currentStatus) {
+      case 'PAUSED':
+        return '#3498DB' // Blue
+      case 'REBOOTING':
+        return '#F39C12' // Orange
+      case 'SHUTDOWN':
+        return '#E74C3C' // Red
+      case 'RUNNING':
+      default:
+        return '#388E3C' // Green
+    }
   }
 }

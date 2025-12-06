@@ -5,7 +5,6 @@ import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit'
 import appOption, { CursorShape } from '../model/appOption';
-import { common } from '@kit.AbilityKit';
 
 const DOMAIN = 0x0000;
 
@@ -22,6 +21,7 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 export default struct WebTerminal {
   @Require showVirtKey: boolean
   @State ctrlPressed: boolean = false
+  @StorageProp(appOption.currentEmulatorStatus) currentStatus: string = 'RUNNING'
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
@@ -66,33 +66,65 @@ export default struct WebTerminal {
 
   build() {
     Column() {
-      Web({
-        src: $rawfile('term/term.html'),
-        controller: this.webviewController
-      })
-        .javaScriptProxy({
-          object: this,
-          name: 'native',
-          methodList: ['sendInput', 'resize', 'load',
-            'getFontSize', 'getCursorShape', 'getCursorBlink'],
-          controller: this.webviewController,
-          asyncMethodList: [],
-          permission: `{
-          "javascriptProxyPermission": {
-            "urlPermissionList": [
-              {
-                "scheme": "resource",
-                "host": "rawfile",
-                "port": "",
-                "path": ""
-              }
-            ]
-          }
-        }`
+      Stack() {
+        Web({
+          src: $rawfile('term/term.html'),
+          controller: this.webviewController
         })
-        .backgroundColor('#000')
-        .layoutWeight(1)
-        .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+          .javaScriptProxy({
+            object: this,
+            name: 'native',
+            methodList: ['sendInput', 'resize', 'load',
+              'getFontSize', 'getCursorShape', 'getCursorBlink'],
+            controller: this.webviewController,
+            asyncMethodList: [],
+            permission: `{
+            "javascriptProxyPermission": {
+              "urlPermissionList": [
+                {
+                  "scheme": "resource",
+                  "host": "rawfile",
+                  "port": "",
+                  "path": ""
+                }
+              ]
+            }
+          }`
+          })
+          .backgroundColor('#000')
+          .layoutWeight(1)
+          .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+
+        if (this.currentStatus === 'PAUSED') {
+          Column() {
+            Text('已暂停')
+              .fontSize(30)
+              .fontColor(Color.White)
+              .fontWeight(FontWeight.Bold)
+          }
+          .width('100%')
+          .height('100%')
+          .backgroundColor('#80808080')
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
+        }
+
+        if (this.currentStatus === 'SHUTDOWN') {
+          Column() {
+            Text('已关机，您现在可以正常退出程序。')
+              .fontSize(24)
+              .fontColor(Color.White)
+              .fontWeight(FontWeight.Medium)
+          }
+          .width('100%')
+          .height('100%')
+          .backgroundColor('#000000')
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
+        }
+      }
+      .layoutWeight(1)
+
       if (this.showVirtKey) {
         Row() {
           Button('Tab')
@@ -188,10 +220,9 @@ export default struct WebTerminal {
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }
 
-  private async onShutdown() {
+  private onShutdown() {
+    // QEMU 退出后只记录日志，不自动关闭应用
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    await context?.terminateSelf()
   }
 
   getFontSize(): number | null {

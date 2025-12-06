@@ -11,6 +11,8 @@ import deleteDirectoryRecursive from '../lib/deleteDirectoryRecursive';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { SimpleWebView } from './SimpleWebView';
 
+const DOMAIN = 0x0000
+
 enum Type {
   Folder = 0,
   File = 1,
@@ -300,10 +302,10 @@ export struct SharedFolderContent {
     let context = this.getUIContext().getHostContext() as common.UIAbilityContext
     context.startAbility(want)
       .then(() => {
-        console.info('Succeed to invoke startAbility.');
+        hilog.info(DOMAIN, 'SharedFolderContent', 'Succeed to invoke startAbility.')
       })
       .catch((err: BusinessError) => {
-        console.error(`Failed to invoke startAbility, code: ${err.code}, message: ${err.message}`);
+        hilog.error(DOMAIN, 'SharedFolderContent', 'Failed to invoke startAbility, code: %{public}d, message: %{public}s', err.code, err.message)
       });
   }
 
@@ -322,7 +324,7 @@ export struct SharedFolderContent {
         duration: 4000
       })
     } catch (e) {
-      console.log('error copy to clipboard ' + guest, e)
+      hilog.error(DOMAIN, 'SharedFolderContent', '复制到剪贴板失败: %{public}s, 错误: %{public}s', guest, JSON.stringify(e))
     }
   }
 
@@ -542,7 +544,7 @@ export struct SharedFolderContent {
     try {
       await copyFile(srcPath, destUri);
     } catch (e) {
-      console.log('error copy file', srcPath, destUri, e)
+      hilog.error(DOMAIN, 'SharedFolderContent', '导出文件失败: %{public}s -> %{public}s, 错误: %{public}s', srcPath, destUri, JSON.stringify(e))
     } finally {
       this.exportProgress.close()
     }
@@ -569,7 +571,7 @@ export struct SharedFolderContent {
       await copyFile(srcUri, destPath);
       this.refreshFileList()
     } catch (e) {
-      console.log('error copy file', srcUri, destPath, e)
+      hilog.error(DOMAIN, 'SharedFolderContent', '导入文件失败: %{public}s -> %{public}s, 错误: %{public}s', srcUri, destPath, JSON.stringify(e))
     } finally {
       this.importProgress.close()
     }
@@ -581,7 +583,7 @@ export struct SharedFolderContent {
     try {
       fs.mkdirSync(destPath)
     } catch (e) {
-      console.log('error creating folder ' + destPath, e)
+      hilog.error(DOMAIN, 'SharedFolderContent', '创建文件夹失败: %{public}s, 错误: %{public}s', destPath, JSON.stringify(e))
     }
     this.tempFolderName = ''
     this.createFolderController.close()

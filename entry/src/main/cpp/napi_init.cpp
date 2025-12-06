@@ -15,17 +15,38 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <setjmp.h>
 
 #include "hilog/log.h"
 #undef LOG_DOMAIN
 #undef LOG_TAG
 #define LOG_DOMAIN 0x3300
 #define LOG_TAG "HiSH"
+
+// 用于捕获 QEMU exit 调用的跳转缓冲区
+static thread_local jmp_buf qemu_exit_jmp;
+static thread_local bool qemu_exit_jmp_set = false;
+static thread_local int qemu_exit_code = 0;
+
+// 标识当前线程是否是 QEMU 线程
+static thread_local bool is_qemu_thread = false;
+
+// 覆盖 exit 函数
+extern "C" void exit(int status) {
+    if (is_qemu_thread && qemu_exit_jmp_set) {
+        OH_LOG_INFO(LOG_APP, "QEMU called exit(%{public}d), using longjmp to return", status);
+        qemu_exit_code = status;
+        longjmp(qemu_exit_jmp, 1);
+    } else {
+        // 调用真正的 exit
+        OH_LOG_INFO(LOG_APP, "Normal exit(%{public}d) called", status);
+        _exit(status);
+    }
+}
 
 struct data_buffer {
     char *buf;
@@ -232,6 +253,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_value key_name;
     napi_value nv_arg_lines;
     napi_value nv_unix_socket;
+    napi_value nv_is_pc_device;
 
     napi_create_string_utf8(env, "argsLines", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_arg_lines);
@@ -239,35 +261,110 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "unixSocket", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_unix_socket);
 
+    napi_create_string_utf8(env, "isPcDevice", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_is_pc_device);
+
     std::string argsLines = getString(env, nv_arg_lines);
     std::vector<std::string> argsVector = splitStringByNewline(argsLines);
 
     std::string unixSocket = getString(env, nv_unix_socket);
 
-    OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}s", argsLines.c_str());
+    bool isPcDevice = false;
+    napi_get_value_bool(env, nv_is_pc_device, &isPcDevice);
 
-    std::thread vm_loop([argsVector]() {
+    OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}s, isPcDevice: %{public}d", argsLines.c_str(), isPcDevice);
 
-        const char **argv = new const char *[argsVector.size() + 1];
-        for (auto i = 0; i < argsVector.size(); i += 1) {
-            argv[i] = argsVector[i].c_str();
+    if (isPcDevice) {
+        // PC 设备：使用 fork 子进程运行 QEMU（QEMU 退出不影响主进程）
+        OH_LOG_INFO(LOG_APP, "Using fork mode for PC device");
+        
+        pid_t pid = fork();
+        if (pid < 0) {
+            OH_LOG_ERROR(LOG_APP, "Failed to fork QEMU process: %{public}d", errno);
+            return nullptr;
+        } else if (pid == 0) {
+            // 子进程：运行 QEMU
+            const char **argv = new const char *[argsVector.size() + 1];
+            for (auto i = 0; i < argsVector.size(); i += 1) {
+                argv[i] = argsVector[i].c_str();
+            }
+            argv[argsVector.size()] = nullptr;
+
+            int argc = argsVector.size();
+
+            auto qemuEntry = getQemuSystemEntry();
+            qemuEntry(argc, argv);
+
+            delete[] argv;
+            _exit(0);
+        } else {
+            // 父进程：启动一个线程监控子进程状态
+            OH_LOG_INFO(LOG_APP, "QEMU started in child process with PID: %{public}d", pid);
+            
+            std::thread monitor_thread([pid]() {
+                int status;
+                waitpid(pid, &status, 0);
+                OH_LOG_INFO(LOG_APP, "QEMU child process exited with status: %{public}d", status);
+                
+                if (on_shutdown_callback != nullptr) {
+                    napi_call_threadsafe_function(on_shutdown_callback, nullptr, napi_tsfn_nonblocking);
+                }
+            });
+            monitor_thread.detach();
         }
-        argv[argsVector.size()] = nullptr;
+    } else {
+        // 非 PC 设备：使用线程运行 QEMU（QEMU 退出会导致应用退出，但这里无法使用 fork）
+        OH_LOG_INFO(LOG_APP, "Using thread mode for non-PC device");
+        
+        std::thread vm_loop([argsVector]() {
+            // 标记这是 QEMU 线程
+            is_qemu_thread = true;
+            
+            // 在 QEMU 线程中设置信号处理
+            struct sigaction thread_sa;
+            memset(&thread_sa, 0, sizeof(thread_sa));
+            thread_sa.sa_handler = SIG_IGN;
+            sigemptyset(&thread_sa.sa_mask);
+            thread_sa.sa_flags = 0;
+            sigaction(SIGTERM, &thread_sa, nullptr);
+            sigaction(SIGINT, &thread_sa, nullptr);
 
-        int argc = argsVector.size();
+            const char **argv = new const char *[argsVector.size() + 1];
+            for (auto i = 0; i < argsVector.size(); i += 1) {
+                argv[i] = argsVector[i].c_str();
+            }
+            argv[argsVector.size()] = nullptr;
 
-        auto qemuEntry = getQemuSystemEntry();
-        int status = qemuEntry(argc, argv);
+            int argc = argsVector.size();
+            int status = 0;
 
-        delete[] argv;
+            OH_LOG_INFO(LOG_APP, "QEMU thread starting...");
 
-        OH_LOG_INFO(LOG_APP, "qemuEntry exited with: %{public}d", status);
+            // 设置跳转点，尝试捕获 QEMU 的 exit 调用
+            if (setjmp(qemu_exit_jmp) == 0) {
+                qemu_exit_jmp_set = true;
+                auto qemuEntry = getQemuSystemEntry();
+                status = qemuEntry(argc, argv);
+                qemu_exit_jmp_set = false;
+                OH_LOG_INFO(LOG_APP, "qemuEntry returned normally with: %{public}d", status);
+            } else {
+                // QEMU 调用了 exit()，通过 longjmp 跳回这里
+                qemu_exit_jmp_set = false;
+                status = qemu_exit_code;
+                OH_LOG_INFO(LOG_APP, "qemuEntry exit was intercepted, exit code: %{public}d", status);
+            }
 
-        if (on_shutdown_callback != nullptr) {
-            napi_call_threadsafe_function(on_shutdown_callback, nullptr, napi_tsfn_nonblocking);
-        }
-    });
-    vm_loop.detach();
+            delete[] argv;
+
+            if (on_shutdown_callback != nullptr) {
+                napi_call_threadsafe_function(on_shutdown_callback, nullptr, napi_tsfn_nonblocking);
+            }
+            
+            is_qemu_thread = false;
+            OH_LOG_INFO(LOG_APP, "QEMU shutdown callback triggered, thread ending normally");
+        });
+        vm_loop.detach();
+    }
 
     std::thread worker([=]() { serial_output_worker(unixSocket.c_str()); });
     worker.detach();

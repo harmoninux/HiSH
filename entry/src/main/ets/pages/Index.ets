@@ -12,6 +12,8 @@ import { Emulator } from "../model/Emulator";
 import RootfsManagementContent from "../components/RootfsManagementContent";
 import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
+import PowerManagementContent from '../components/PowerManagementContent';
+import VmStatusBar from '../components/VmStatusBar';
 
 @Component
 struct PcIndex {
@@ -57,6 +59,14 @@ struct PcIndex {
       }
     })
   })
+  powerManagementController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '电源管理',
+      contentBuilder: () => {
+        this.buildPowerManagement();
+      }
+    })
+  })
   webController = new webview.WebviewController()
 
   build() {
@@ -68,6 +78,9 @@ struct PcIndex {
           Text($r('app.string.app_name'))
             .margin({ left: 10 })
         }
+
+        VmStatusBar()
+          .margin({ left: 20 })
 
         Blank()
 
@@ -301,6 +314,11 @@ struct PcIndex {
         })
       }
     }
+  }
+
+  @Builder
+  buildPowerManagement() {
+    PowerManagementContent()
   }
 }
 

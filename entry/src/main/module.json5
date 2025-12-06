@@ -12,6 +12,9 @@
     ],
     "requestPermissions": [
       {
+        "name": "ohos.permission.kernel.ALLOW_EXECUTABLE_FORT_MEMORY"
+      },
+      {
         "name": "ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY"
       },
       {

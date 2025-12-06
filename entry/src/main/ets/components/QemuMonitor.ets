@@ -7,6 +7,7 @@ export default struct QemuMonitor {
   tempDir = this.getUIContext().getHostContext()!!.getApplicationContext().tempDir
   localSocket?: socket.LocalSocket = undefined
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
+  private intervalId: number = -1
 
   async aboutToAppear(): Promise<void> {
     const socketPath = this.tempDir + '/qmp_socket'
@@ -21,7 +22,7 @@ export default struct QemuMonitor {
       await local.send({ data: '{ "execute": "qmp_capabilities" }\n' })
       await local.send({ data: '{ "execute": "query-status" }\n' })
       await local.send({ data: '{ "execute": "query-commands" }\n' })
-      setInterval(async () => {
+      this.intervalId = setInterval(async () => {
         await local.send({ data: '{ "execute": "query-cpus-fast" }\n' })
         await local.send({ data: '{ "execute": "query-memory-size-summary" }\n' })
       }, 2000)
@@ -31,6 +32,11 @@ export default struct QemuMonitor {
   }
 
   async aboutToDisappear(): Promise<void> {
+    // 清理定时器
+    if (this.intervalId !== -1) {
+      clearInterval(this.intervalId)
+      this.intervalId = -1
+    }
     try {
       await this.localSocket?.close()
     } catch (e) {

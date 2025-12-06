@@ -1,5 +1,8 @@
 import { hash } from "@kit.CoreFileKit"
 import { pasteboard } from "@kit.BasicServicesKit"
+import { hilog } from '@kit.PerformanceAnalysisKit'
+
+const DOMAIN = 0x0000
 
 const algorithms: SelectOption[] = [{
   value: 'MD5'
@@ -60,7 +63,7 @@ export struct HashGenerateContent {
         duration: 2000
       })
     } catch (e) {
-      console.log(e)
+      hilog.error(DOMAIN, 'HashGenerateContent', '复制到剪贴板失败: %{public}s', JSON.stringify(e))
     }
   }
 
