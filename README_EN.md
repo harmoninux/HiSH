@@ -35,7 +35,7 @@ You can try one of following methods to get HiSH:
 
 - Clone this repo to local
 - Copy `build-profile.template.json5` to `build-profile.json5`
-- Download files and move to corresponding location as following
+- Download files and move to corresponding location as following (Notice: you should rename files as links)
   - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251205/tcg.arm64.libqemu-system-aarch64.so)
   - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251205/tcg.x86_64.libqemu-system-aarch64.so)
   - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251205/kernel_aarch64)
