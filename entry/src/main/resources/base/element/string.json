@@ -254,7 +254,7 @@
     },
     {
       "name": "location_reason",
-      "value": "Keep running in background"
+      "value": "To keep service in Linux running in background"
     },
     {
       "name": "setting_terminal",

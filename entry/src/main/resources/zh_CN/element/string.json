@@ -258,7 +258,7 @@
     },
     {
       "name": "location_reason",
-      "value": "当用户期望HiSH切换到后台能继续保持服务时，需要此权限"
+      "value": "用于支持应用切换到后台后能继续保持Linux中的服务"
     },
     {
       "name": "failed_to_force_background",
