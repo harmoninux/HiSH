@@ -248,17 +248,18 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
   }
 
-  onForeground(): void {
-    // Ability has brought to foreground
+  async onForeground() {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+
+    const runningInBackground = AppStorage.get(appOption.runningInBackground) as boolean || false
+    if (runningInBackground) {
+      await backgroundRunningManager.stopBackground(this.context)
+    }
   }
 
-  onBackground(): void {
+  async onBackground() {
     // Ability has back to background
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
-  }
-
-  async onWillBackground() {
     const runningInBackground = AppStorage.get(appOption.runningInBackground) as boolean || false
     if (runningInBackground) {
       const success = await backgroundRunningManager.startBackground(this.context)
@@ -269,13 +270,6 @@ export default class EntryAbility extends UIAbility {
           duration: 3000
         })
       }
-    }
-  }
-
-  async onDidForeground() {
-    const runningInBackground = AppStorage.get(appOption.runningInBackground) as boolean || false
-    if (runningInBackground) {
-      await backgroundRunningManager.stopBackground(this.context)
     }
   }
 
