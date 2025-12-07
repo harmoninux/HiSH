@@ -234,21 +234,22 @@ export struct VmStatusBar {
       this.qgaAgent = null
     }
     
-    // 如果启用了监控，启动定时刷新
-    if (this.settings.masterSwitch) {
-      this.startRefreshTimer()
-    }
+    // 始终启动定时刷新，保持 Agent 连接状态同步
+    // 即使用户关闭了监控信息显示，也需要定期检查 Agent 状态
+    this.startRefreshTimer()
   }
   
   private startRefreshTimer() {
     this.stopRefreshTimer()
-    if (!this.settings.masterSwitch) return
+    
+    // 设置刷新间隔：启用监控时使用用户设置，否则使用较长的默认间隔（30秒）保持状态同步
+    const interval = this.settings.masterSwitch ? this.settings.refreshInterval : 30000
     
     this.refreshTimer = setInterval((): void => {
       if (this.isComponentActive) {
         this.refreshStatus()
       }
-    }, this.settings.refreshInterval)
+    }, interval)
   }
   
   private stopRefreshTimer() {
