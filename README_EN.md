@@ -1,6 +1,6 @@
 # HiSH
 
-[Gitee](https://gitee.com/hackeris/HiSH) | [中文](README.md)
+[GitHub](https://github.com/harmoninux/HiSH) | [GitCode](https://gitcode.com/realhackeris/HiSH) | [Gitee](https://gitee.com/hackeris/HiSH) | [中文](README.md)
 
 Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com/hackeris/harmony-qemu), both 2in1(PC), Tablet and Phone are supported.
 
@@ -10,9 +10,9 @@ Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com
 
 You can try one of following methods to get HiSH:
 
-- Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster).
-- Install from [Invite Test of AppGallery](https://appgallery.huawei.com/link/invite-test-wap?taskId=d0fc15de37154f7f4babe944837ba1be&invitationCode=JvskBvD1Ox)
-- Build from source code in DevEco Studio, see [Build HAP](#build-hap)
+- Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster)
+- Install from [AppGallery](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish) (JIT not supported, run slower)
+- Build from source code in DevEco Studio, see [Build HAP](#build-hap) (JIT suported, runs faster)
 
 ## Core Features
 

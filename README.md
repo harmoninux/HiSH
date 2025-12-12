@@ -1,6 +1,6 @@
 # HiSH
 
-[Gitee](https://gitee.com/hackeris/HiSH) | [English](README_EN.md)
+[GitHub](https://github.com/harmoninux/HiSH) | [GitCode](https://gitcode.com/realhackeris/HiSH) | [Gitee](https://gitee.com/hackeris/HiSH) | [English](README_EN.md)
 
 在HarmonyOS设备上运行Linux Shell。基于[harmony-qemu](https://github.com/hackeris/harmony-qemu)，支持2in1(PC)、平板和手机。
 
@@ -11,8 +11,8 @@
 可以选择下面任一方法获取HiSH：
 
 - 从[Releases](https://github.com/harmoninux/HiSH/releases)下载hap文件，自行签名后安装到设备或模拟器（支持JIT，运行效率更高）
-- 通过[内测邀请链接](https://appgallery.huawei.com/link/invite-test-wap?taskId=d0fc15de37154f7f4babe944837ba1be&invitationCode=JvskBvD1Ox)安装。
-- 使用DevEco Studio编译源码，参考 [构建HAP](#构建hap)
+- 通过[应用市场](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish)安装（不支持JIT，运行效率一般）
+- 使用DevEco Studio编译源码，参考 [构建HAP](#构建hap)（支持JIT，运行效率更高）
 
 ## 核心功能
 
