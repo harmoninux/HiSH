@@ -5,6 +5,7 @@ import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit'
 import appOption, { CursorShape } from '../model/appOption';
+import { common } from '@kit.AbilityKit';
 
 const DOMAIN = 0x0000;
 
@@ -223,6 +224,8 @@ export default struct WebTerminal {
   private onShutdown() {
     // QEMU 退出后只记录日志，不自动关闭应用
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    await context?.terminateSelf()
   }
 
   getFontSize(): number | null {

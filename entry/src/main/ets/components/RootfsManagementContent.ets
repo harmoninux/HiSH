@@ -247,13 +247,16 @@ export default struct RootfsManagementContent {
   }
 
   validateRootfsName(): boolean {
+
     const name = this.tempRootfsName.trim();
     if (name.length <= 0) {
       return false
     }
+
     if (this.roots.findIndex(it => it.name === name) >= 0) {
       return false
     }
+
     return true
   }
 
@@ -303,24 +306,33 @@ export default struct RootfsManagementContent {
   }
 
   async deleteRootFilesystemItem(item: RootFilesystem) {
+
     const path = item.path
+
     const i = this.roots.findIndex(it => it.id === item.id)
     this.roots.splice(i, 1)
+
     await this.saveRootFilesystems()
     await fs.unlinkSync(path)
   }
 
   async exportRootFilesystem(item: RootFilesystem) {
+
     let context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [item.name + '.qcow2'];
+
     const savePicker = new picker.DocumentViewPicker(context)
     const uris = await savePicker.save(options)
+
     if (uris.length == 0) {
       return
     }
+
     const src = item.path
     const destUri = uris[0]
+
     this.exportProgress.open()
     try {
       await copyFile(src, destUri)
@@ -383,58 +395,79 @@ export default struct RootfsManagementContent {
   }
 
   private async createNewRootfs() {
+
     const uri = this.tempSrcUri!!
     const name = this.tempRootfsName.trim()
     const id = util.generateRandomUUID()
+
     const rootfsBaseDir = AppStorage.get(appOption.rootfsBaseDir) as string
     const target = rootfsBaseDir + '/' + id + uri.substring(uri.lastIndexOf('.'))
+
     this.importProgress.open()
     try {
       await copyFile(uri, target)
+
       this.roots.push({ id, name, path: target })
+
       await this.saveRootFilesystems();
     } finally {
       this.importProgress.close()
     }
+
     this.rootfsNameController.close()
   }
 
   private async updateRootfsName(item: RootFilesystem) {
+
     const name = this.tempRootfsName.trim()
+
     const i = this.roots.findIndex(it => it.id === item.id)
+
     const updated: RootFilesystem = { id: item.id, name, path: item.path }
     this.roots[i] = updated
+
     await this.saveRootFilesystems()
+
     this.rootfsNameController.close()
   }
 
   private async saveRootFilesystems() {
+
     const roots = this.roots
+
     const appContext = this.getUIContext().getHostContext()!!.getApplicationContext();
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
     await appPref.put(appOption.rootFilesystems, JSON.stringify(roots));
     await appPref.flush();
+
     this.syncRootfsViewItems()
   }
 
   async importRootFilesystem() {
+
     let context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+
     let options = new picker.DocumentSelectOptions();
     options.maxSelectNumber = 1;
     options.fileSuffixFilters = ['qcow2']
+
     let documentPicker = new picker.DocumentViewPicker(context);
     let uris = await documentPicker.select(options);
+
     if (uris.length == 0) {
       return
     }
+
     this.tempSrcUri = uris[0]
     this.tempRootfsName = ''
+
     this.actionAfterNameInput = (): Promise<void> => this.createNewRootfs()
     this.rootfsNameController.open()
   }
 
   syncRootfsViewItems() {
     this.rootfsItems.splice(0, this.rootfsItems.length)
+
     setTimeout(() => {
       for (let i = 0; i < this.roots.length; i++) {
         const it = this.roots[i]

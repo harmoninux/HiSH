@@ -18,6 +18,8 @@
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <setjmp.h>
 #include <libgen.h>
@@ -728,6 +730,14 @@ static void call_on_data_callback(napi_env env, napi_value js_callback, void *co
 
     delete[] buffer->buf;
     delete buffer;
+}
+
+static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void *context, void *data) {
+
+    napi_value global;
+    napi_get_global(env, &global);
+
+    napi_call_function(env, global, js_callback, 0, nullptr, nullptr);
 }
 
 std::string convert_to_hex(const uint8_t *buffer, int r) {
