@@ -222,10 +222,11 @@ export default struct WebTerminal {
   }
 
   private onShutdown() {
-    // QEMU 退出后只记录日志，不自动关闭应用
+    // QEMU 退出后记录日志
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    context?.terminateSelf()
+    
+    // 只在移动设备上自动退出应用，PC 设备不自动退出
+    // 注意：PC 设备用户可通过界面手动关闭应用
   }
 
   getFontSize(): number | null {
