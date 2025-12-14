@@ -279,6 +279,58 @@
     {
       "name": "user_guide",
       "value": "使用指南"
+    },
+    {
+      "name": "image_management",
+      "value": "镜像管理"
+    },
+    {
+      "name": "image_name",
+      "value": "镜像名称"
+    },
+    {
+      "name": "image_path",
+      "value": "镜像路径"
+    },
+    {
+      "name": "virtual_size",
+      "value": "虚拟大小"
+    },
+    {
+      "name": "disk_size",
+      "value": "实际占用"
+    },
+    {
+      "name": "view_details",
+      "value": "查看详情"
+    },
+    {
+      "name": "image_details",
+      "value": "镜像详情"
+    },
+    {
+      "name": "space_usage",
+      "value": "空间利用率"
+    },
+    {
+      "name": "snapshot_management",
+      "value": "快照管理"
+    },
+    {
+      "name": "create_snapshot",
+      "value": "创建快照"
+    },
+    {
+      "name": "optimize_image",
+      "value": "优化镜像"
+    },
+    {
+      "name": "vm_shutdown_required",
+      "value": "此操作需要虚拟机关机后执行"
+    },
+    {
+      "name": "restart_app_required",
+      "value": "请重启应用后重试"
     }
   ]
 }

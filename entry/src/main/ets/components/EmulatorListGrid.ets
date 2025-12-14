@@ -5,11 +5,13 @@ import { util } from '@kit.ArkTS';
 import appOption, { savePreference } from '../model/appOption';
 import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
+import napi from 'libentry.so';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { Want } from '@kit.AbilityKit';
 import { bundleManager } from '@kit.MDMKit';
 import EmulatorItem from './EmulatorItem';
 import PowerManagementContent from './PowerManagementContent';
+import ImageManagementContent from './ImageManagementContent';
 
 @Component
 export default struct EmulatorListGrid {
@@ -60,6 +62,8 @@ export default struct EmulatorListGrid {
       }
     })
   })
+  imageManagementController: CustomDialogController | null = null
+  @State selectedEmulatorForImage: Emulator | null = null
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   promptAction = this.getUIContext().getPromptAction()
 
@@ -192,12 +196,36 @@ export default struct EmulatorListGrid {
       onStart: (item) => {
         this.askForStartEmulator(item)
       },
-      onExport: (item) => {
+      onExport: async (item) => {
+        // 检查是否有快照
+        try {
+          const result = napi.getSnapshots(item.rootFilesystem)
+          const response = JSON.parse(result) as Record<string, Object>
+          const snapshots = response['snapshots'] as Array<Object>
+          
+          if (snapshots && snapshots.length > 0) {
+            this.promptAction.showDialog({
+              title: '无法导出',
+              message: `当前镜像包含 ${snapshots.length} 个快照。\n\n导出镜像前需要先删除所有快照，否则导出的镜像可能无法正常使用。\n\n请前往"镜像管理"删除所有快照后再导出。`,
+              buttons: [
+                { text: '我知道了', color: '#007DFF' }
+              ]
+            })
+            return
+          }
+        } catch (e) {
+          hilog.error(0x0000, 'EmulatorListGrid', '检查快照失败: %{public}s', JSON.stringify(e))
+          // 检查失败时仍允许导出，但给出警告
+        }
+        
         this.selectedId = item.id
         this.rootfsNameController.open()
       },
       onPowerManage: (item) => {
         this.openPowerManageDialog()
+      },
+      onImageManage: (item) => {
+        this.openImageManageDialog(item)
       }
     }).onClick(() => {
       this.onEditEmulator(emulator, false)
@@ -344,9 +372,32 @@ export default struct EmulatorListGrid {
     this.powerManagementController.open()
   }
 
+  openImageManageDialog(emulator: Emulator) {
+    this.selectedEmulatorForImage = emulator
+    this.imageManagementController = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: '镜像管理',
+        contentBuilder: () => {
+          this.buildImageManagement()
+        }
+      })
+    })
+    this.imageManagementController.open()
+  }
+
   @Builder
   buildPowerManagement() {
     PowerManagementContent()
+  }
+
+  @Builder
+  buildImageManagement() {
+    if (this.selectedEmulatorForImage) {
+      ImageManagementContent({ 
+        emulator: this.selectedEmulatorForImage,
+        isVmRunning: this.selectedEmulatorForImage.id === this.currentRunning
+      })
+    }
   }
 
   onEmulatorsChange() {

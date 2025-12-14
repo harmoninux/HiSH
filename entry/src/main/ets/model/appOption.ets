@@ -27,6 +27,9 @@ class appOption {
   static lastResourceVersion = 'lastResourceVersion';
   static runningInBackground = 'runningInBackground';
   static isPowerManagementOpen = 'isPowerManagementOpen';
+  // qemu-img 后台任务状态
+  static qemuImgTaskRunning = 'qemuImgTaskRunning';
+  static qemuImgTaskDescription = 'qemuImgTaskDescription';
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

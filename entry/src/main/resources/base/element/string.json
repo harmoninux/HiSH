@@ -279,6 +279,58 @@
     {
       "name": "user_guide",
       "value": "User guide"
+    },
+    {
+      "name": "image_management",
+      "value": "Image Management"
+    },
+    {
+      "name": "image_name",
+      "value": "Image Name"
+    },
+    {
+      "name": "image_path",
+      "value": "Image Path"
+    },
+    {
+      "name": "virtual_size",
+      "value": "Virtual Size"
+    },
+    {
+      "name": "disk_size",
+      "value": "Disk Size"
+    },
+    {
+      "name": "view_details",
+      "value": "View Details"
+    },
+    {
+      "name": "image_details",
+      "value": "Image Details"
+    },
+    {
+      "name": "space_usage",
+      "value": "Space Usage"
+    },
+    {
+      "name": "snapshot_management",
+      "value": "Snapshot Management"
+    },
+    {
+      "name": "create_snapshot",
+      "value": "Create Snapshot"
+    },
+    {
+      "name": "optimize_image",
+      "value": "Optimize Image"
+    },
+    {
+      "name": "vm_shutdown_required",
+      "value": "VM must be shut down for this operation"
+    },
+    {
+      "name": "restart_app_required",
+      "value": "Please restart the app and try again"
     }
   ]
 }

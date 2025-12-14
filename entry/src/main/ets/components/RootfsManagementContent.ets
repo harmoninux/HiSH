@@ -9,11 +9,25 @@ import { util } from "@kit.ArkTS";
 import copyFile from "../lib/copyFile";
 import { fileIo as fs } from '@kit.CoreFileKit'
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
+import napi from 'libentry.so';
 
 interface RootfsItem {
   model: RootFilesystem
   fileSize: string
   virtualSize: string
+}
+
+interface DetailInfo {
+  fileFormat: string
+  virtualSize: number
+  diskSize: number
+  clusterSize?: number
+  lazyRefcounts?: boolean
+  extendedL2?: boolean
+  compressionType?: string
+  compat?: string
+  refcountBits?: number
+  corrupt?: boolean
 }
 
 @Component
@@ -24,8 +38,10 @@ export default struct RootfsManagementContent {
   @State tempSrcUri?: string = undefined
   @Prop specifiedBreak?: string = undefined
   @Prop toolBar: boolean = true
+  @State detailInfo?: DetailInfo = undefined
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   actionAfterNameInput: () => Promise<void> = (): Promise<void> => this.createNewRootfs()
+  
   rootfsNameController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: '镜像名称',
@@ -43,6 +59,22 @@ export default struct RootfsManagementContent {
     builder: LoadingDialog({
       content: '正在导出文件',
     }),
+  })
+  detailDialogController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '镜像详情',
+      contentBuilder: () => {
+        this.buildDetailContent()
+      },
+      buttons: [{
+        value: '关闭',
+        action: () => {
+          this.detailDialogController.close()
+        }
+      }]
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center
   })
   promptAction = this.getUIContext().getPromptAction()
 
@@ -62,6 +94,9 @@ export default struct RootfsManagementContent {
       },
       onExport: (item) => {
         this.exportRootFilesystem(item)
+      },
+      onShowInfo: (item) => {
+        this.showDiskInfo(item)
       }
     })
   }
@@ -129,18 +164,96 @@ export default struct RootfsManagementContent {
         })
     }
   }
+  
+  @Builder
+  buildDetailContent() {
+    if (this.detailInfo) {
+      Scroll() {
+        Column() {
+          // 文件格式
+          this.buildDetailRow('文件格式', this.detailInfo.fileFormat)
+          Divider().color($r('sys.color.ohos_id_color_list_separator'))
+
+          // 虚拟大小
+          this.buildDetailRow('虚拟大小', this.formatSize(this.detailInfo.virtualSize))
+          Divider().color($r('sys.color.ohos_id_color_list_separator'))
+
+          // 实际占用
+          this.buildDetailRow('实际占用', this.formatSize(this.detailInfo.diskSize))
+          Divider().color($r('sys.color.ohos_id_color_list_separator'))
+
+          // 簇大小
+          if (this.detailInfo.clusterSize) {
+            this.buildDetailRow('簇大小', this.formatSize(this.detailInfo.clusterSize))
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // 兼容版本
+          if (this.detailInfo.compat) {
+            this.buildDetailRow('兼容版本', this.detailInfo.compat)
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // Lazy Refcounts
+          if (this.detailInfo.lazyRefcounts !== undefined) {
+            this.buildDetailRow('延迟引用计数', this.detailInfo.lazyRefcounts ? '启用' : '禁用')
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // Extended L2
+          if (this.detailInfo.extendedL2 !== undefined) {
+            this.buildDetailRow('扩展L2表', this.detailInfo.extendedL2 ? '启用' : '禁用')
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // Refcount Bits
+          if (this.detailInfo.refcountBits) {
+            this.buildDetailRow('引用计数位数', this.detailInfo.refcountBits.toString())
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // 镜像状态
+          if (this.detailInfo.corrupt !== undefined) {
+            this.buildDetailRow('镜像状态', this.detailInfo.corrupt ? '已损坏' : '正常')
+          }
+        }
+        .width('100%')
+        .padding(16)
+      }
+      .width('100%')
+      .constraintSize({ maxHeight: 400 })
+    } else {
+      Text('无详细信息')
+        .fontSize(12)
+        .fontColor($r('sys.color.ohos_id_color_text_secondary'))
+        .padding(16)
+    }
+  }
+  
+  @Builder
+  buildDetailRow(label: string, value: string) {
+    Row() {
+      Text(label)
+        .fontSize(12)
+        .fontColor($r('sys.color.ohos_id_color_text_secondary'))
+        .width(100)
+      Text(value)
+        .fontSize(12)
+        .fontColor($r('sys.color.ohos_id_color_text_primary'))
+        .layoutWeight(1)
+    }
+    .width('100%')
+    .padding({ top: 8, bottom: 8 })
+  }
 
   validateRootfsName(): boolean {
-
     const name = this.tempRootfsName.trim();
     if (name.length <= 0) {
       return false
     }
-
     if (this.roots.findIndex(it => it.name === name) >= 0) {
       return false
     }
-
     return true
   }
 
@@ -190,33 +303,24 @@ export default struct RootfsManagementContent {
   }
 
   async deleteRootFilesystemItem(item: RootFilesystem) {
-
     const path = item.path
-
     const i = this.roots.findIndex(it => it.id === item.id)
     this.roots.splice(i, 1)
-
     await this.saveRootFilesystems()
     await fs.unlinkSync(path)
   }
 
   async exportRootFilesystem(item: RootFilesystem) {
-
     let context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [item.name + '.qcow2'];
-
     const savePicker = new picker.DocumentViewPicker(context)
     const uris = await savePicker.save(options)
-
     if (uris.length == 0) {
       return
     }
-
     const src = item.path
     const destUri = uris[0]
-
     this.exportProgress.open()
     try {
       await copyFile(src, destUri)
@@ -225,80 +329,112 @@ export default struct RootfsManagementContent {
     }
   }
 
-  private async createNewRootfs() {
+  /**
+   * 显示磁盘信息
+   */
+  private showDiskInfo(item: RootFilesystem): void {
+    try {
+      const result = napi.getImageInfo(item.path)
+      const info = JSON.parse(result) as Record<string, Object>
+      
+      if (info['error']) {
+        this.promptAction.showDialog({
+          title: '获取磁盘信息失败',
+          message: info['error'] as string,
+          buttons: [{ text: '确定', color: '#007DFF' }]
+        })
+        return
+      }
+      
+      // 提取详细信息
+      const formatSpecific = info['format-specific'] as Record<string, Object> | undefined
+      const qcow2Data = formatSpecific?.['data'] as Record<string, Object> | undefined
+      
+      this.detailInfo = {
+        fileFormat: info['format'] as string || 'unknown',
+        virtualSize: info['virtual-size'] as number || 0,
+        diskSize: info['actual-size'] as number || 0,
+        clusterSize: info['cluster-size'] as number,
+        lazyRefcounts: qcow2Data?.['lazy-refcounts'] as boolean,
+        extendedL2: qcow2Data?.['extended-l2'] as boolean,
+        compressionType: qcow2Data?.['compression-type'] as string,
+        compat: qcow2Data?.['compat'] as string,
+        refcountBits: qcow2Data?.['refcount-bits'] as number,
+        corrupt: qcow2Data?.['corrupt'] as boolean
+      }
+      
+      // 打开详情对话框
+      this.detailDialogController.open()
+    } catch (e) {
+      this.promptAction.showToast({
+        message: '获取磁盘信息失败',
+        duration: 2000
+      })
+    }
+  }
 
+  private formatSize(bytes: number): string {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    const size = bytes / Math.pow(k, i)
+    return `${size.toFixed(2)} ${units[i]}`
+  }
+
+  private async createNewRootfs() {
     const uri = this.tempSrcUri!!
     const name = this.tempRootfsName.trim()
     const id = util.generateRandomUUID()
-
     const rootfsBaseDir = AppStorage.get(appOption.rootfsBaseDir) as string
     const target = rootfsBaseDir + '/' + id + uri.substring(uri.lastIndexOf('.'))
-
     this.importProgress.open()
     try {
       await copyFile(uri, target)
-
       this.roots.push({ id, name, path: target })
-
       await this.saveRootFilesystems();
     } finally {
       this.importProgress.close()
     }
-
     this.rootfsNameController.close()
   }
 
   private async updateRootfsName(item: RootFilesystem) {
-
     const name = this.tempRootfsName.trim()
-
     const i = this.roots.findIndex(it => it.id === item.id)
-
     const updated: RootFilesystem = { id: item.id, name, path: item.path }
     this.roots[i] = updated
-
     await this.saveRootFilesystems()
-
     this.rootfsNameController.close()
   }
 
   private async saveRootFilesystems() {
-
     const roots = this.roots
-
     const appContext = this.getUIContext().getHostContext()!!.getApplicationContext();
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
     await appPref.put(appOption.rootFilesystems, JSON.stringify(roots));
     await appPref.flush();
-
     this.syncRootfsViewItems()
   }
 
   async importRootFilesystem() {
-
     let context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-
     let options = new picker.DocumentSelectOptions();
     options.maxSelectNumber = 1;
     options.fileSuffixFilters = ['qcow2']
-
     let documentPicker = new picker.DocumentViewPicker(context);
     let uris = await documentPicker.select(options);
-
     if (uris.length == 0) {
       return
     }
-
     this.tempSrcUri = uris[0]
     this.tempRootfsName = ''
-
     this.actionAfterNameInput = (): Promise<void> => this.createNewRootfs()
     this.rootfsNameController.open()
   }
 
   syncRootfsViewItems() {
     this.rootfsItems.splice(0, this.rootfsItems.length)
-
     setTimeout(() => {
       for (let i = 0; i < this.roots.length; i++) {
         const it = this.roots[i]
@@ -324,6 +460,7 @@ struct RootFilesystemItem {
   @Require onEdit: (item: RootFilesystem) => void
   @Require onDelete: (item: RootFilesystem) => void
   @Require onExport: (item: RootFilesystem) => void
+  @Require onShowInfo: (item: RootFilesystem) => void
   @State storageSize: number = 0
 
   aboutToAppear(): void {
@@ -382,6 +519,10 @@ struct RootFilesystemItem {
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.value.model))
+        Button('详情', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
+          .onClick(() => this.onShowInfo(this.value.model))
         Button('导出', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))

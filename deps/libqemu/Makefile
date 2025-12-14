@@ -27,15 +27,17 @@ all: download/qemu
 	 --disable-bzip2 --disable-cap-ng --disable-curl --disable-glusterfs --disable-gnutls --disable-nettle --disable-gtk --disable-rdma --disable-libiscsi \
 	 --disable-vnc-jpeg --disable-lzo --disable-curses --disable-libnfs --disable-numa --disable-opengl --disable-rbd --disable-vnc-sasl --disable-sdl \
 	 --disable-seccomp --disable-smartcard --disable-snappy --disable-spice --disable-libusb --disable-usb-redir --disable-vde --disable-vhost-net --disable-virglrenderer \
-	 --disable-vnc --disable-vte --disable-xen-pci-passthrough --disable-tools --disable-libudev --disable-passt \
+	 --disable-vnc --disable-vte --disable-xen-pci-passthrough --enable-tools --disable-libudev --disable-passt \
 	 --enable-slirp --enable-virtfs
 	cd temp/qemu && make libqemu-system-aarch64.so -j $(shell nproc)
+	cd temp/qemu && make libqemu-img.so -j $(shell nproc)
 	cp temp/qemu/pc-bios/efi-virtio.rom ./build
 	cp temp/qemu/build/libqemu-system-aarch64.so ./build
+	cp temp/qemu/build/libqemu-img.so ./build
 	cp temp/qemu/build/subprojects/slirp/libslirp.so.0.4.0 ./build/libslirp.so.0
 	mkdir -p ../output
 	cp -rv ./build/* ../output
 
 download/qemu:
 	mkdir -p download
-	cd download && git clone -b libqemu-ohos --depth=100 https://github.com/hackeris/harmony-qemu qemu
+	cd download && git clone -b libqemu-ohos-dev --depth=1 https://github.com/hackeris/harmony-qemu qemu

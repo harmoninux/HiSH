@@ -14,6 +14,7 @@ export default struct EmulatorItem {
   @Require onSetDefault: (item: Emulator) => void
   @Require onStart: (item: Emulator) => void
   @Require onPowerManage: (item: Emulator) => void
+  @Require onImageManage: (item: Emulator) => void
   @StorageProp(appOption.currentEmulatorStatus) currentStatus: string = 'RUNNING'
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
@@ -42,12 +43,21 @@ export default struct EmulatorItem {
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onPowerManage(this.emulator))
             .height(20)
+          Button('镜像管理', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => this.onImageManage(this.emulator))
+            .height(20)
         } else {
           Button('运行', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onStart(this.emulator))
             .height(20)
+          Button('镜像管理', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => this.onImageManage(this.emulator))
+            .height(20)
         }
+
       }
       .padding({
         left: 5,
