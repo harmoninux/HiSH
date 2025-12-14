@@ -732,14 +732,6 @@ static void call_on_data_callback(napi_env env, napi_value js_callback, void *co
     delete buffer;
 }
 
-static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void *context, void *data) {
-
-    napi_value global;
-    napi_get_global(env, &global);
-
-    napi_call_function(env, global, js_callback, 0, nullptr, nullptr);
-}
-
 std::string convert_to_hex(const uint8_t *buffer, int r) {
     std::string hex;
     for (int i = 0; i < r; i++) {

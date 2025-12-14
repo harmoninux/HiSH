@@ -225,7 +225,7 @@ export default struct WebTerminal {
     // QEMU 退出后只记录日志，不自动关闭应用
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    await context?.terminateSelf()
+    context?.terminateSelf()
   }
 
   getFontSize(): number | null {
