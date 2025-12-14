@@ -484,6 +484,9 @@ static napi_value checkPortUsed(napi_env env, napi_callback_info info) {
     if (sock < 0) {
         return bool_from_int(env, 1);
     }
+    
+    int v = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
 
     // Prepare sockaddr_in for binding to INADDR_ANY:port
     struct sockaddr_in sa;

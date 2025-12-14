@@ -75,7 +75,7 @@ struct PcIndex {
         Row() {
           Image($r('app.media.startIcon'))
             .width(20)
-          Text($r('app.string.app_name'))
+          Text($r('app.string.EntryAbility_label'))
             .margin({ left: 10 })
         }
 

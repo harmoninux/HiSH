@@ -1,6 +1,6 @@
 # HiSH
 
-[Gitee](https://gitee.com/hackeris/HiSH) | [中文](README.md)
+[GitHub](https://github.com/harmoninux/HiSH) | [GitCode](https://gitcode.com/realhackeris/HiSH) | [Gitee](https://gitee.com/hackeris/HiSH) | [中文](README.md)
 
 Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com/hackeris/harmony-qemu), both 2in1(PC), Tablet and Phone are supported.
 
@@ -10,9 +10,9 @@ Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com
 
 You can try one of following methods to get HiSH:
 
-- Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster).
-- Install from [Invite Test of AppGallery](https://appgallery.huawei.com/link/invite-test-wap?taskId=3c72d01b2acd729077d5a60e1c950e54&invitationCode=JvskBvD1Ox)
-- Build from source code in DevEco Studio, see [Build HAP](#build-hap)
+- Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster)
+- Install from [AppGallery](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish) (JIT not supported, run slower)
+- Build from source code in DevEco Studio, see [Build HAP](#build-hap) (JIT suported, runs faster)
 
 ## Core Features
 
@@ -22,7 +22,7 @@ You can try one of following methods to get HiSH:
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
 - Shared Folder
 - JIT (Only available for developer)
-- Image import（[Debian12](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
+- Image import（[Ubuntu24.04](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251205/ubuntu2404.zip) / [Debian12](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
 
 # How to build
 
@@ -38,7 +38,7 @@ You can try one of following methods to get HiSH:
 - Download files and move to corresponding location as following (Notice: you should rename files as links)
   - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251205/tcg.arm64.libqemu-system-aarch64.so)
   - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251205/tcg.x86_64.libqemu-system-aarch64.so)
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251205/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251208/kernel_aarch64)
   - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/alpine-20251205/rootfs_aarch64.qcow2)
 - Build project in DevEco Studio
 - Sign and run in your device or emulator

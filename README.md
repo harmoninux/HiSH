@@ -1,6 +1,6 @@
 # HiSH
 
-[Gitee](https://gitee.com/hackeris/HiSH) | [English](README_EN.md)
+[GitHub](https://github.com/harmoninux/HiSH) | [GitCode](https://gitcode.com/realhackeris/HiSH) | [Gitee](https://gitee.com/hackeris/HiSH) | [English](README_EN.md)
 
 在HarmonyOS设备上运行Linux Shell。基于[harmony-qemu](https://github.com/hackeris/harmony-qemu)，支持2in1(PC)、平板和手机。
 
@@ -11,8 +11,8 @@
 可以选择下面任一方法获取HiSH：
 
 - 从[Releases](https://github.com/harmoninux/HiSH/releases)下载hap文件，自行签名后安装到设备或模拟器（支持JIT，运行效率更高）
-- 通过[内测邀请链接](https://appgallery.huawei.com/link/invite-test-wap?taskId=3c72d01b2acd729077d5a60e1c950e54&invitationCode=JvskBvD1Ox)安装。
-- 使用DevEco Studio编译源码，参考 [构建HAP](#构建hap)
+- 通过[应用市场](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish)安装（不支持JIT，运行效率一般）
+- 使用DevEco Studio编译源码，参考 [构建HAP](#构建hap)（支持JIT，运行效率更高）
 
 ## 核心功能
 
@@ -22,7 +22,7 @@
 - 虚拟按键（Tab/Ctrl/Esc/方向键）
 - 共享文件夹
 - JIT（仅开发者可用）
-- 镜像导入（[Debian12镜像](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
+- 镜像导入（[Ubuntu24.04镜像](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251205/ubuntu2404.zip) / [Debian12镜像](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
 
 ## 使用指南
 
@@ -48,7 +48,7 @@
 * 下载以下文件到指定位置（注意，需要按链接的路径修改文件名）：
   - [entry/libs/arm64-v8a/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251205/tcg.arm64.libqemu-system-aarch64.so)
   - [entry/libs/x86_64/libqemu-system-aarch64.so](https://github.com/harmoninux/qemu/releases/download/hish-20251205/tcg.x86_64.libqemu-system-aarch64.so)
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251205/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251208/kernel_aarch64)
   - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/alpine-20251205/rootfs_aarch64.qcow2)
 * 在DevEco Studio中构建项目
 * 签名后在设备或模拟器上运行
