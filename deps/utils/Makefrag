@@ -12,6 +12,11 @@ else
 export CC := $(OHOS_SDK_HOME)/native/llvm/bin/$(OHOS_ARCH)-unknown-linux-ohos-clang
 export CXX := $(OHOS_SDK_HOME)/native/llvm/bin/$(OHOS_ARCH)-unknown-linux-ohos-clang++
 endif
+ifeq ($(OHOS_ARCH), aarch64)
+export ARCH_FLAGS := -march=armv8.5-a+crc+crypto+lse+sve+fp16+rcpc+dotprod+sm4+sha3+bf16+i8mm
+else
+export ARCH_FLAGS := 
+endif
 export LD := $(OHOS_SDK_HOME)/native/llvm/bin/ld.lld
 export AR := $(OHOS_SDK_HOME)/native/llvm/bin/llvm-ar
 export RANLIB := $(OHOS_SDK_HOME)/native/llvm/bin/llvm-ranlib
@@ -19,9 +24,9 @@ export OBJCOPY := $(OHOS_SDK_HOME)/native/llvm/bin/llvm-objcopy
 export OBJDUMP := $(OHOS_SDK_HOME)/native/llvm/bin/llvm-objdump
 export READELF := $(OHOS_SDK_HOME)/native/llvm/bin/llvm-readelf
 export STRIP := $(OHOS_SDK_HOME)/native/llvm/bin/llvm-strip
-export CFLAGS := -I$(shell pwd)/../buildroot/include -Wno-int-conversion -O2
-export CXXFLAGS := -I$(shell pwd)/../buildroot/include -O2
-export LDFLAGS := -L$(shell pwd)/../buildroot/lib
+export CFLAGS := -I$(shell pwd)/../buildroot/include -Wno-int-conversion -O3 -flto -funroll-loops -fno-semantic-interposition -fno-plt -fno-math-errno -falign-functions=64 -falign-loops=32 -fno-common -fno-stack-protector -fno-asynchronous-unwind-tables $(ARCH_FLAGS)
+export CXXFLAGS := -I$(shell pwd)/../buildroot/include -O3 -flto -funroll-loops -fno-semantic-interposition -fno-plt -fno-math-errno -falign-functions=64 -falign-loops=32 -fno-common -fno-stack-protector -fno-asynchronous-unwind-tables $(ARCH_FLAGS)
+export LDFLAGS := -L$(shell pwd)/../buildroot/lib -flto -Wl,-Bsymbolic -Wl,--gc-sections
 export PREFIX := /data/app/harmonix.org/harmonix_1.0
 
 # default GNU mirror, allow to override
