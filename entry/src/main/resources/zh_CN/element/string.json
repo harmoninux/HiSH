@@ -279,6 +279,10 @@
     {
       "name": "user_guide",
       "value": "使用指南"
+    },
+    {
+      "name": "edit_emulator_saving",
+      "value": "正在保存"
     }
   ]
 }

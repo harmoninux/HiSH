@@ -60,16 +60,19 @@ export struct SharedFolderContent {
     builder: LoadingDialog({
       content: $r('app.string.importing_file_to_shared_folder'),
     }),
+    autoCancel: false
   })
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.exporting_file_to_shared_folder'),
     }),
+    autoCancel: false
   })
   deletingProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: '正在删除',
     }),
+    autoCancel: false
   })
   createFolderController = new CustomDialogController({
     builder: CustomContentDialog({
@@ -486,7 +489,8 @@ export struct SharedFolderContent {
         const progress = new CustomDialogController({
           builder: LoadingDialog({
             content: title,
-          })
+          }),
+          autoCancel: false
         })
         progress.open()
 

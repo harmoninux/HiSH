@@ -38,11 +38,13 @@ export default struct RootfsManagementContent {
     builder: LoadingDialog({
       content: '正在导入文件',
     }),
+    autoCancel: false
   })
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: '正在导出文件',
     }),
+    autoCancel: false
   })
   promptAction = this.getUIContext().getPromptAction()
 

@@ -45,11 +45,13 @@ export default struct EmulatorListGrid {
     builder: LoadingDialog({
       content: '正在复制',
     }),
+    autoCancel: false
   })
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: '正在导出',
     }),
+    autoCancel: false
   })
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   promptAction = this.getUIContext().getPromptAction()
