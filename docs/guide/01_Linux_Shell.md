@@ -15,6 +15,14 @@ Linux Shell 是 HiSH 提供的核心功能，在 App 启动后，首屏所在的
 
 图中，左测虚拟按键分别为：Tab、Ctrl、Esc，其中 Ctrl 按下后会自动保持，直到用户按下其它键形成组合键后自动释放；右侧虚拟按键为方向键。
 
+## 屏幕适配
+
+HiSH启动成功后，会触发终端主动适配当前屏幕的宽度。
+
+当窗口或屏幕的尺寸发生变化时，例如屏幕旋转、窗口大小调整、弹出或收起软键盘等，需要使用`resize`命令手动触发Linux终端重新适配屏幕大小。
+
+<img src="images/01_003.png" width="400">
+
 ## Alpine Linux
 
 HiSH 内置的 Linux 为 Alpine Linux 发行版，该发行围绕 musl libc 和 busybox 构建。这使得它比传统的 GNU/Linux 发行版更小，更节省资源。

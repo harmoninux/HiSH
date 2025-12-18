@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="zh-CN">
 <head>
@@ -990,9 +989,16 @@
     <h2>虚拟按键</h2>
     <p>在 Linux Shell 下方，HiSH 提供了常见的“虚拟按键”，以便于在移动端（手机、平板）上使用，如下所示：</p>
     <img src="images/01_002.png" width="400">
-    <p>图中，左测虚拟按键分别为：Tab、Ctrl、Esc，其中 Ctrl 按下后会自动保持，直到用户按下其它键形成组合键后自动释放；右侧虚拟按键为方向键。</p>
+    <p>图中，左测虚拟按键分别为：Tab、Ctrl、Esc，其中 Ctrl
+        按下后会自动保持，直到用户按下其它键形成组合键后自动释放；右侧虚拟按键为方向键。</p>
+    <h2>屏幕适配</h2>
+    <p>HiSH启动成功后，会触发终端主动适配当前屏幕的宽度。</p>
+    <p>当窗口或屏幕的尺寸发生变化时，例如屏幕旋转、窗口大小调整、弹出或收起软键盘等，需要使用<code>resize</code>命令手动触发Linux终端重新适配屏幕大小。
+    </p>
+    <img src="images/01_003.png" width="400">
     <h2>Alpine Linux</h2>
-    <p>HiSH 内置的 Linux 为 Alpine Linux 发行版，该发行围绕 musl libc 和 busybox 构建。这使得它比传统的 GNU/Linux 发行版更小，更节省资源。</p>
+    <p>HiSH 内置的 Linux 为 Alpine Linux 发行版，该发行围绕 musl libc 和 busybox 构建。这使得它比传统的 GNU/Linux
+        发行版更小，更节省资源。</p>
     <p>尽管体积很小，Alpine Linux 还是提供了完整的 Linux 环境，其存储库中还包含了大量的软件包。</p>
     <p>Alpine Linux 采用 apk 包管理器，关于 apk 包管理器，可以参考“包管理器”相关内容。</p>
     <p>Alpine Linux 采用 OpenRC 进行服务管理，关于 OpenRC，可以参考“OpenRC”相关内容。</p>
