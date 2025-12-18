@@ -41,8 +41,8 @@
       "value": "About me"
     },
     {
-      "name": "setting_block_about",
-      "value": "About"
+      "name": "setting_block_help",
+      "value": "Help"
     },
     {
       "name": "setting_block_system",
@@ -283,6 +283,14 @@
     {
       "name": "edit_emulator_saving",
       "value": "Saving"
+    },
+    {
+      "name": "fast_code_jit",
+      "value": "Accelerate"
+    },
+    {
+      "name": "like_this_app",
+      "value": "I like HiSH"
     }
   ]
 }
