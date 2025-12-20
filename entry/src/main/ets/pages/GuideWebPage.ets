@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb'
 import { ComposeTitleBar } from '@kit.ArkUI'
+import { common, Want } from '@kit.AbilityKit'
 
 @Entry
 @Component
@@ -40,11 +41,29 @@ struct GuideWebPage {
         .width('100%')
         .layoutWeight(1)
         .backgroundColor($r('sys.color.black'))
+        .onOverrideUrlLoading((r: WebResourceRequest) => {
+          const url = r.getRequestUrl()
+          this.toWebBrowser(url)
+          return true
+        })
     }
     .height('100%')
   }
 
   setTitle(title: string) {
     this.title = title
+  }
+
+  private async toWebBrowser(url: string): Promise<void> {
+    let context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    let want: Want = {
+      action: 'ohos.want.action.viewData',
+      entities: ['entity.system.browsable'],
+      uri: url,
+      parameters: {
+        bundleName: context.abilityInfo.bundleName
+      }
+    };
+    await context.startAbility(want);
   }
 }

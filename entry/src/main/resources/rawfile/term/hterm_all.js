@@ -13887,8 +13887,9 @@ hterm.ScrollPort.prototype.onTouch_ = function(e) {
     }
   }
 
-  // To disable gestures or anything else interfering with our scrolling.
-  e.preventDefault();
+  // Do not call e.preventDefault(), enabling text selection for devices with touch screen
+  // // To disable gestures or anything else interfering with our scrolling.
+  // e.preventDefault();
 };
 
 /**

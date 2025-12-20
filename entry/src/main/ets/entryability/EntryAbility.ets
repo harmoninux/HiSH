@@ -1,11 +1,10 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want, bundleManager } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window, KeyboardAvoidMode, PromptAction, UIContext } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
-import bundleManager from '@ohos.bundle.bundleManager';
 import napi from 'libentry.so';
 import appOption, { CursorShape } from '../model/appOption'
 import { startVm } from '../lib/startVm';
@@ -292,7 +291,7 @@ export default class EntryAbility extends UIAbility {
     } else if (deviceInfo.deviceType === 'tablet') {
       return 13;
     }
-    return 15;
+    return 14;
   }
 
   private promptPortUsedMessage(uiContext: UIContext, portSkipped: number[]) {

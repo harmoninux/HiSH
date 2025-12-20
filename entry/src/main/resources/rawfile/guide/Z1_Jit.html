@@ -981,27 +981,23 @@
 </head>
 <body>
 <div class="markdown-body">
-    <h1>Linux Shell</h1>
-    <p>Linux Shell 是 HiSH 提供的核心功能，在 App 启动后，首屏所在的页面就是 Linux Shell。在 App 启动后，Linux Shell
-        大概在数3-5秒左右初始化完成，进入可用状态。如下：</p>
-    <img src="images/01_001.png" width="400">
-    <p>您可以直接通过软键盘输入 Linux 命令，并按下“回车”或者“换行”执行。</p>
-    <h2>虚拟按键</h2>
-    <p>在 Linux Shell 下方，HiSH 提供了常见的“虚拟按键”，以便于在移动端（手机、平板）上使用，如下所示：</p>
-    <img src="images/01_002.png" width="400">
-    <p>图中，左测虚拟按键分别为：Tab、Ctrl、Esc，其中 Ctrl
-        按下后会自动保持，直到用户按下其它键形成组合键后自动释放；右侧虚拟按键为方向键。</p>
-    <h2>屏幕适配</h2>
-    <p>HiSH启动成功后，会触发终端主动适配当前屏幕的宽度。</p>
-    <p>当窗口或屏幕的尺寸发生变化时，例如屏幕旋转、窗口大小调整、弹出或收起软键盘等，需要使用<code>resize</code>命令手动触发Linux终端重新适配屏幕大小。
-    </p>
-    <img src="images/01_003.png" width="400">
-    <h2>Alpine Linux</h2>
-    <p>HiSH 内置的 Linux 为 Alpine Linux 发行版，该发行围绕 musl libc 和 busybox 构建。这使得它比传统的 GNU/Linux
-        发行版更小，更节省资源。</p>
-    <p>尽管体积很小，Alpine Linux 还是提供了完整的 Linux 环境，其存储库中还包含了大量的软件包。</p>
-    <p>Alpine Linux 采用 apk 包管理器，关于 apk 包管理器，可以参考“包管理器”相关内容。</p>
-    <p>Alpine Linux 采用 OpenRC 进行服务管理，关于 OpenRC，可以参考“OpenRC”相关内容。</p>
+    <h1>运行加速</h1>
+    <p>此版本HiSH默认使用“解释执行”的方式运行代码，运行效率受限。为实现更高的运行效率，HiSH提供了针对开发者的“开发版”，该版本中提供了JIT加速，相比解释执行，性能可提升5-6倍甚至更高。</p>
+    <p>开发版可以通过以下两种途径获取：</p>
+    <h2>源码</h2>
+    <p>从 开源仓库 获取源码，使用DevEco Studio编译、构建HiSH，并在开发者模式下安装到设备中。见：</p>
+    <ul>
+        <li>GitHub：<a href="https://github.com/harmoninux/HiSH">https://github.com/harmoninux/HiSH</a></li>
+        <li>GitCode：<a href="https://gitcode.com/realhackeris/HiSH">https://gitcode.com/realhackeris/HiSH</a></li>
+        <li>Gitee：<a href="https://gitee.com/hackeris/HiSH">https://gitee.com/hackeris/HiSH</a></li>
+    </ul>
+    <h2>hap包</h2>
+    <p>从开源仓库的“Release页面”下载hap文件，在开发者模式下签名、安装。见：</p>
+    <ul>
+        <li>GitHub：<a href="https://github.com/harmoninux/HiSH/releases">https://github.com/harmoninux/HiSH/releases</a></li>
+        <li>GitCode：<a href="https://gitcode.com/realhackeris/HiSH/releases">https://gitcode.com/realhackeris/HiSH/releases</a></li>
+        <li>Gitee：<a href="https://gitee.com/hackeris/HiSH/releases">https://gitee.com/hackeris/HiSH/releases</a></li>
+    </ul>
 </div>
 </body>
 </html>

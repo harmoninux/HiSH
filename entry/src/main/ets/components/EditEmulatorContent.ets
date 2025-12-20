@@ -5,7 +5,7 @@ import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
 import { util } from "@kit.ArkTS"
 import appOption, { savePreference } from "../model/appOption"
-import { PromptAction } from "@kit.ArkUI"
+import { LoadingDialog, PromptAction } from "@kit.ArkUI"
 import copyFile from "../lib/copyFile"
 
 @Component
@@ -277,19 +277,32 @@ export default struct EditEmulatorContent {
   private async onEditFinished() {
     const error = this.validate()
     if (!error) {
-      if (this.isCreate) {
-        const roots = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
-        const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
-        const selected = roots.find(it => it.name === this.selectedRootfs)!!
-        const source = selected.path
-        const target = vmBaseDir + '/' + this.emulator.id + selected.path.substring(selected.path.lastIndexOf('.'))
-        await copyFile(source, target)
-        this.emulator.rootFilesystem = target
+
+      const progress = new CustomDialogController({
+        builder: LoadingDialog({
+          content: $r('app.string.edit_emulator_saving'),
+        }),
+        autoCancel: false
+      })
+
+      try {
+        progress.open()
+        if (this.isCreate) {
+          const roots = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
+          const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
+          const selected = roots.find(it => it.name === this.selectedRootfs)!!
+          const source = selected.path
+          const target = vmBaseDir + '/' + this.emulator.id + selected.path.substring(selected.path.lastIndexOf('.'))
+          await copyFile(source, target)
+          this.emulator.rootFilesystem = target
+        }
+
+        await this.saveEmulators()
+
+        this.onFinished(this.emulator)
+      } finally {
+        progress.close()
       }
-
-      await this.saveEmulators()
-
-      this.onFinished(this.emulator)
     } else {
       this.promptAction.showToast({
         message: error,

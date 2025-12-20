@@ -41,8 +41,8 @@
       "value": "关于"
     },
     {
-      "name": "setting_block_about",
-      "value": "关于"
+      "name": "setting_block_help",
+      "value": "帮助"
     },
     {
       "name": "setting_block_system",
@@ -279,6 +279,18 @@
     {
       "name": "user_guide",
       "value": "使用指南"
+    },
+    {
+      "name": "edit_emulator_saving",
+      "value": "正在保存"
+    },
+    {
+      "name": "fast_code_jit",
+      "value": "运行加速"
+    },
+    {
+      "name": "like_this_app",
+      "value": "评价HiSH"
     },
     {
       "name": "image_management",

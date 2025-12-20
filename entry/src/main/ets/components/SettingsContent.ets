@@ -1,5 +1,5 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
-import { bundleManager, common, Want } from '@kit.AbilityKit';
+import { common, Want, bundleManager } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
@@ -189,7 +189,7 @@ export default struct SettingsContent {
           }
           .attributeModifier(this.blockStyle)
 
-          BlockTitle({ content: $r('app.string.setting_block_about') })
+          BlockTitle({ content: $r('app.string.setting_block_help') })
           Column() {
 
             if (deviceInfo.deviceType !== '2in1') {
@@ -199,6 +199,30 @@ export default struct SettingsContent {
                 click: () => {
                   this.getUIContext().getRouter().pushUrl({
                     url: 'pages/UserGuidePage'
+                  })
+                }
+              })
+            }
+
+            if (!this.bundleInfo?.name.startsWith('dev.hackeris')) {
+              LinkItem({
+                icon: $r('sys.symbol.star'),
+                title: $r('app.string.like_this_app'),
+                click: () => {
+                  const want: Want = {
+                    uri: `store://appgallery.huawei.com/app/detail?id=${this.bundleInfo?.name}`
+                  };
+                  const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                  context.startAbility(want)
+                }
+              })
+              LinkItem({
+                icon: $r('sys.symbol.fast_forward'),
+                title: $r('app.string.fast_code_jit'),
+                click: () => {
+                  this.getUIContext().getRouter().pushUrl({
+                    url: 'pages/GuideWebPage',
+                    params: { page: 'guide/Z1_Jit.html', title: '运行加速' }
                   })
                 }
               })

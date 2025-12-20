@@ -7,8 +7,7 @@ import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
 import napi from 'libentry.so';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { Want } from '@kit.AbilityKit';
-import { bundleManager } from '@kit.MDMKit';
+import { Want, bundleManager } from '@kit.AbilityKit';
 import EmulatorItem from './EmulatorItem';
 import PowerManagementContent from './PowerManagementContent';
 import ImageManagementContent from './ImageManagementContent';
@@ -48,11 +47,13 @@ export default struct EmulatorListGrid {
     builder: LoadingDialog({
       content: '正在复制',
     }),
+    autoCancel: false
   })
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: '正在导出',
     }),
+    autoCancel: false
   })
   powerManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
