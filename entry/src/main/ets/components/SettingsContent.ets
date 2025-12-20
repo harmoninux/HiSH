@@ -1,5 +1,5 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
-import { bundleManager, common, Want } from '@kit.AbilityKit';
+import { common, Want, bundleManager } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';

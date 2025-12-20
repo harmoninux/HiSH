@@ -6,8 +6,7 @@ import appOption, { savePreference } from '../model/appOption';
 import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { Want } from '@kit.AbilityKit';
-import { bundleManager } from '@kit.MDMKit';
+import { Want, bundleManager } from '@kit.AbilityKit';
 import EmulatorItem from './EmulatorItem';
 
 @Component
