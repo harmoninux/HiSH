@@ -6,12 +6,15 @@ import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit'
 import appOption, { CursorShape } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 
 const DOMAIN = 0x0000;
 
 const VKeyMargin = 5;
 const VKeyPadding = 8;
 const VKeyHeight = 28;
+const VKeyWidth = 56;
+const VKeyRadius = 5;
 
 function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
   const buf = buffer.from(str, encoding);
@@ -64,6 +67,60 @@ export default struct WebTerminal {
     .width('160vp')
   }
 
+  @Builder
+  buildVKey(name: string, value: string) {
+    Button(name, { buttonStyle: ButtonStyleMode.TEXTUAL })
+      .height(VKeyHeight)
+      .width(VKeyWidth)
+      .borderRadius(VKeyRadius)
+      .fontColor($r('sys.color.white'))
+      .margin({ left: VKeyMargin })
+      .padding({ left: VKeyPadding, right: VKeyPadding })
+      .onClick(() => {
+        this.sendInput(value);
+      })
+  }
+
+  @Builder
+  toggleVKey(name: string, action: () => void) {
+    Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
+      Text(name).height(28).fontWeight(FontWeight.Medium)
+    }
+    .height(VKeyHeight)
+    .width(VKeyWidth)
+    .borderRadius(VKeyRadius)
+    .margin({ left: VKeyMargin })
+    .backgroundColor($r('sys.color.black'))
+    .selectedColor($r('sys.color.interactive_active'))
+    .onClick(() => action())
+  }
+
+  @Builder
+  settingsButton() {
+    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
+      Image($r('app.media.gearshape'))
+        .width(16)
+    }
+    .height(VKeyHeight)
+    .width(VKeyWidth)
+    .borderRadius(VKeyRadius)
+    .margin({ right: VKeyMargin })
+    .padding({ left: VKeyPadding, right: VKeyPadding })
+    .bindMenu([{
+      value: '模拟器管理',
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
+      action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
+    }, {
+      value: '共享文件夹',
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
+      action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SharedFolderPage' })
+    }, {
+      value: '设置',
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
+      action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
+    }])
+  }
+
   build() {
     Column() {
       Web({
@@ -95,60 +152,23 @@ export default struct WebTerminal {
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.showVirtKey) {
         Row() {
-          Button('Tab')
-            .height(VKeyHeight)
-            .margin({ left: VKeyMargin })
-            .padding({ left: VKeyPadding, right: VKeyPadding })
-            .onClick(() => {
-              this.sendInput('\t');
-            })
-          Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
-            Text('Ctrl')
-              .height(20)
-          }
-          .height(VKeyHeight)
-          .margin({ left: VKeyMargin })
-          .selectedColor($r('sys.color.interactive_active'))
-          .onClick(() => this.toggleCtrl())
-
-          Button('Esc')
-            .height(VKeyHeight)
-            .margin({ left: VKeyMargin })
-            .padding({ left: VKeyPadding, right: VKeyPadding })
-            .onClick(() => {
-              this.sendInput('\x1b');
-            })
+          this.toggleVKey('CTRL', () => this.toggleCtrl())
 
           Row().layoutWeight(1)
 
-          Button('↑')
-            .height(VKeyHeight)
-            .margin({ right: VKeyMargin })
-            .padding({ left: VKeyPadding, right: VKeyPadding })
-            .onClick(() => {
-              this.sendInput('\x1b[A');
-            })
-          Button('↓')
-            .height(VKeyHeight)
-            .margin({ right: VKeyMargin })
-            .padding({ left: VKeyPadding, right: VKeyPadding })
-            .onClick(() => {
-              this.sendInput('\x1b[B');
-            })
-          Button('←')
-            .height(VKeyHeight)
-            .margin({ right: VKeyMargin })
-            .padding({ left: VKeyPadding, right: VKeyPadding })
-            .onClick(() => {
-              this.sendInput('\x1b[D');
-            })
-          Button('→')
-            .height(VKeyHeight)
-            .margin({ right: VKeyMargin })
-            .padding({ left: VKeyPadding, right: VKeyPadding })
-            .onClick(() => {
-              this.sendInput('\x1b[C');
-            })
+          this.buildVKey('↑', '\x1b[A')
+          this.settingsButton()
+        }
+        .margin({ left: 5, right: 5 })
+        Row() {
+          this.buildVKey('TAB', '\t')
+          this.buildVKey('ESC', '\x1b')
+
+          Row().layoutWeight(1)
+
+          this.buildVKey('←', '\x1b[D')
+          this.buildVKey('↓', '\x1b[B')
+          this.buildVKey('→', '\x1b[C')
         }
         .margin({ left: 5, right: 5 })
       }
@@ -156,7 +176,7 @@ export default struct WebTerminal {
     .height('100%')
   }
 
-  private toggleCtrl() {
+  private toggleCtrl(): void {
     this.ctrlPressed = !this.ctrlPressed;
     this.webviewController.runJavaScript('exports.setCtrlPressed(' + this.ctrlPressed + ')')
   }

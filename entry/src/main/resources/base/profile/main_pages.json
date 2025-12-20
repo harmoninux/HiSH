@@ -3,6 +3,7 @@
     "pages/Index",
     "pages/SettingsPage",
     "pages/EditEmulator",
+    "pages/EmulatorManagementPage",
     "pages/RootfsManagement",
     "pages/SharedFolderPage",
     "pages/UserGuidePage",

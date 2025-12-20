@@ -5,7 +5,7 @@ import EmulatorListGrid from './EmulatorListGrid';
 import { CustomContentDialog } from '@kit.ArkUI';
 
 @Component
-export default struct EmulatorManagement {
+export default struct EmulatorManagementContent {
   build() {
     Column() {
       Row() {
