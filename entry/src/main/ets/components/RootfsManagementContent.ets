@@ -9,6 +9,7 @@ import { util } from "@kit.ArkTS";
 import copyFile from "../lib/copyFile";
 import { fileIo as fs } from '@kit.CoreFileKit'
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
+import { BackButton } from './BackButton';
 import napi from 'libentry.so';
 
 interface RootfsItem {
@@ -41,7 +42,7 @@ export default struct RootfsManagementContent {
   @State detailInfo?: DetailInfo = undefined
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   actionAfterNameInput: () => Promise<void> = (): Promise<void> => this.createNewRootfs()
-  
+
   rootfsNameController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: '镜像名称',
@@ -107,9 +108,11 @@ export default struct RootfsManagementContent {
     Column() {
       if (this.toolBar) {
         Row() {
+          BackButton()
+            .padding({ left: 15 })
+
           Text('镜像管理')
             .fontSize(18)
-            .padding({ left: 15 })
 
           Blank().layoutWeight(1)
 
@@ -166,7 +169,7 @@ export default struct RootfsManagementContent {
         })
     }
   }
-  
+
   @Builder
   buildDetailContent() {
     if (this.detailInfo) {
@@ -231,7 +234,7 @@ export default struct RootfsManagementContent {
         .padding(16)
     }
   }
-  
+
   @Builder
   buildDetailRow(label: string, value: string) {
     Row() {
@@ -350,7 +353,7 @@ export default struct RootfsManagementContent {
     try {
       const result = napi.getImageInfo(item.path)
       const info = JSON.parse(result) as Record<string, Object>
-      
+
       if (info['error']) {
         this.promptAction.showDialog({
           title: '获取磁盘信息失败',
@@ -359,11 +362,11 @@ export default struct RootfsManagementContent {
         })
         return
       }
-      
+
       // 提取详细信息
       const formatSpecific = info['format-specific'] as Record<string, Object> | undefined
       const qcow2Data = formatSpecific?.['data'] as Record<string, Object> | undefined
-      
+
       this.detailInfo = {
         fileFormat: info['format'] as string || 'unknown',
         virtualSize: info['virtual-size'] as number || 0,
@@ -376,7 +379,7 @@ export default struct RootfsManagementContent {
         refcountBits: qcow2Data?.['refcount-bits'] as number,
         corrupt: qcow2Data?.['corrupt'] as boolean
       }
-      
+
       // 打开详情对话框
       this.detailDialogController.open()
     } catch (e) {
