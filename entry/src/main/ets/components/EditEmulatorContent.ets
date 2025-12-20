@@ -7,6 +7,7 @@ import { util } from "@kit.ArkTS"
 import appOption, { savePreference } from "../model/appOption"
 import { LoadingDialog, PromptAction } from "@kit.ArkUI"
 import copyFile from "../lib/copyFile"
+import { BackButton } from "./BackButton"
 
 @Component
 export default struct EditEmulatorContent {
@@ -208,9 +209,11 @@ export default struct EditEmulatorContent {
     Column() {
       if (this.titleBar) {
         Row() {
+          BackButton()
+            .padding({ left: 15 })
+
           Text(this.editing ? '编辑模拟器' : this.emulator.name)
             .fontSize(18)
-            .padding({ left: 15 })
 
           Blank().layoutWeight(1)
 

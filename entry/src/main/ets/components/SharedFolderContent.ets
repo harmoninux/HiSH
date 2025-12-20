@@ -10,6 +10,7 @@ import copyFile from '../lib/copyFile';
 import deleteDirectoryRecursive from '../lib/deleteDirectoryRecursive';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { SimpleWebView } from './SimpleWebView';
+import { BackButton } from './BackButton';
 
 enum Type {
   Folder = 0,
@@ -333,6 +334,9 @@ export struct SharedFolderContent {
     Column() {
       // 路径栏增强
       Row() {
+        BackButton()
+          .padding({ left: 15 })
+
         SymbolGlyph($r('sys.symbol.externaldrive_fill'))
           .fontSize(24)
           .fontColor([$r('sys.color.icon_secondary')])
@@ -342,7 +346,7 @@ export struct SharedFolderContent {
           .fontSize(16)
           .padding({ left: 4, right: 8 })
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .ellipsisMode(EllipsisMode.END)
+          .ellipsisMode(EllipsisMode.START)
           .maxLines(1)
           .layoutWeight(1)
 

@@ -3,15 +3,18 @@ import { Emulator } from '../model/Emulator';
 import EditEmulatorContent from './EditEmulatorContent';
 import EmulatorListGrid from './EmulatorListGrid';
 import { CustomContentDialog } from '@kit.ArkUI';
+import { BackButton } from './BackButton';
 
 @Component
 export default struct EmulatorManagementContent {
   build() {
     Column() {
       Row() {
+        BackButton()
+          .padding({ left: 15 })
+
         Text('模拟器管理')
           .fontSize(18)
-          .padding({ left: 15 })
 
         Blank().layoutWeight(1)
 

@@ -9,6 +9,7 @@ import { util } from "@kit.ArkTS";
 import copyFile from "../lib/copyFile";
 import { fileIo as fs } from '@kit.CoreFileKit'
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
+import { BackButton } from './BackButton';
 
 interface RootfsItem {
   model: RootFilesystem
@@ -72,9 +73,11 @@ export default struct RootfsManagementContent {
     Column() {
       if (this.toolBar) {
         Row() {
+          BackButton()
+            .padding({ left: 15 })
+
           Text('镜像管理')
             .fontSize(18)
-            .padding({ left: 15 })
 
           Blank().layoutWeight(1)
 
