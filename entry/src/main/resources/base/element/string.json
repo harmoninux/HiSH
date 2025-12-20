@@ -291,6 +291,10 @@
     {
       "name": "like_this_app",
       "value": "I like HiSH"
+    },
+    {
+      "name": "hide_virtual_key_toast",
+      "value": "Virtual keys is hidden, you can enable it again by click ▲ at bottom of screen"
     }
   ]
 }

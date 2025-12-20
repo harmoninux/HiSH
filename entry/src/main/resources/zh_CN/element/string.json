@@ -291,6 +291,10 @@
     {
       "name": "like_this_app",
       "value": "评价HiSH"
+    },
+    {
+      "name": "hide_virtual_key_toast",
+      "value": "虚拟按键已隐藏，可点击屏幕下方中间的“▲”图标重新打开虚拟按键。"
     }
   ]
 }

@@ -170,6 +170,8 @@ export default class EntryAbility extends UIAbility {
 
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
+    const showVirtKey = await appPref.get(appOption.showVirtKey, true) as boolean;
+    AppStorage.setOrCreate(appOption.showVirtKey, showVirtKey);
     const runningInBackground = await appPref.get(appOption.runningInBackground, false) as boolean;
     AppStorage.setOrCreate(appOption.runningInBackground, runningInBackground);
     const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;

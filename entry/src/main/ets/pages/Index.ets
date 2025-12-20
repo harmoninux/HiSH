@@ -160,7 +160,7 @@ struct PcIndex {
         right: 150,
       })
 
-      WebTerminal({ showVirtKey: false })
+      WebTerminal({ virtKeyEnabled: false })
         .layoutWeight(1)
     }
     .width("100%")
@@ -316,7 +316,7 @@ struct Index {
     if (this.isPc) {
       PcIndex()
     } else {
-      WebTerminal({ showVirtKey: true })
+      WebTerminal({ virtKeyEnabled: true })
     }
   }
 }
