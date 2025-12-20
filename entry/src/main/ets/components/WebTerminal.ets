@@ -10,7 +10,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 
 const DOMAIN = 0x0000;
 
-const VKeyMargin = 5;
+const VKeyMargin = 2;
 const VKeyPadding = 8;
 const VKeyHeight = 28;
 const VKeyWidth = 56;
@@ -74,7 +74,7 @@ export default struct WebTerminal {
       .width(VKeyWidth)
       .borderRadius(VKeyRadius)
       .fontColor($r('sys.color.white'))
-      .margin({ left: VKeyMargin })
+      .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
       .onClick(() => {
         this.sendInput(value);
@@ -89,7 +89,7 @@ export default struct WebTerminal {
     .height(VKeyHeight)
     .width(VKeyWidth)
     .borderRadius(VKeyRadius)
-    .margin({ left: VKeyMargin })
+    .margin(VKeyMargin)
     .backgroundColor($r('sys.color.black'))
     .selectedColor($r('sys.color.interactive_active'))
     .onClick(() => action())
@@ -104,7 +104,7 @@ export default struct WebTerminal {
     .height(VKeyHeight)
     .width(VKeyWidth)
     .borderRadius(VKeyRadius)
-    .margin({ right: VKeyMargin })
+    .margin(VKeyMargin)
     .padding({ left: VKeyPadding, right: VKeyPadding })
     .bindMenu([{
       value: '模拟器管理',
@@ -152,7 +152,7 @@ export default struct WebTerminal {
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.showVirtKey) {
         Row() {
-          this.toggleVKey('CTRL', () => this.toggleCtrl())
+          this.buildVKey('ESC', '\x1b')
 
           Row().layoutWeight(1)
 
@@ -162,7 +162,7 @@ export default struct WebTerminal {
         .margin({ left: 5, right: 5 })
         Row() {
           this.buildVKey('TAB', '\t')
-          this.buildVKey('ESC', '\x1b')
+          this.toggleVKey('CTRL', () => this.toggleCtrl())
 
           Row().layoutWeight(1)
 
