@@ -118,6 +118,9 @@ function onTerminalReady() {
     exports.paste = (data) => {
         term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data), { stream: true }));
     };
+    exports.clear = () => {
+        term.wipeContents()
+    }
 
     // hterm size updates native size
     exports.getSize = () => [term.screenSize.width, term.screenSize.height];
