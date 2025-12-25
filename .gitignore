@@ -16,3 +16,5 @@ build-profile.json5.*
 *.so
 *.so.0
 .idea
+
+.bitfun
