@@ -258,7 +258,7 @@ export default struct WebTerminal {
     hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
     // this.sendInput('\x1b' + `SR${height},${width}` + '\n')
     //  or
-    // this.sendInput('\x1b' + `[8;${height};${width}t` + '\n')
+    this.sendInput('\x1b' + `[8;${height};${width}t` + '\n')
   }
 
   private onData(ab: ArrayBuffer) {

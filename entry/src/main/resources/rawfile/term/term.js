@@ -122,6 +122,7 @@ function onTerminalReady() {
         term.wipeContents()
         //  真机上运行会黑屏，加上这个就好了
         term.setHeight(term.screenSize.height)
+        term.setHeight(null)
     }
 
     // hterm size updates native size
