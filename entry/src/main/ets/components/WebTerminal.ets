@@ -31,6 +31,7 @@ export default struct WebTerminal {
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
+  resizeTimeout?: number = undefined
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -256,9 +257,11 @@ export default struct WebTerminal {
 
   async resize(width: number, height: number): Promise<void> {
     hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
-    // this.sendInput('\x1b' + `SR${height},${width}` + '\n')
-    //  or
-    this.sendInput('\x1b' + `[8;${height};${width}t` + '\n')
+
+    if (this.resizeTimeout !== undefined) {
+      clearTimeout(this.resizeTimeout!!)
+    }
+    this.resizeTimeout = setTimeout(() => this.sendInput('\x1b' + `[8;${height};${width}t`), 100)
   }
 
   private onData(ab: ArrayBuffer) {
