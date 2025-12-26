@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "dev.hackeris.hish",
     "vendor": "hackeris",
-    "versionCode": 1000008,
-    "versionName": "1.0.8",
+    "versionCode": 1000009,
+    "versionName": "1.0.9",
     "icon": "$media:app_layered_image",
     "label": "$string:app_name"
   }
