@@ -94,7 +94,7 @@ git clone --depth=1 -b v6.12 https://github.com/torvalds/linux
 
 ```shell 
 cd linux 
-curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_tinydocker > .config 
+curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_virt > .config 
 ```
 
 * 编译内核：

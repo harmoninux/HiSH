@@ -82,7 +82,7 @@ git clone --depth=1 -b v6.12 https://github.com/torvalds/linux
 - Download linux kernel build config
 ```shell
 cd linux
-curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_tinydocker > .config
+curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_virt > .config
 ```
 - Build Linux kernel
 ```shell
