@@ -34,6 +34,10 @@
 
 <img src="docs/images/hish_wechat_group.png" width="200"/>
 
+## 授权许可
+
+使用本项目代码，按照[惯例](https://www.n.cn/share/r1/d256b59a563047a3a052e58042ae2547)需在软件本体"关于"中注明基于本项目（HiSH）以及本项目的仓库地址。
+
 # 构建指南
 
 - HAP包
