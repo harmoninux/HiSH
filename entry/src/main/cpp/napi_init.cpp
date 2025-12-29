@@ -56,12 +56,16 @@ struct data_buffer {
     size_t size;
 };
 
+// QEMU 子进程 PID (PC 模式下使用)
+static pid_t qemu_child_pid = -1;
+
 int serial_input_fd = -1;
 napi_threadsafe_function on_data_callback = nullptr;
 napi_threadsafe_function on_shutdown_callback = nullptr;
 
 std::mutex buffer_mtx;
 std::string temp_buffer = "";
+
 
 typedef int (*QemuSystemEntry)(int, const char **);
 
@@ -918,12 +922,14 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             delete[] argv;
             _exit(0);
         } else {
-            // 父进程：启动一个线程监控子进程状态
+            // 父进程：保存子进程 PID 并启动监控线程
+            qemu_child_pid = pid;
             OH_LOG_INFO(LOG_APP, "QEMU started in child process with PID: %{public}d", pid);
             
             std::thread monitor_thread([pid]() {
                 int status;
                 waitpid(pid, &status, 0);
+                qemu_child_pid = -1;  // 子进程已退出，清除 PID
                 OH_LOG_INFO(LOG_APP, "QEMU child process exited with status: %{public}d", status);
                 
                 if (on_shutdown_callback != nullptr) {
@@ -1132,6 +1138,34 @@ static napi_value checkPortUsed(napi_env env, napi_callback_info info) {
     }
 }
 
+// 杀死 QEMU 子进程 (PC 模式下使用)
+static napi_value killQemuProcess(napi_env env, napi_callback_info info) {
+    if (qemu_child_pid > 0) {
+        OH_LOG_INFO(LOG_APP, "Killing QEMU child process with PID: %{public}d", qemu_child_pid);
+        
+        // 先尝试 SIGTERM（优雅关闭）
+        int result = kill(qemu_child_pid, SIGTERM);
+        if (result == 0) {
+            // 等待一小段时间让进程退出
+            usleep(100000);  // 100ms
+            
+            // 检查进程是否还在运行
+            result = kill(qemu_child_pid, 0);
+            if (result == 0) {
+                // 进程还在，使用 SIGKILL 强制杀死
+                OH_LOG_INFO(LOG_APP, "QEMU process still running, sending SIGKILL");
+                kill(qemu_child_pid, SIGKILL);
+            }
+        }
+        
+        qemu_child_pid = -1;
+    } else {
+        OH_LOG_INFO(LOG_APP, "No QEMU child process to kill");
+    }
+    
+    return nullptr;
+}
+
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
@@ -1147,7 +1181,8 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"applySnapshot", nullptr, applySnapshot, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"deleteSnapshot", nullptr, deleteSnapshot, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"optimizeImage", nullptr, optimizeImage, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"needRestart", nullptr, needRestart, nullptr, nullptr, nullptr, napi_default, nullptr}};
+        {"needRestart", nullptr, needRestart, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"killQemuProcess", nullptr, killQemuProcess, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
 }

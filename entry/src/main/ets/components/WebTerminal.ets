@@ -3,8 +3,8 @@ import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
-import { pasteboard } from '@kit.BasicServicesKit'
-import appOption, { CursorShape } from '../model/appOption';
+import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
+import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 
@@ -13,7 +13,7 @@ const DOMAIN = 0x0000;
 const VKeyMargin = 2;
 const VKeyPadding = 8;
 const VKeyHeight = 28;
-const VKeyWidth = 56;
+const VKeyWidth = 50;
 const VKeyRadius = 5;
 
 function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
@@ -23,14 +23,16 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 
 @Component
 export default struct WebTerminal {
-  @Require showVirtKey: boolean
+  @Require virtKeyEnabled: boolean
   @State ctrlPressed: boolean = false
   @StorageProp(appOption.currentEmulatorStatus) currentStatus: string = 'RUNNING'
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
+  @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
+  resizeTimeout?: number = undefined
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -99,14 +101,12 @@ export default struct WebTerminal {
   @Builder
   settingsButton() {
     Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-      Image($r('app.media.gearshape'))
-        .width(16)
+      Image($r('app.media.gearshape')).width(16).height(16).padding(0)
     }
     .height(VKeyHeight)
-    .width(VKeyWidth)
+    .width(VKeyHeight)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
-    .padding({ left: VKeyPadding, right: VKeyPadding })
     .bindMenu([{
       value: '模拟器管理',
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
@@ -120,6 +120,20 @@ export default struct WebTerminal {
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
     }])
+  }
+
+  @Builder
+  hideVKeyButton() {
+    Button('▼', { buttonStyle: ButtonStyleMode.TEXTUAL })
+      .height(VKeyHeight)
+      .width(VKeyHeight)
+      .borderRadius(VKeyRadius)
+      .margin(VKeyMargin)
+      .padding({ left: VKeyPadding, right: VKeyPadding })
+      .fontColor($r('sys.color.white'))
+      .onClick(() => {
+        this.showVirtKey = false
+      })
   }
 
   build() {
@@ -152,6 +166,13 @@ export default struct WebTerminal {
           .backgroundColor('#000')
           .layoutWeight(1)
           .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+      if (this.virtKeyEnabled) {
+        if (this.showVirtKey) {
+          this.buildVirtualKeys()
+        } else {
+          this.buildShowVirtualKeysButton()
+        }
+      }
 
         if (this.currentStatus === 'PAUSED') {
           Column() {
@@ -182,31 +203,63 @@ export default struct WebTerminal {
         }
       }
       .layoutWeight(1)
-
-      if (this.showVirtKey) {
-        Row() {
-          this.buildVKey('ESC', '\x1b')
-
-          Row().layoutWeight(1)
-
-          this.buildVKey('↑', '\x1b[A')
-          this.settingsButton()
-        }
-        .margin({ left: 5, right: 5 })
-        Row() {
-          this.buildVKey('TAB', '\t')
-          this.toggleVKey('CTRL', () => this.toggleCtrl())
-
-          Row().layoutWeight(1)
-
-          this.buildVKey('←', '\x1b[D')
-          this.buildVKey('↓', '\x1b[B')
-          this.buildVKey('→', '\x1b[C')
-        }
-        .margin({ left: 5, right: 5 })
-      }
     }
-    .height('100%')
+  }
+
+  @Builder
+  buildShowVirtualKeysButton() {
+    Column() {
+      Button('▲', { buttonStyle: ButtonStyleMode.TEXTUAL })
+        .width(120)
+        .height(16)
+        .fontSize(16)
+        .borderRadius(VKeyRadius)
+        .fontColor('#444')
+        .padding({ left: VKeyPadding, right: VKeyPadding })
+        .onClick(() => {
+          this.showVirtKey = true
+        })
+    }
+  }
+
+  @Builder
+  buildVirtualKeys() {
+    Row() {
+      this.buildVKey('ESC', '\x1b');
+
+      Row().layoutWeight(1);
+
+      this.buildVKey('PGUP', '\x1b[5~');
+      this.buildVKey('HOME', '\x1b[H');
+      this.buildVKey('↑', '\x1b[A');
+      this.buildVKey('END', '\x1b[F');
+      this.settingsButton();
+    }
+    .margin({ left: 5, right: 5 })
+
+    Row() {
+      this.buildVKey('TAB', '\t');
+      this.toggleVKey('CTRL', () => this.toggleCtrl());
+
+      Row().layoutWeight(1);
+
+      this.buildVKey('PGDN', '\x1b[6~');
+      this.buildVKey('←', '\x1b[D');
+      this.buildVKey('↓', '\x1b[B');
+      this.buildVKey('→', '\x1b[C');
+      this.hideVKeyButton();
+    }
+    .margin({ left: 5, right: 5 })
+  }
+
+  async saveShowVirtKey() {
+    await savePreference(appOption.showVirtKey, this.showVirtKey, this.getUIContext())
+    if (!this.showVirtKey) {
+      this.getUIContext().getPromptAction().showToast({
+        message: $r('app.string.hide_virtual_key_toast'),
+        duration: 5000
+      })
+    }
   }
 
   private toggleCtrl(): void {
@@ -232,21 +285,35 @@ export default struct WebTerminal {
     napi.onShutdown(() => this.onShutdown())
   }
 
-  async resize(): Promise<void> {
+  async resize(width: number, height: number): Promise<void> {
+    hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
+
+    if (this.resizeTimeout !== undefined) {
+      clearTimeout(this.resizeTimeout!!)
+    }
+    this.resizeTimeout = setTimeout(() => this.sendInput('\x1b' + `[8;${height};${width}t`), 100)
   }
 
   private onData(ab: ArrayBuffer) {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
+    if (s.startsWith('\\x1b[H\\x1b[J')) {
+      this.webviewController.runJavaScript('exports.clear()');
+    }
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }
 
-  private onShutdown() {
+  private async onShutdown() {
     // QEMU 退出后记录日志
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
     
     // 只在移动设备上自动退出应用，PC 设备不自动退出
-    // 注意：PC 设备用户可通过界面手动关闭应用
+    // PC 设备用户可通过界面手动关闭应用
+    const isPc = deviceInfo.deviceType === '2in1';
+    if (!isPc) {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      await context?.terminateSelf()
+    }
   }
 
   getFontSize(): number | null {

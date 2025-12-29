@@ -22,7 +22,7 @@ You can try one of following methods to get HiSH:
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
 - Shared Folder
 - JIT (Only available for developer)
-- Image import（[Ubuntu24.04](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251205/ubuntu2404.zip) / [Debian12](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
+- Image import（[Ubuntu24.04](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251213/ubuntu-base-24.04.zip) / [Debian12](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
 
 # How to build
 
@@ -82,7 +82,7 @@ git clone --depth=1 -b v6.12 https://github.com/torvalds/linux
 - Download linux kernel build config
 ```shell
 cd linux
-curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_tinydocker > .config
+curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_virt > .config
 ```
 - Build Linux kernel
 ```shell

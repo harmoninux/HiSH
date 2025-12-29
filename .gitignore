@@ -14,3 +14,5 @@ build-profile.json5
 build-profile.json5.*
 *.hap
 .idea
+
+.bitfun

@@ -1,10 +1,11 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want, bundleManager } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window, KeyboardAvoidMode, PromptAction, UIContext } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
+import bundleManager from '@ohos.bundle.bundleManager';
 import napi from 'libentry.so';
 import appOption, { CursorShape } from '../model/appOption'
 import { startVm } from '../lib/startVm';
@@ -27,6 +28,12 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    // 杀死 QEMU 子进程（PC 模式下）
+    try {
+      napi.killQemuProcess();
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Failed to kill QEMU process: %{public}s', JSON.stringify(e));
+    }
   }
 
   async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
@@ -175,6 +182,8 @@ export default class EntryAbility extends UIAbility {
 
     const keepScreenOn = await appPref.get(appOption.keepScreenOn, false) as boolean;
     AppStorage.setOrCreate(appOption.keepScreenOn, keepScreenOn);
+    const showVirtKey = await appPref.get(appOption.showVirtKey, true) as boolean;
+    AppStorage.setOrCreate(appOption.showVirtKey, showVirtKey);
     const runningInBackground = await appPref.get(appOption.runningInBackground, false) as boolean;
     AppStorage.setOrCreate(appOption.runningInBackground, runningInBackground);
     const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;
@@ -221,7 +230,9 @@ export default class EntryAbility extends UIAbility {
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
     const lastResourceVersion = await appPref.get(appOption.lastResourceVersion, undefined) as number | undefined
     const bundleInfo = AppStorage.get('bundleInfo') as bundleManager.BundleInfo
-    const forceOverride = lastResourceVersion === undefined || lastResourceVersion < bundleInfo.versionCode
+    const forceOverride = lastResourceVersion === undefined
+      || lastResourceVersion < bundleInfo.versionCode
+      || bundleInfo.name.startsWith('dev.hackeris')
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
@@ -291,7 +302,7 @@ export default class EntryAbility extends UIAbility {
     } else if (deviceInfo.deviceType === 'tablet') {
       return 13;
     }
-    return 14;
+    return 15;
   }
 
   private promptPortUsedMessage(uiContext: UIContext, portSkipped: number[]) {

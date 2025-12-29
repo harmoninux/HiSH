@@ -6,8 +6,7 @@
 /.test
 
 *.gz
-kernel_*
-*.qcow2
+
 *.tar
 libs_tcg
 libs_tci

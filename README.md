@@ -22,7 +22,7 @@
 - 虚拟按键（Tab/Ctrl/Esc/方向键）
 - 共享文件夹
 - JIT（仅开发者可用）
-- 镜像导入（[Ubuntu24.04镜像](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251205/ubuntu2404.zip) / [Debian12镜像](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
+- 镜像导入（[Ubuntu24.04镜像](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251213/ubuntu-base-24.04.zip) / [Debian12镜像](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
 
 ## 使用指南
 
@@ -33,6 +33,10 @@
 微信群二维码
 
 <img src="docs/images/hish_wechat_group.png" width="200"/>
+
+## 授权许可
+
+使用本项目代码，按照[惯例](https://www.n.cn/share/r1/d256b59a563047a3a052e58042ae2547)需在软件本体"关于"中注明基于本项目（HiSH）以及本项目的仓库地址。
 
 # 构建指南
 
@@ -94,7 +98,7 @@ git clone --depth=1 -b v6.12 https://github.com/torvalds/linux
 
 ```shell 
 cd linux 
-curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_tinydocker > .config 
+curl https://raw.githubusercontent.com/harmoninux/linux-config/refs/heads/master/arm64_virt > .config 
 ```
 
 * 编译内核：

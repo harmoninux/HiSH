@@ -26,6 +26,7 @@ class appOption {
   static serialChannel = 'serialChannel'
   static lastResourceVersion = 'lastResourceVersion';
   static runningInBackground = 'runningInBackground';
+  static showVirtKey = 'showVirtKey';
   static isPowerManagementOpen = 'isPowerManagementOpen';
   // qemu-img 后台任务状态
   static qemuImgTaskRunning = 'qemuImgTaskRunning';

@@ -118,6 +118,12 @@ function onTerminalReady() {
     exports.paste = (data) => {
         term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data), { stream: true }));
     };
+    exports.clear = () => {
+        term.wipeContents()
+        //  真机上运行会黑屏，加上这个就好了
+        term.setHeight(term.screenSize.height)
+        setTimeout(() => term.setHeight(null), 20)
+    }
 
     // hterm size updates native size
     exports.getSize = () => [term.screenSize.width, term.screenSize.height];

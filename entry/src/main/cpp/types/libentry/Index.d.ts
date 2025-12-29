@@ -69,3 +69,9 @@ export const optimizeImage: (imagePath: string, outputPath: string, mode: 'spars
  * @returns 如果 qemu-img 操作失败需要重启则返回 true
  */
 export const needRestart: () => boolean;
+
+/**
+ * 杀死 QEMU 子进程 (PC 模式下使用)
+ * 在应用关闭时调用，确保 QEMU 进程被正确清理
+ */
+export const killQemuProcess: () => void;
