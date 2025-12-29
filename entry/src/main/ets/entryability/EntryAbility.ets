@@ -13,6 +13,7 @@ import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../mod
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import { startQmpEventListener, stopQmpEventListener, QmpEventType, QmpEventData } from '../lib/QmpEventListener';
 
 const DOMAIN = 0x0000;
 
@@ -28,6 +29,12 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    
+    // 停止 QMP 事件监听器
+    stopQmpEventListener().catch((e: Error): void => {
+      hilog.warn(DOMAIN, 'testTag', 'Failed to stop QMP event listener: %{public}s', e.message);
+    });
+    
     // 杀死 QEMU 子进程（PC 模式下）
     try {
       napi.killQemuProcess();
@@ -148,7 +155,93 @@ export default class EntryAbility extends UIAbility {
       qgaUnixSocket
     })
 
+    // 启动 QMP 事件监听器，监控虚拟机状态变化
+    this.startQmpEventMonitor(qmpUnixSocketUI)
+
     return { portsSkipped: portUsed }
+  }
+
+  /**
+   * 启动 QMP 事件监控
+   * 监听虚拟机的 SHUTDOWN、RESET 等事件
+   */
+  private async startQmpEventMonitor(qmpSocketPath: string): Promise<void> {
+    // 延迟启动，等待 QEMU 完成初始化（增加到 5 秒以确保 socket 文件已创建）
+    hilog.info(DOMAIN, 'testTag', '准备启动 QMP 事件监听器，socket 路径: %{public}s', qmpSocketPath)
+    
+    setTimeout(async (): Promise<void> => {
+      try {
+        hilog.info(DOMAIN, 'testTag', '开始连接 QMP Socket...')
+        const started = await startQmpEventListener(qmpSocketPath, 
+          (event: QmpEventType, data: QmpEventData | undefined): void => {
+            hilog.info(DOMAIN, 'testTag', '===== QMP 事件回调触发 =====')
+            this.handleQmpEvent(event, data)
+          }
+        )
+        
+        if (started) {
+          hilog.info(DOMAIN, 'testTag', '✓ QMP 事件监听器已成功启动')
+        } else {
+          hilog.warn(DOMAIN, 'testTag', '✗ QMP 事件监听器启动失败，将在后台重试')
+        }
+      } catch (e) {
+        hilog.error(DOMAIN, 'testTag', '启动 QMP 事件监听器异常: %{public}s', JSON.stringify(e))
+      }
+    }, 5000)  // 增加延迟到 5 秒
+  }
+
+  /**
+   * 处理 QMP 事件
+   */
+  private handleQmpEvent(event: QmpEventType, data: QmpEventData | undefined): void {
+    hilog.info(DOMAIN, 'testTag', '收到 QMP 事件: %{public}s, 数据: %{public}s', 
+               event, JSON.stringify(data))
+    
+    switch (event) {
+      case 'SHUTDOWN':
+        // 虚拟机关机
+        hilog.info(DOMAIN, 'testTag', '虚拟机已关机 (来源: %{public}s)', 
+                   data?.guest ? 'guest' : 'host')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
+        // 清除当前运行的模拟器 ID，这样模拟器管理界面会显示为"未运行"
+        AppStorage.setOrCreate(appOption.currentRunningEmulator, '')
+        break
+        
+      case 'POWERDOWN':
+        // 收到 ACPI 关机信号
+        hilog.info(DOMAIN, 'testTag', '收到 ACPI 关机信号')
+        // POWERDOWN 事件通常在 SHUTDOWN 之前发送，不需要立即更新状态
+        break
+        
+      case 'RESET':
+        // 虚拟机重置
+        hilog.info(DOMAIN, 'testTag', '虚拟机正在重置')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')
+        break
+        
+      case 'STOP':
+        // 虚拟机暂停
+        hilog.info(DOMAIN, 'testTag', '虚拟机已暂停')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'PAUSED')
+        break
+        
+      case 'RESUME':
+        // 虚拟机恢复运行
+        hilog.info(DOMAIN, 'testTag', '虚拟机已恢复运行')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+        break
+        
+      case 'GUEST_PANICKED':
+        // 虚拟机内核崩溃
+        hilog.error(DOMAIN, 'testTag', '虚拟机内核崩溃!')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'ABNORMAL')
+        // 异常状态也清除运行中标记
+        AppStorage.setOrCreate(appOption.currentRunningEmulator, '')
+        break
+        
+      default:
+        hilog.info(DOMAIN, 'testTag', '未处理的 QMP 事件: %{public}s', event)
+    }
   }
 
   private getEmulatorToStart() {

@@ -307,6 +307,11 @@ export default struct WebTerminal {
     // QEMU 退出后记录日志
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
     
+    // 更新虚拟机状态 - 清除当前运行的模拟器标识
+    AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
+    AppStorage.setOrCreate(appOption.currentRunningEmulator, '');
+    hilog.info(DOMAIN, 'WebTerminal', 'Updated emulator status to SHUTDOWN, cleared currentRunningEmulator');
+    
     // 只在移动设备上自动退出应用，PC 设备不自动退出
     // PC 设备用户可通过界面手动关闭应用
     const isPc = deviceInfo.deviceType === '2in1';
