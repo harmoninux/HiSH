@@ -40,6 +40,7 @@ export default struct SettingsContent {
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
+  @StorageProp(appOption.cpuArchVersion) cpuArchVersion: string = ''
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -283,6 +284,13 @@ export default struct SettingsContent {
         .fontSize(14)
         .fontColor('#ccc')
         .margin({ top: 5 })
+
+      Text(this.cpuArchVersion === 'v85'
+        ? '本设备兼容 ARMv8.5 指令集'
+        : '本设备兼容 ARMv8.2 指令集')
+        .fontSize(12)
+        .fontColor('#888888')
+        .margin({ top: 20 })
     }
     .width('100%')
   }

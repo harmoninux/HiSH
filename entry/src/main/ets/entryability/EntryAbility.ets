@@ -218,6 +218,16 @@ export default class EntryAbility extends UIAbility {
 
     AppStorage.setOrCreate(appOption.vmBaseDir, vmBaseDir)
     AppStorage.setOrCreate(appOption.rootfsBaseDir, rootfsBaseDir)
+
+    // ARM 架构检测和内核选择
+    const cpuArchVersion = napi.getCpuArchVersion();
+    AppStorage.setOrCreate(appOption.cpuArchVersion, cpuArchVersion);
+    hilog.info(DOMAIN, 'HiSH', '=== ARM CPU Feature Detection ===');
+    hilog.info(DOMAIN, 'HiSH', 'CPU Arch Version: %{public}s', cpuArchVersion);
+
+    // 根据架构版本选择内核
+    const kernelResourcePath = cpuArchVersion === 'v85' ? 'vm/kernel_aarch64' : 'vm/kernel_aarch64_v82';
+    hilog.info(DOMAIN, 'HiSH', 'Kernel: %{public}s', kernelResourcePath);
     AppStorage.setOrCreate(appOption.kernel, vmBaseDir + '/kernel_aarch64')
 
     if (!fs.accessSync(vmBaseDir, fs.AccessModeType.EXIST)) {
@@ -234,7 +244,8 @@ export default class EntryAbility extends UIAbility {
       || lastResourceVersion < bundleInfo.versionCode
       || bundleInfo.name.startsWith('dev.hackeris')
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
-    this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
+    // 使用根据架构版本选择的内核
+    this.extractVmResourceFile(appContext, kernelResourcePath, 'vm/kernel_aarch64', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
     await appPref.put(appOption.lastResourceVersion, bundleInfo.versionCode)
     await appPref.flush()

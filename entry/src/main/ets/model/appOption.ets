@@ -31,6 +31,8 @@ class appOption {
   // qemu-img 后台任务状态
   static qemuImgTaskRunning = 'qemuImgTaskRunning';
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
+  // ARM CPU 架构版本 ('v85' 或 'generic')
+  static cpuArchVersion = 'cpuArchVersion';
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

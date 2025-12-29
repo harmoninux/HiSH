@@ -75,3 +75,9 @@ export const needRestart: () => boolean;
  * 在应用关闭时调用，确保 QEMU 进程被正确清理
  */
 export const killQemuProcess: () => void;
+
+/**
+ * 获取 CPU 架构版本
+ * @returns 'v85' 表示支持 ARMv8.5 所有特性，'generic' 表示 ARMv8.2 兼容模式
+ */
+export const getCpuArchVersion: () => string;
