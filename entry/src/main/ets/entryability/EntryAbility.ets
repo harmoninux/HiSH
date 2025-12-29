@@ -14,8 +14,16 @@ import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
 import { startQmpEventListener, stopQmpEventListener, QmpEventType, QmpEventData } from '../lib/QmpEventListener';
+import QemuAgent from '../lib/QemuAgent';
 
 const DOMAIN = 0x0000;
+
+// 窗口大小变化防抖定时器
+let windowResizeTimer: number = -1;
+// resize 专用的 QGA 连接（独立于 QemuAgentManager，避免冲突）
+let resizeAgent: QemuAgent | null = null;
+// resize 操作锁，避免并发
+let isResizing: boolean = false;
 
 interface StartResult {
   portsSkipped: number[]
@@ -76,6 +84,9 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorVisible(false);
         mainWindow.setWindowDecorHeight(48);
       }
+
+      // 监听窗口大小变化
+      this.registerWindowSizeChangeListener(mainWindow);
 
       await this.prepareForSharedFolder(appContext)
       const result = this.startDefaultEmulator()
@@ -241,6 +252,108 @@ export default class EntryAbility extends UIAbility {
         
       default:
         hilog.info(DOMAIN, 'testTag', '未处理的 QMP 事件: %{public}s', event)
+    }
+  }
+
+  /**
+   * 注册窗口大小变化监听器
+   * 当窗口大小变化时，通过 QGA 在虚拟机内执行 resize 命令
+   */
+  private registerWindowSizeChangeListener(mainWindow: window.Window): void {
+    try {
+      mainWindow.on('windowSizeChange', (size: window.Size): void => {
+        hilog.info(DOMAIN, 'testTag', 'Window size changed: %{public}d x %{public}d', size.width, size.height)
+        
+        // 防抖处理：避免频繁调用
+        if (windowResizeTimer !== -1) {
+          clearTimeout(windowResizeTimer)
+        }
+        
+        windowResizeTimer = setTimeout((): void => {
+          this.tryQgaResizeOnWindowChange()
+        }, 300)  // 300ms 防抖
+      })
+      
+      hilog.info(DOMAIN, 'testTag', 'Window size change listener registered')
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Failed to register window size change listener: %{public}s', JSON.stringify(e))
+    }
+  }
+
+  /**
+   * 窗口大小变化时尝试通过 QGA 执行 resize 命令
+   * 使用独立的 QemuAgent 实例，完全不干扰 QemuAgentManager 管理的连接
+   */
+  private async tryQgaResizeOnWindowChange(): Promise<void> {
+    // 避免并发执行
+    if (isResizing) {
+      hilog.info(DOMAIN, 'testTag', 'resize 正在进行中，跳过')
+      return
+    }
+    
+    // 检查虚拟机状态
+    const vmStatus = AppStorage.get(appOption.currentEmulatorStatus) as string
+    if (vmStatus !== 'RUNNING') {
+      hilog.info(DOMAIN, 'testTag', '虚拟机未运行 (状态: %{public}s)，跳过 resize', vmStatus)
+      return
+    }
+    
+    const appTempDir = AppStorage.get(appOption.appTempDir) as string
+    if (!appTempDir) {
+      hilog.info(DOMAIN, 'testTag', 'appTempDir 未设置，跳过 resize')
+      return
+    }
+    
+    isResizing = true
+    hilog.info(DOMAIN, 'testTag', '开始尝试 QGA resize...')
+    
+    try {
+      const qgaSocket = appTempDir + '/qga_socket'
+      
+      // 创建独立的 QemuAgent 实例（不通过 QemuAgentManager）
+      resizeAgent = new QemuAgent(qgaSocket)
+      
+      // 设置较短的连接超时
+      const connectPromise = resizeAgent.connect()
+      const timeoutPromise: Promise<boolean> = new Promise<boolean>((resolve: (value: boolean) => void): void => {
+        setTimeout((): void => resolve(false), 500)
+      })
+      
+      const connected = await Promise.race([connectPromise, timeoutPromise])
+      
+      if (!connected) {
+        hilog.info(DOMAIN, 'testTag', 'QGA 连接超时或失败，跳过 resize')
+        if (resizeAgent) {
+          try { await resizeAgent.disconnect() } catch (e) { /* 忽略 */ }
+          resizeAgent = null
+        }
+        return
+      }
+      
+      hilog.info(DOMAIN, 'testTag', 'QGA 独立连接成功，执行 resize 命令')
+      
+      // 直接执行 resize 命令
+      const pid = await resizeAgent.exec('/bin/sh', ['-c', 'resize >/dev/null 2>&1'])
+      
+      if (pid !== null) {
+        hilog.info(DOMAIN, 'testTag', 'Resize window!')
+      } else {
+        hilog.info(DOMAIN, 'testTag', 'resize 命令执行失败 (pid=null)')
+      }
+      
+      // 断开独立连接
+      try { await resizeAgent.disconnect() } catch (e) { /* 忽略 */ }
+      resizeAgent = null
+      
+    } catch (e) {
+      hilog.info(DOMAIN, 'testTag', '通过 QGA 执行 resize 异常: %{public}s', JSON.stringify(e))
+      // 确保断开连接
+      if (resizeAgent) {
+        try { await resizeAgent.disconnect() } catch (disconnectErr) { /* 忽略 */ }
+        resizeAgent = null
+      }
+    } finally {
+      isResizing = false
     }
   }
 
