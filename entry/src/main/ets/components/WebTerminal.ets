@@ -25,6 +25,7 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 export default struct WebTerminal {
   @Require virtKeyEnabled: boolean
   @State ctrlPressed: boolean = false
+  @State shiftPressed: boolean = false
   @StorageProp(appOption.currentEmulatorStatus) currentStatus: string = 'RUNNING'
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
@@ -85,8 +86,22 @@ export default struct WebTerminal {
   }
 
   @Builder
-  toggleVKey(name: string, action: () => void) {
+  toggleCtrlKey(name: string, action: () => void) {
     Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
+      Text(name).height(28).fontWeight(FontWeight.Medium)
+    }
+    .height(VKeyHeight)
+    .width(VKeyWidth)
+    .borderRadius(VKeyRadius)
+    .margin(VKeyMargin)
+    .backgroundColor($r('sys.color.black'))
+    .selectedColor($r('sys.color.interactive_active'))
+    .onClick(() => action())
+  }
+
+  @Builder
+  toggleShiftKey(name: string, action: () => void) {
+    Toggle({ type: ToggleType.Button, isOn: this.shiftPressed }) {
       Text(name).height(28).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
@@ -147,9 +162,10 @@ export default struct WebTerminal {
             object: this,
             name: 'native',
             methodList: ['sendInput', 'resize', 'load',
-              'getFontSize', 'getCursorShape', 'getCursorBlink'],
+              'getFontSize', 'getCursorShape', 'getCursorBlink',
+              'copyToClipboard', 'requestCopy', 'requestPaste'],
             controller: this.webviewController,
-            asyncMethodList: [],
+            asyncMethodList: ['pasteFromClipboard'],
             permission: `{
             "javascriptProxyPermission": {
               "urlPermissionList": [
@@ -166,6 +182,34 @@ export default struct WebTerminal {
           .backgroundColor('#000')
           .layoutWeight(1)
           .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+          .onKeyEvent((event: KeyEvent) => {
+            // 调试：打印所有键盘事件的 keyCode
+            // hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: keyCode=%{public}d, type=%{public}d', event.keyCode, event.type);
+            
+            // 在原生层捕获 Ctrl+Insert (复制) 和 Shift+Insert (粘贴)
+            // Insert 键的 keyCode 是 2083
+            if (event.keyCode === 2083 && event.type === KeyType.Down) {
+              // 使用 getModifierKeyState 方法检测修饰键状态 (API 13+)
+              const ctrlPressed = event.getModifierKeyState ? event.getModifierKeyState(['Ctrl']) : false;
+              const shiftPressed = event.getModifierKeyState ? event.getModifierKeyState(['Shift']) : false;
+              const altPressed = event.getModifierKeyState ? event.getModifierKeyState(['Alt']) : false;
+              
+
+              
+              if (ctrlPressed && !shiftPressed && !altPressed) {
+                // Ctrl+Insert: 复制
+                hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: Ctrl+Insert copy');
+                this.handleCopyRequest();
+                return;
+              }
+              if (shiftPressed && !ctrlPressed && !altPressed) {
+                // Shift+Insert: 粘贴
+                hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: Shift+Insert paste');
+                this.handlePasteRequest();
+                return;
+              }
+            }
+          })
       if (this.virtKeyEnabled) {
         if (this.showVirtKey) {
           this.buildVirtualKeys()
@@ -239,7 +283,8 @@ export default struct WebTerminal {
 
     Row() {
       this.buildVKey('TAB', '\t');
-      this.toggleVKey('CTRL', () => this.toggleCtrl());
+      this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
+      this.toggleShiftKey('SHIFT', () => this.toggleShift());
 
       Row().layoutWeight(1);
 
@@ -267,6 +312,11 @@ export default struct WebTerminal {
     this.webviewController.runJavaScript('exports.setCtrlPressed(' + this.ctrlPressed + ')')
   }
 
+  private toggleShift(): void {
+    this.shiftPressed = !this.shiftPressed;
+    this.webviewController.runJavaScript('exports.setShiftPressed(' + this.shiftPressed + ')')
+  }
+
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
@@ -276,6 +326,46 @@ export default struct WebTerminal {
 
     if (this.ctrlPressed) {
       this.toggleCtrl()
+    }
+  }
+
+  // 处理复制请求 - 使用类似右键菜单的方式
+  private async handleCopyRequest(): Promise<void> {
+    // hilog.info(DOMAIN, 'WebTerminal', 'handleCopyRequest start');
+    try {
+      const selection = await this.webviewController.runJavaScript('exports.copy()')
+      // hilog.info(DOMAIN, 'WebTerminal', 'handleCopyRequest selection: %{public}s', selection);
+      // 检查是否有有效的选中文本（不是空字符串、null、undefined）
+      if (selection && selection !== '""' && selection !== 'null' && selection !== 'undefined') {
+        let text: string = JSON.parse(selection);
+        if (text && text.length > 0) {
+          const board = pasteboard.getSystemPasteboard()
+          const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
+          board.setData(pasteData)
+          hilog.info(DOMAIN, 'WebTerminal', 'handleCopyRequest completed, text: %{public}s', text);
+        }
+      }
+    } catch (error) {
+      hilog.error(DOMAIN, 'WebTerminal', 'handleCopyRequest error: %{public}s', String(error));
+    }
+  }
+
+  // 处理粘贴请求 - 使用类似右键菜单的方式
+  private async handlePasteRequest(): Promise<void> {
+    // hilog.info(DOMAIN, 'WebTerminal', 'handlePasteRequest start');
+    try {
+      const board = pasteboard.getSystemPasteboard()
+      const data = await board.getData()
+      const text = data.getPrimaryText()
+      // hilog.info(DOMAIN, 'WebTerminal', 'handlePasteRequest text length: %{public}d', text ? text.length : 0);
+      if (text) {
+        const array = util.TextEncoder.create().encodeInto(text)
+        const base64 = new util.Base64Helper().encodeToStringSync(array)
+        this.webviewController.runJavaScript(`exports.paste(atob('${base64}'))`)
+        hilog.info(DOMAIN, 'WebTerminal', 'handlePasteRequest completed');
+      }
+    } catch (error) {
+      hilog.error(DOMAIN, 'WebTerminal', 'handlePasteRequest error: %{public}s', String(error));
     }
   }
 
@@ -343,5 +433,53 @@ export default struct WebTerminal {
 
   onCursorBlinkChanged() {
     this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
+  }
+
+  // Ctrl+Insert 复制选中文本到剪贴板
+  copyToClipboard(text: string): void {
+    const board = pasteboard.getSystemPasteboard()
+    const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
+    board.setData(pasteData)
+  }
+
+  // Shift+Insert 从剪贴板粘贴
+  async pasteFromClipboard(): Promise<void> {
+    const board = pasteboard.getSystemPasteboard()
+    const data = await board.getData()
+    const text = data.getPrimaryText()
+    if (text) {
+      const array = util.TextEncoder.create().encodeInto(text)
+      const base64 = new util.Base64Helper().encodeToStringSync(array)
+      this.webviewController.runJavaScript(`exports.paste(atob('${base64}'))`)
+    }
+  }
+
+  // Ctrl+Insert 复制请求 - 使用类似右键菜单的方式
+  async requestCopy(): Promise<void> {
+    hilog.info(DOMAIN, 'WebTerminal', 'requestCopy called');
+    const selection = await this.webviewController.runJavaScript('exports.copy()')
+    hilog.info(DOMAIN, 'WebTerminal', 'requestCopy selection: %{public}s', selection);
+    if (selection !== '""') {
+      let text: string = JSON.parse(selection);
+      const board = pasteboard.getSystemPasteboard()
+      const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
+      board.setData(pasteData)
+      hilog.info(DOMAIN, 'WebTerminal', 'requestCopy completed');
+    }
+  }
+
+  // Shift+Insert 粘贴请求 - 使用类似右键菜单的方式
+  async requestPaste(): Promise<void> {
+    hilog.info(DOMAIN, 'WebTerminal', 'requestPaste called');
+    const board = pasteboard.getSystemPasteboard()
+    const data = await board.getData()
+    const text = data.getPrimaryText()
+    hilog.info(DOMAIN, 'WebTerminal', 'requestPaste text length: %{public}d', text ? text.length : 0);
+    if (text) {
+      const array = util.TextEncoder.create().encodeInto(text)
+      const base64 = new util.Base64Helper().encodeToStringSync(array)
+      this.webviewController.runJavaScript(`exports.paste(atob('${base64}'))`)
+      hilog.info(DOMAIN, 'WebTerminal', 'requestPaste completed');
+    }
   }
 }
