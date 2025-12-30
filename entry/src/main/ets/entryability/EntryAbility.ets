@@ -29,6 +29,27 @@ interface StartResult {
   portsSkipped: number[]
 }
 
+/**
+ * 获取一个未被占用的随机端口 (用于 VNC WebSocket)
+ * @param min 最小端口号 (包含)
+ * @param max 最大端口号 (包含)
+ * @returns 可用端口号，如果找不到则返回 undefined
+ */
+function getFreeVncPort(min: number, max: number): number | undefined {
+  const range = max - min + 1;
+  const maxAttempts = 100; // 最大尝试次数
+  
+  for (let i = 0; i < maxAttempts; i++) {
+    const port = min + Math.floor(Math.random() * range);
+    if (!napi.checkPortUsed(port)) {
+      return port;
+    }
+  }
+  
+  hilog.warn(DOMAIN, 'testTag', 'Could not find a free VNC port after %{public}d attempts', maxAttempts);
+  return undefined;
+}
+
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
@@ -161,6 +182,15 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
 
+    // 获取随机 VNC 端口 (60000-65000)
+    const vncPort = getFreeVncPort(60000, 65000);
+    if (vncPort) {
+      AppStorage.setOrCreate('vncWebSocketPort', vncPort);
+      hilog.info(DOMAIN, 'testTag', 'VNC WebSocket port: %{public}d', vncPort);
+    } else {
+      hilog.warn(DOMAIN, 'testTag', 'No free VNC port found, VNC will be disabled');
+    }
+
     startVm({
       baseDir: vmBaseDir,
       cpu: cpuCount,
@@ -175,7 +205,8 @@ export default class EntryAbility extends UIAbility {
       init,
       qmpUnixSocket,
       qmpUnixSocketUI,
-      qgaUnixSocket
+      qgaUnixSocket,
+      vncWebSocketPort: vncPort
     })
 
     // 启动 QMP 事件监听器，监控虚拟机状态变化
@@ -454,6 +485,32 @@ export default class EntryAbility extends UIAbility {
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
+    
+    // 确保 keymaps 目录存在
+    const keymapsDir = vmBaseDir + '/keymaps';
+    if (!fs.accessSync(keymapsDir, fs.AccessModeType.EXIST)) {
+      fs.mkdirSync(keymapsDir);
+    }
+    // 尝试提取到 vm/keymaps/en-us (标准路径)
+    this.extractVmResourceFile(appContext, 'vm/keymaps/en-us', 'vm/keymaps/en-us', forceOverride);
+    // 同时提取到 vm/en-us (备用路径)
+    this.extractVmResourceFile(appContext, 'vm/keymaps/en-us', 'vm/en-us', forceOverride);
+    
+    // 验证文件是否存在及大小
+    const keymapPath = vmBaseDir + '/keymaps/en-us';
+    const keymapPath2 = vmBaseDir + '/en-us';
+    try {
+      const stat1 = fs.statSync(keymapPath);
+      hilog.info(DOMAIN, 'testTag', 'Keymap check - %{public}s: EXISTS, size=%{public}d', keymapPath, stat1.size);
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Keymap check - %{public}s: MISSING or ERROR: %{public}s', keymapPath, JSON.stringify(e));
+    }
+    try {
+      const stat2 = fs.statSync(keymapPath2);
+      hilog.info(DOMAIN, 'testTag', 'Keymap check - %{public}s: EXISTS, size=%{public}d', keymapPath2, stat2.size);
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Keymap check - %{public}s: MISSING or ERROR: %{public}s', keymapPath2, JSON.stringify(e));
+    }
     await appPref.put(appOption.lastResourceVersion, bundleInfo.versionCode)
     await appPref.flush()
 

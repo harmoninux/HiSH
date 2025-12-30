@@ -6,8 +6,23 @@ import QmpClient from '../lib/QmpClient'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { startVm } from '../lib/startVm'
 import { Emulator, PortMapping } from '../model/Emulator'
+import napi from 'libentry.so'
 
 const DOMAIN = 0x0000
+
+/**
+ * 获取一个未被占用的随机端口 (用于 VNC WebSocket)
+ */
+function getFreeVncPort(min: number, max: number): number | undefined {
+  const range = max - min + 1;
+  for (let i = 0; i < 100; i++) {
+    const port = min + Math.floor(Math.random() * range);
+    if (!napi.checkPortUsed(port)) {
+      return port;
+    }
+  }
+  return undefined;
+}
 
 /**
  * 电源管理组件
@@ -460,6 +475,12 @@ export default struct PowerManagementContent {
         return
       }
       
+      // 获取 VNC 端口
+      const vncPort = getFreeVncPort(60000, 65000);
+      if (vncPort) {
+        AppStorage.setOrCreate('vncWebSocketPort', vncPort);
+      }
+
       startVm({
         baseDir: vmBaseDir,
         cpu: emulator.cpu,
@@ -474,7 +495,8 @@ export default struct PowerManagementContent {
         init: emulator.init,
         qmpUnixSocket: appTempDir + '/qmp_socket',
         qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
-        qgaUnixSocket: appTempDir + '/qga_socket'
+        qgaUnixSocket: appTempDir + '/qga_socket',
+        vncWebSocketPort: vncPort
       })
       
       this.statusMessage = '运行中'
@@ -535,6 +557,12 @@ export default struct PowerManagementContent {
         return
       }
       
+      // 获取 VNC 端口
+      const vncPort = getFreeVncPort(60000, 65000);
+      if (vncPort) {
+        AppStorage.setOrCreate('vncWebSocketPort', vncPort);
+      }
+
       startVm({
         baseDir: vmBaseDir,
         cpu: emulator.cpu,
@@ -549,7 +577,8 @@ export default struct PowerManagementContent {
         init: emulator.init,
         qmpUnixSocket: appTempDir + '/qmp_socket',
         qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
-        qgaUnixSocket: appTempDir + '/qga_socket'
+        qgaUnixSocket: appTempDir + '/qga_socket',
+        vncWebSocketPort: vncPort
       })
       
       this.statusMessage = '运行中'
