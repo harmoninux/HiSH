@@ -18,7 +18,7 @@ interface VmOptions {
   qgaUnixSocket: string
   sharedFolderReadonly: boolean
   init: string
-  vncWebSocketPort?: number // VNC WebSocket ¶Ë¿Ú (¿ÉÑ¡£¬ÓÉÍâ²¿´«Èë)
+  vncWebSocketPort?: number // VNC WebSocket ç«¯å£ (å¯é€‰ï¼Œç”±å¤–éƒ¨ä¼ å…¥)
 }
 
 function startVm(options: VmOptions) {
@@ -70,7 +70,7 @@ function startVm(options: VmOptions) {
     ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
       "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
 
-  // VNC ·şÎñÆ÷ (½öµ± vncWebSocketPort ÒÑÉèÖÃÊ±ÆôÓÃ)
+  // VNC æœåŠ¡å™¨ (ä»…å½“ vncWebSocketPort å·²è®¾ç½®æ—¶å¯ç”¨)
   const vnc: string[] = options.vncWebSocketPort ? [
     '-vnc', `127.0.0.1:0,websocket=${options.vncWebSocketPort}`,
     '-device', 'virtio-gpu-pci',
