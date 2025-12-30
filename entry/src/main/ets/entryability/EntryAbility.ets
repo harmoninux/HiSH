@@ -1,4 +1,4 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want, abilityAccessCtrl } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window, KeyboardAvoidMode, PromptAction, UIContext } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
@@ -60,6 +60,18 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('bundleInfo', bundleInfo)
 
     const appContext = this.context.getApplicationContext();
+
+    // 申请剪贴板权限
+    try {
+      const atManager = abilityAccessCtrl.createAtManager();
+      atManager.requestPermissionsFromUser(this.context, ['ohos.permission.READ_PASTEBOARD']).then((data) => {
+        hilog.info(DOMAIN, 'testTag', 'requestPermissionsFromUser result: %{public}s', JSON.stringify(data));
+      }).catch((err: Error) => {
+        hilog.error(DOMAIN, 'testTag', 'requestPermissionsFromUser failed: %{public}s', JSON.stringify(err));
+      })
+    } catch (err) {
+      hilog.error(DOMAIN, 'testTag', 'requestPermissionsFromUser catch err: %{public}s', JSON.stringify(err));
+    }
 
     await this.loadPreferences(appContext);
 

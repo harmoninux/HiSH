@@ -2,6 +2,7 @@ window.exports = {};
 
 function installVirtualCtrl() {
     var ctrlPressed = false;
+    var shiftPressed = false;
 
     function preProcessKeyEvent(e) {
         if (ctrlPressed) {
@@ -9,17 +10,30 @@ function installVirtualCtrl() {
             Object.defineProperty(e, 'returnValue', { value: true });
             Object.defineProperty(e, 'defaultPrevented', { value: true });
         }
+        if (shiftPressed) {
+            Object.defineProperty(e, 'shiftKey', { value: true });
+        }
     }
 
     hterm.Keyboard.prototype.originalOnKeyDown_ = hterm.Keyboard.prototype.onKeyDown_;
     hterm.Keyboard.prototype.onKeyDown_ = function (e) {
-        console.log('keyDown', e)
+        // console.log('keyDown', e)
+
+        // 拦截 Ctrl+Insert 和 Shift+Insert，由原生层处理，防止 hterm 重复处理
+        // Insert 键在 JS 中的 keyCode 是 45
+        if ((e.key === 'Insert' || e.keyCode === 45) && (e.ctrlKey || e.shiftKey)) {
+            // console.log('[term.js] Blocking Insert key combo, native will handle');
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
         preProcessKeyEvent(e);
         this.originalOnKeyDown_(e);
     };
     hterm.Keyboard.prototype.originalonKeyPress_ = hterm.Keyboard.prototype.onKeyPress_;
     hterm.Keyboard.prototype.onKeyPress_ = function (e) {
-        console.log('keyPress', e)
+        // console.log('keyPress', e)
         preProcessKeyEvent(e);
         this.originalonKeyPress_(e);
     };
@@ -55,6 +69,16 @@ function installVirtualCtrl() {
     exports.setCtrlPressed = (b) => {
         ctrlPressed = b;
     };
+
+    // 暴露虚拟 CTRL 状态，供快捷键处理使用
+    exports.getCtrlPressed = () => ctrlPressed;
+
+    exports.setShiftPressed = (b) => {
+        shiftPressed = b;
+    };
+
+    // 暴露虚拟 Shift 状态，供快捷键处理使用
+    exports.getShiftPressed = () => shiftPressed;
 }
 
 installVirtualCtrl();
@@ -155,10 +179,10 @@ function onTerminalReady() {
 
     io.print(
         'HiSH is starting...\r\n\r\n' +
-            '     |  | _)   __|  |  |\r\n' +
-            '     __ |  | \\__ \\  __ |\r\n' +
-            '    _| _| _| ____/ _| _|\r\n'+
-            '\r\n'
+        '     |  | _)   __|  |  |\r\n' +
+        '     __ |  | \\__ \\  __ |\r\n' +
+        '    _| _| _| ____/ _| _|\r\n' +
+        '\r\n'
     );
 
     native.load();
