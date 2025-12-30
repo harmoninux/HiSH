@@ -114,6 +114,31 @@ export default struct WebTerminal {
   }
 
   @Builder
+  vncButton() {
+    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
+      SymbolGlyph($r('sys.symbol.display'))
+        .fontSize(16)
+        .fontColor([$r('sys.color.white')])
+    }
+    .height(VKeyHeight)
+    .width(VKeyHeight)
+    .borderRadius(VKeyRadius)
+    .margin(VKeyMargin)
+    .onClick(() => {
+      // 从 AppStorage 获取 VNC 端口
+      const vncPort = AppStorage.get<number>('vncWebSocketPort');
+      if (vncPort) {
+        this.getUIContext().getRouter().pushUrl({
+          url: 'pages/VncPage',
+          params: { vncPort: vncPort }
+        });
+      } else {
+        this.getUIContext().getPromptAction().showToast({ message: 'VNC 服务未启动' });
+      }
+    })
+  }
+
+  @Builder
   settingsButton() {
     Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
       Image($r('app.media.gearshape')).width(16).height(16).padding(0)
@@ -277,6 +302,7 @@ export default struct WebTerminal {
       this.buildVKey('HOME', '\x1b[H');
       this.buildVKey('↑', '\x1b[A');
       this.buildVKey('END', '\x1b[F');
+      this.vncButton();
       this.settingsButton();
     }
     .margin({ left: 5, right: 5 })

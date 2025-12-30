@@ -2,6 +2,7 @@ PKGS=zstd \
 	zlib \
     pcre2 \
 	libglib \
+	pixman \
 	libqemu
 STAMP=$(patsubst %,%/.stamp,$(PKGS))
 
@@ -13,6 +14,8 @@ output/.stamp: $(STAMP) Makefile
 	rm -f ../entry/libs/$(OHOS_ABI)/*
 	cp output/*.so ../entry/libs/$(OHOS_ABI)/
 	cp output/*.so.* ../entry/libs/$(OHOS_ABI)/
+	mkdir -p ../entry/src/main/resources/rawfile/vm/keymaps
+	cp output/en-us ../entry/src/main/resources/rawfile/vm/keymaps/
 	touch output/.stamp
 
 %/.stamp: %/Makefile

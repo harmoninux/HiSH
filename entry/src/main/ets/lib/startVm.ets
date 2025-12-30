@@ -18,6 +18,7 @@ interface VmOptions {
   qgaUnixSocket: string
   sharedFolderReadonly: boolean
   init: string
+  vncWebSocketPort?: number // VNC WebSocket 端口 (可选，由外部传入)
 }
 
 function startVm(options: VmOptions) {
@@ -30,7 +31,7 @@ function startVm(options: VmOptions) {
     '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=2048',
     "-object", "rng-random,filename=/dev/urandom,id=rng0",
     "-device", "virtio-rng-pci-non-transitional,rng=rng0",
-    '-nographic', '-rtc', 'base=utc,clock=host', '-L', options.baseDir]
+    '-rtc', 'base=utc,clock=host', '-L', options.baseDir]
   const serial = ['-serial', "unix:" + options.serialUnixSocket + ",server,nowait"]
   const cpuMem = ['-smp', `cpus=${options.cpu},sockets=1,cores=${options.cpu},threads=1`,
     "-object", `memory-backend-ram,id=mem0,size=${options.memory}M,merge=off,prealloc=off`, '-m', options.memory + 'M']
@@ -49,7 +50,7 @@ function startVm(options: VmOptions) {
     ",virtqueue_size=256,iothread=iothread0",
     "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1"]
   const kernelParam = ["-append",
-    "root=" + root + " rw rootfstype=ext4 rootwait console=ttyAMA0 elevator=noop skew_tick=1 acpi=off " +
+    "root=" + root + " rw rootfstype=ext4 rootwait console=ttyAMA0 console=tty0 consoleblank=0 elevator=noop skew_tick=1 acpi=off " +
     "mitigations=off audit=0 nmi_watchdog=0 hardened_usercopy=off random.trust_cpu=on virtio_balloon.config_impl=0 " +
     "security=none selinux=0 apparmor=0 psi=0 page_alloc.shuffle=0 swiotlb=noforce idle=halt " +
     "cpuidle.off=1 transparent_hugepage=always pci=noaer scsi_mod.use_blk_mq=1 rng_core.default_quality=1000 " +
@@ -69,6 +70,14 @@ function startVm(options: VmOptions) {
     ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
       "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
 
+  // VNC 服务器 (仅当 vncWebSocketPort 已设置时启用)
+  const vnc: string[] = options.vncWebSocketPort ? [
+    '-vnc', `127.0.0.1:0,websocket=${options.vncWebSocketPort}`,
+    '-device', 'virtio-gpu-pci',
+    '-device', 'virtio-keyboard-pci',
+    '-device', 'virtio-tablet-pci'
+  ] : []
+
   const args = [
     'qemu-system-aarch64',
     ...basic,
@@ -81,7 +90,8 @@ function startVm(options: VmOptions) {
     ...drive,
     ...kernelParam,
     ...monitor,
-    ...qga
+    ...qga,
+    ...vnc
   ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {

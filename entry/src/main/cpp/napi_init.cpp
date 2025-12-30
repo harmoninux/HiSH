@@ -965,12 +965,32 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         // PC 设备：使用 fork 子进程运行 QEMU（QEMU 退出不影响主进程）
         OH_LOG_INFO(LOG_APP, "Using fork mode for PC device");
         
+        int pipefd[2];
+        if (pipe(pipefd) == -1) {
+            OH_LOG_ERROR(LOG_APP, "Failed to create pipe: %{public}d", errno);
+            return nullptr;
+        }
+
         pid_t pid = fork();
         if (pid < 0) {
             OH_LOG_ERROR(LOG_APP, "Failed to fork QEMU process: %{public}d", errno);
+            close(pipefd[0]);
+            close(pipefd[1]);
             return nullptr;
         } else if (pid == 0) {
             // 子进程：运行 QEMU
+            close(pipefd[0]); // 关闭读端
+            
+            // 重定向 stdout 和 stderr 到管道
+            if (dup2(pipefd[1], STDOUT_FILENO) == -1 || dup2(pipefd[1], STDERR_FILENO) == -1) {
+                _exit(1);
+            }
+            close(pipefd[1]); // 关闭写端
+            
+            // 设置行缓冲，确保输出及时刷新
+            setvbuf(stdout, nullptr, _IOLBF, 0);
+            setvbuf(stderr, nullptr, _IOLBF, 0);
+
             const char **argv = new const char *[argsVector.size() + 1];
             for (auto i = 0; i < argsVector.size(); i += 1) {
                 argv[i] = argsVector[i].c_str();
@@ -987,7 +1007,37 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
         } else {
             // 父进程：保存子进程 PID 并启动监控线程
             qemu_child_pid = pid;
+            close(pipefd[1]); // 关闭写端
+            
             OH_LOG_INFO(LOG_APP, "QEMU started in child process with PID: %{public}d", pid);
+            
+            // 启动日志读取线程
+            std::thread log_thread([pipefd]() {
+                char buffer[1024];
+                ssize_t bytesRead;
+                std::string line_buffer;
+                
+                while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+                    buffer[bytesRead] = '\0';
+                    line_buffer += buffer;
+                    
+                    size_t pos;
+                    while ((pos = line_buffer.find('\n')) != std::string::npos) {
+                        std::string line = line_buffer.substr(0, pos);
+                        if (!line.empty()) {
+                            OH_LOG_INFO(LOG_APP, "QEMU: %{public}s", line.c_str());
+                        }
+                        line_buffer.erase(0, pos + 1);
+                    }
+                }
+                
+                if (!line_buffer.empty()) {
+                    OH_LOG_INFO(LOG_APP, "QEMU: %{public}s", line_buffer.c_str());
+                }
+                
+                close(pipefd[0]);
+            });
+            log_thread.detach();
             
             std::thread monitor_thread([pid]() {
                 int status;
