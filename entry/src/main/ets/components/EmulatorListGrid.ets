@@ -1,5 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { Emulator, RootFilesystem } from '../model/Emulator';
+import { Emulator, RootFilesystem, PortMapping } from '../model/Emulator';
 import { RepeatGrid } from './RepeatGrid';
 import { util } from '@kit.ArkTS';
 import appOption, { savePreference } from '../model/appOption';
@@ -11,6 +11,11 @@ import { Want, bundleManager } from '@kit.AbilityKit';
 import EmulatorItem from './EmulatorItem';
 import PowerManagementContent from './PowerManagementContent';
 import ImageManagementContent from './ImageManagementContent';
+import deviceInfo from '@ohos.deviceInfo';
+import preference from '@ohos.data.preferences';
+import { startVm } from '../lib/startVm';
+
+const DOMAIN = 0x0000;
 
 @Component
 export default struct EmulatorListGrid {
@@ -234,9 +239,11 @@ export default struct EmulatorListGrid {
   }
 
   askForStartEmulator(item: Emulator) {
+    const isPcOrTablet = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet';
+    
     this.getUIContext().showAlertDialog({
       title: item.name,
-      message: $r('app.string.msg_restart_confirm'),
+      message: isPcOrTablet ? $r('app.string.msg_start_vm_confirm') : $r('app.string.msg_restart_confirm'),
       autoCancel: true,
       alignment: DialogAlignment.Center,
       buttons: [
@@ -259,8 +266,16 @@ export default struct EmulatorListGrid {
   }
 
   async startEmulator(item: Emulator) {
-    await savePreference(appOption.temporaryStartEmulator, item.id, this.getUIContext())
-    await this.restartApp()
+    const isPcOrTablet = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet';
+    
+    if (isPcOrTablet) {
+      // PC/平板：直接启动虚拟机
+      await this.directStartVM(item);
+    } else {
+      // 手机：重启 HiSH
+      await savePreference(appOption.temporaryStartEmulator, item.id, this.getUIContext())
+      await this.restartApp()
+    }
   }
 
   private async restartApp() {
@@ -270,6 +285,80 @@ export default struct EmulatorListGrid {
       abilityName: 'EntryAbility'
     };
     applicationContext.restartApp(want);
+  }
+
+  /**
+   * PC/平板直接启动虚拟机（不重启 HiSH）
+   */
+  private async directStartVM(item: Emulator) {
+    try {
+      const appTempDir = AppStorage.get(appOption.appTempDir) as string;
+      const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string;
+      const kernelFile = AppStorage.get(appOption.kernel) as string;
+      const sharedFolder = AppStorage.get(appOption.sharedHost) as string;
+
+      // 读取 VNC 启用配置
+      const appContext = this.getUIContext().getHostContext()!!.getApplicationContext();
+      const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+      const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
+      const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+
+      // 获取 VNC 端口
+      const vncPort = vncEnabled ? this.getFreeVncPort(60000, 65000) : undefined;
+      if (vncPort) {
+        AppStorage.setOrCreate('vncWebSocketPort', vncPort);
+      }
+
+      // 调用 startVm
+      startVm({
+        baseDir: vmBaseDir,
+        cpu: item.cpu,
+        memory: item.memory,
+        portMapping: item.portMapping.filter((pm: PortMapping) => pm.host),
+        kernel: kernelFile,
+        rootVda: item.rootVda,
+        rootFilesystem: item.rootFilesystem,
+        sharedFolder: sharedFolder,
+        serialUnixSocket: appTempDir + '/serial_socket',
+        sharedFolderReadonly: item.sharedFolderReadonly,
+        init: item.init,
+        qmpUnixSocket: appTempDir + '/qmp_socket',
+        qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
+        qgaUnixSocket: appTempDir + '/qga_socket',
+        vncWebSocketPort: vncPort
+      });
+
+      // 更新状态
+      AppStorage.setOrCreate(appOption.currentRunningEmulator, item.id);
+      AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
+
+      hilog.info(DOMAIN, 'EmulatorListGrid', '虚拟机启动成功: %{public}s', item.name);
+    } catch (e) {
+      hilog.error(DOMAIN, 'EmulatorListGrid', '虚拟机启动失败: %{public}s', JSON.stringify(e));
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.dialog_confirm_delete'),
+        message: `启动失败: ${JSON.stringify(e)}`,
+        autoCancel: true,
+        alignment: DialogAlignment.Center,
+        buttons: [
+          {
+            value: $r('app.string.setting_generic_confirm'),
+            action: () => {}
+          }
+        ]
+      });
+    }
+  }
+
+  private getFreeVncPort(min: number, max: number): number | undefined {
+    const range = max - min + 1;
+    for (let i = 0; i < 100; i++) {
+      const port = min + Math.floor(Math.random() * range);
+      if (!napi.checkPortUsed(port)) {
+        return port;
+      }
+    }
+    return undefined;
   }
 
   private askForDeleteEmulator(item: Emulator) {

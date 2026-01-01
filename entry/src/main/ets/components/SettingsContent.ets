@@ -38,6 +38,7 @@ export default struct SettingsContent {
   @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
+  @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -119,6 +120,15 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private buildVncEnabled() {
+    Checkbox()
+      .select(this.vncEnabled)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.vncEnabled, value)
+      })
+  }
+
+  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -171,6 +181,20 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalCursorBlink, !this.termCursorBlink)
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: $r('app.string.setting_vnc') })
+          Column() {
+            SettingItem({
+              title: $r('app.string.setting_enable_novnc'),
+              subTitle: $r('app.string.setting_vnc_restart_hint'),
+              content: () => {
+                this.buildVncEnabled()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.vncEnabled, !this.vncEnabled)
             })
           }
           .attributeModifier(this.blockStyle)
@@ -324,5 +348,9 @@ export default struct SettingsContent {
       }
     }
     await savePreference(appOption.runningInBackground, this.runningInBackground, this.getUIContext())
+  }
+
+  async saveVncEnabled() {
+    await savePreference(appOption.vncEnabled, this.vncEnabled, this.getUIContext())
   }
 }
