@@ -18,7 +18,7 @@ interface VmOptions {
   qgaUnixSocket: string
   sharedFolderReadonly: boolean
   init: string
-  vncWebSocketPort?: number // VNC WebSocket ¶Ë¿Ú (¿ÉÑ¡£¬ÓÉÍâ²¿´«Èë)
+  vncWebSocketPort?: number // VNC WebSocket ç«¯å£ (å¯é€‰ï¼Œç”±å¤–éƒ¨ä¼ å…¥)
 }
 
 function startVm(options: VmOptions) {
@@ -28,6 +28,7 @@ function startVm(options: VmOptions) {
   const basic = ['-machine', 'virt,gic-version=max,' +
     'iommu=none,its=off,usb=off,virtualization=off,memory-backend=mem0,compact-highmem=on,' +
     'dump-guest-core=off,mem-merge=off,hmat=off',
+    '-overcommit', 'cpu-pm=off',
     '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=2048',
     "-object", "rng-random,filename=/dev/urandom,id=rng0",
     "-device", "virtio-rng-pci-non-transitional,rng=rng0",
@@ -50,7 +51,8 @@ function startVm(options: VmOptions) {
     ",virtqueue_size=256,iothread=iothread0",
     "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1"]
   const kernelParam = ["-append",
-    "root=" + root + " rw rootfstype=ext4 rootwait console=ttyAMA0 console=tty0 consoleblank=0 elevator=noop skew_tick=1 acpi=off " +
+    "root=" + root + " rw rootfstype=ext4 rootwait console=ttyAMA0 console=tty0 consoleblank=0 " +
+    "elevator=noop skew_tick=1 acpi=off " +
     "mitigations=off audit=0 nmi_watchdog=0 hardened_usercopy=off random.trust_cpu=on virtio_balloon.config_impl=0 " +
     "security=none selinux=0 apparmor=0 psi=0 page_alloc.shuffle=0 swiotlb=noforce idle=halt " +
     "cpuidle.off=1 transparent_hugepage=always pci=noaer scsi_mod.use_blk_mq=1 rng_core.default_quality=1000 " +
@@ -70,7 +72,7 @@ function startVm(options: VmOptions) {
     ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
       "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
 
-  // VNC ·şÎñÆ÷ (½öµ± vncWebSocketPort ÒÑÉèÖÃÊ±ÆôÓÃ)
+  // VNC æœåŠ¡å™¨ (ä»…å½“ vncWebSocketPort å·²è®¾ç½®æ—¶å¯ç”¨)
   const vnc: string[] = options.vncWebSocketPort ? [
     '-vnc', `127.0.0.1:0,websocket=${options.vncWebSocketPort}`,
     '-device', 'virtio-gpu-pci',
@@ -110,11 +112,18 @@ function startVm(options: VmOptions) {
     fs.mkdirSync(options.sharedFolder)
   }
 
+  // å®šä¹‰ PID æ–‡ä»¶è·¯å¾„ï¼ˆä¸å…¶ä»– socket æ–‡ä»¶æ”¾åœ¨åŒä¸€ç›®å½•ï¼‰
+  const pidFilePath = options.baseDir + '/qemu.pid';
+
+  // æ¸…ç†å¯èƒ½æ®‹ç•™çš„ QEMU è¿›ç¨‹ï¼ˆé˜²æ­¢èµ„æºå†²çªï¼‰
+  napi.killQemuProcess(pidFilePath);
+
   napi.startVM({
     argsLines: args.join('\n'),
     unixSocket: options.serialUnixSocket,
     qmpSocket: options.qmpUnixSocket,
-    isPcDevice: deviceInfo.deviceType === '2in1'
+    isPcDevice: deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet',
+    pidFilePath: pidFilePath
   });
 }
 

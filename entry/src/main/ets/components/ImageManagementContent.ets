@@ -154,7 +154,7 @@ export default struct ImageManagementContent {
 
   aboutToAppear(): void {
     // 检查设备类型，仅 2in1 设备视为 PC
-    this.isPC = deviceInfo.deviceType === '2in1'
+    this.isPC = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet'
     
     // 异步加载，先加载基本信息，完成后再加载快照
     this.loadBasicInfoAsync().then(() => {
@@ -339,6 +339,34 @@ export default struct ImageManagementContent {
     }
   }
 
+  // ================== 任务锁辅助方法 ==================
+
+  /**
+   * 尝试获取任务锁
+   * @param description 任务描述
+   * @returns 是否成功获取锁
+   */
+  private checkAndLockTask(description: string): boolean {
+    if (this.globalTaskRunning) {
+      this.promptAction.showToast({
+        message: `后台任务处理中: ${this.globalTaskDescription}`,
+        duration: 2000
+      })
+      return false
+    }
+    this.globalTaskRunning = true
+    this.globalTaskDescription = description
+    return true
+  }
+
+  /**
+   * 释放任务锁
+   */
+  private unlockTask(): void {
+    this.globalTaskRunning = false
+    this.globalTaskDescription = ''
+  }
+
   // ================== 快照管理方法 ==================
 
   /**
@@ -414,6 +442,7 @@ export default struct ImageManagementContent {
   private async createSnapshot(name: string): Promise<void> {
     const basicInfo = this.basicInfo
     if (!basicInfo) return
+    if (!this.checkAndLockTask('创建快照...')) return
     
     this.isLoading = true
     try {
@@ -450,6 +479,7 @@ export default struct ImageManagementContent {
     if (!basicInfo) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
+    if (!this.checkAndLockTask('恢复快照...')) return
     
     this.promptAction.showDialog({
       title: '确认恢复',
@@ -483,7 +513,10 @@ export default struct ImageManagementContent {
           this.errorMessage = '恢复快照失败: ' + (e as Error).message
         } finally {
           this.isLoading = false
+          this.unlockTask()
         }
+      } else {
+        this.unlockTask()
       }
     })
   }
@@ -496,6 +529,7 @@ export default struct ImageManagementContent {
     if (!basicInfo) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
+    if (!this.checkAndLockTask('删除快照...')) return
     
     this.promptAction.showDialog({
       title: '确认删除',
@@ -530,7 +564,10 @@ export default struct ImageManagementContent {
           this.errorMessage = '删除快照失败: ' + (e as Error).message
         } finally {
           this.isLoading = false
+          this.unlockTask()
         }
+      } else {
+        this.unlockTask()
       }
     })
   }
@@ -543,6 +580,7 @@ export default struct ImageManagementContent {
     if (!basicInfo || this.selectedSnapshots.size === 0) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
+    if (!this.checkAndLockTask('批量删除快照...')) return
 
     this.promptAction.showDialog({
       title: '确认批量删除',
@@ -594,7 +632,10 @@ export default struct ImageManagementContent {
           this.errorMessage = '批量删除失败: ' + (e as Error).message
         } finally {
           this.isLoading = false
+          this.unlockTask()
         }
+      } else {
+        this.unlockTask()
       }
     })
   }
@@ -628,8 +669,7 @@ export default struct ImageManagementContent {
       }).then(async (result) => {
         if (result.index === 1) {
           // 强制清理
-          this.globalTaskRunning = false
-          this.globalTaskDescription = ''
+          this.unlockTask()
           try {
             await fs.unlink(tempPath)
           } catch (e) {
@@ -643,6 +683,7 @@ export default struct ImageManagementContent {
       })
       return
     }
+
     
     // 防止重复操作
     if (this.isLoading) {
@@ -691,8 +732,7 @@ export default struct ImageManagementContent {
     
     // 设置任务状态
     this.isLoading = true
-    this.globalTaskRunning = true
-    this.globalTaskDescription = `${modeNames[mode]} (${new Date().toLocaleTimeString()})`
+    this.checkAndLockTask(`${modeNames[mode]} (${new Date().toLocaleTimeString()})`)
     
     // 显示进度对话框（不可关闭）
     this.optimizeTaskMessage = `正在执行${modeNames[mode]}...\n此操作可能需要几分钟，请勿关闭应用`
@@ -750,8 +790,7 @@ export default struct ImageManagementContent {
     } finally {
       this.optimizeProgressDialog.close()
       this.isLoading = false
-      this.globalTaskRunning = false
-      this.globalTaskDescription = ''
+      this.unlockTask()
     }
   }
 
@@ -779,8 +818,7 @@ export default struct ImageManagementContent {
         }
         this.optimizeProgressDialog.close()
         this.isLoading = false
-        this.globalTaskRunning = false
-        this.globalTaskDescription = ''
+        this.unlockTask()
         this.promptAction.showToast({
           message: '已强制清理任务状态',
           duration: 2000
@@ -789,7 +827,6 @@ export default struct ImageManagementContent {
     })
   }
 
-  /**
   /**
    * 显示优化对话框
    */

@@ -302,9 +302,25 @@ export default struct PowerManagementContent {
     this.statusMessage = '系统正在关闭...'
     
     try {
-      // 尝试 GA 关机
+      // 优先尝试执行 poweroff 命令（最兼容）
       if (this.qgaAgent && this.isConnected) {
         try {
+          this.statusMessage = '执行关机命令...'
+          const pid = await this.qgaAgent.exec('/sbin/poweroff', [])
+          if (pid !== null) {
+            this.statusMessage = '已关机'
+            this.isConnected = false
+            AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
+            await this.qgaAgent.disconnect()
+            return
+          }
+        } catch (e) {
+          hilog.warn(DOMAIN, 'PowerManagement', 'poweroff 命令失败: %{public}s', JSON.stringify(e))
+        }
+        
+        // Fallback: 尝试 guest-shutdown
+        try {
+          this.statusMessage = '尝试 guest-shutdown...'
           const result = await this.qgaAgent.shutdown()
           if (result) {
             this.statusMessage = '已关机'
@@ -314,7 +330,7 @@ export default struct PowerManagementContent {
             return
           }
         } catch (e) {
-          hilog.warn(DOMAIN, 'PowerManagement', 'Agent 关机失败: %{public}s', JSON.stringify(e))
+          hilog.warn(DOMAIN, 'PowerManagement', 'guest-shutdown 失败: %{public}s', JSON.stringify(e))
         }
       }
       
@@ -350,8 +366,32 @@ export default struct PowerManagementContent {
     }
     this.statusMessage = '正在执行重启...'
     try {
-      const result = await this.qgaAgent.reboot()
-      if (result) {
+      // 优先尝试执行 reboot 命令（最兼容）
+      let rebootSuccess = false
+      try {
+        this.statusMessage = '执行重启命令...'
+        const pid = await this.qgaAgent.exec('/sbin/reboot', [])
+        if (pid !== null) {
+          rebootSuccess = true
+        }
+      } catch (e) {
+        hilog.warn(DOMAIN, 'PowerManagement', 'reboot 命令失败: %{public}s', JSON.stringify(e))
+      }
+      
+      // Fallback: 尝试 guest-shutdown (mode: reboot)
+      if (!rebootSuccess) {
+        try {
+          this.statusMessage = '尝试 guest-shutdown...'
+          const result = await this.qgaAgent.reboot()
+          if (result) {
+            rebootSuccess = true
+          }
+        } catch (e) {
+          hilog.warn(DOMAIN, 'PowerManagement', 'guest-shutdown reboot 失败: %{public}s', JSON.stringify(e))
+        }
+      }
+      
+      if (rebootSuccess) {
         this.statusMessage = '重启命令已发送，正在重新连接...'
         this.isConnected = false
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')

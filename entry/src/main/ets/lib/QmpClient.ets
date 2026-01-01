@@ -59,6 +59,18 @@ export class QmpClient {
         const message: string = decoder.decodeToString(new Uint8Array(value.message))
         this.pendingResponse += message
       })
+
+      // [修复] 监听错误事件
+      this.client.on('error', (err: ESObject): void => {
+        hilog.error(DOMAIN, 'QmpClient', 'Socket 错误: %{public}s', JSON.stringify(err))
+        this.disconnect() // 触发清理
+      })
+
+      // [修复] 监听关闭事件
+      this.client.on('close', (): void => {
+        hilog.info(DOMAIN, 'QmpClient', 'Socket 连接已关闭')
+        this.disconnect() // 触发清理
+      })
       
       hilog.info(DOMAIN, 'QmpClient', '已连接到 QMP Socket: %{public}s', this.socketPath)
 
@@ -93,6 +105,8 @@ export class QmpClient {
     if (this.client) {
       try {
         this.client.off('message')
+        this.client.off('error')
+        this.client.off('close')
         await this.client.close()
       } catch (e) {
         // 忽略关闭错误

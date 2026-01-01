@@ -10,10 +10,16 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 
 const DOMAIN = 0x0000;
 
-const VKeyMargin = 2;
-const VKeyPadding = 8;
-const VKeyHeight = 28;
-const VKeyWidth = 50;
+// 根据设备类型调整虚拟按键尺寸
+const isPhone = deviceInfo.deviceType === 'phone';
+const isTablet = deviceInfo.deviceType === 'tablet';
+// 手机：最紧凑 | 平板：中等 | PC/2in1：最大
+const VKeyMargin = isPhone ? 1 : 2;
+const VKeyPadding = isPhone ? 2 : (isTablet ? 4 : 8);
+const VKeyHeight = isPhone ? 24 : 28;
+const VKeyWidth = isPhone ? 36 : 50; // 平板和PC用同样大小
+const VKeyModWidth = isPhone ? 48 : 60; // CTRL/SHIFT 更宽
+const VKeyFontSize = isPhone ? 10 : 14; // 平板和PC用同样大小
 const VKeyRadius = 5;
 
 function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
@@ -77,6 +83,7 @@ export default struct WebTerminal {
       .height(VKeyHeight)
       .width(VKeyWidth)
       .borderRadius(VKeyRadius)
+      .fontSize(VKeyFontSize)
       .fontColor($r('sys.color.white'))
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
@@ -88,10 +95,10 @@ export default struct WebTerminal {
   @Builder
   toggleCtrlKey(name: string, action: () => void) {
     Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
-      Text(name).height(28).fontWeight(FontWeight.Medium)
+      Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyWidth)
+    .width(VKeyModWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .backgroundColor($r('sys.color.black'))
@@ -102,10 +109,10 @@ export default struct WebTerminal {
   @Builder
   toggleShiftKey(name: string, action: () => void) {
     Toggle({ type: ToggleType.Button, isOn: this.shiftPressed }) {
-      Text(name).height(28).fontWeight(FontWeight.Medium)
+      Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyWidth)
+    .width(VKeyModWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .backgroundColor($r('sys.color.black'))
@@ -113,30 +120,7 @@ export default struct WebTerminal {
     .onClick(() => action())
   }
 
-  @Builder
-  vncButton() {
-    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-      SymbolGlyph($r('sys.symbol.display'))
-        .fontSize(16)
-        .fontColor([$r('sys.color.white')])
-    }
-    .height(VKeyHeight)
-    .width(VKeyHeight)
-    .borderRadius(VKeyRadius)
-    .margin(VKeyMargin)
-    .onClick(() => {
-      // 从 AppStorage 获取 VNC 端口
-      const vncPort = AppStorage.get<number>('vncWebSocketPort');
-      if (vncPort) {
-        this.getUIContext().getRouter().pushUrl({
-          url: 'pages/VncPage',
-          params: { vncPort: vncPort }
-        });
-      } else {
-        this.getUIContext().getPromptAction().showToast({ message: 'VNC 服务未启动' });
-      }
-    })
-  }
+
 
   @Builder
   settingsButton() {
@@ -235,13 +219,6 @@ export default struct WebTerminal {
               }
             }
           })
-      if (this.virtKeyEnabled) {
-        if (this.showVirtKey) {
-          this.buildVirtualKeys()
-        } else {
-          this.buildShowVirtualKeysButton()
-        }
-      }
 
         if (this.currentStatus === 'PAUSED') {
           Column() {
@@ -272,6 +249,15 @@ export default struct WebTerminal {
         }
       }
       .layoutWeight(1)
+
+      // 虚拟按键放在 Stack 外部，自然显示在底部
+      if (this.virtKeyEnabled) {
+        if (this.showVirtKey) {
+          this.buildVirtualKeys()
+        } else {
+          this.buildShowVirtualKeysButton()
+        }
+      }
     }
   }
 
@@ -293,34 +279,36 @@ export default struct WebTerminal {
 
   @Builder
   buildVirtualKeys() {
-    Row() {
-      this.buildVKey('ESC', '\x1b');
+    Column() {
+      Row() {
+        this.buildVKey('ESC', '\x1b');
 
-      Row().layoutWeight(1);
+        Row().layoutWeight(1);
 
-      this.buildVKey('PGUP', '\x1b[5~');
-      this.buildVKey('HOME', '\x1b[H');
-      this.buildVKey('↑', '\x1b[A');
-      this.buildVKey('END', '\x1b[F');
-      this.vncButton();
-      this.settingsButton();
+        this.buildVKey('PGUP', '\x1b[5~');
+        this.buildVKey('HOME', '\x1b[H');
+        this.buildVKey('↑', '\x1b[A');
+        this.buildVKey('END', '\x1b[F');
+
+        this.settingsButton();
+      }
+      .margin({ left: 5, right: 5 })
+
+      Row() {
+        this.buildVKey('TAB', '\t');
+        this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
+        this.toggleShiftKey('SHIFT', () => this.toggleShift());
+
+        Row().layoutWeight(1);
+
+        this.buildVKey('PGDN', '\x1b[6~');
+        this.buildVKey('←', '\x1b[D');
+        this.buildVKey('↓', '\x1b[B');
+        this.buildVKey('→', '\x1b[C');
+        this.hideVKeyButton();
+      }
+      .margin({ left: 5, right: 5 })
     }
-    .margin({ left: 5, right: 5 })
-
-    Row() {
-      this.buildVKey('TAB', '\t');
-      this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
-      this.toggleShiftKey('SHIFT', () => this.toggleShift());
-
-      Row().layoutWeight(1);
-
-      this.buildVKey('PGDN', '\x1b[6~');
-      this.buildVKey('←', '\x1b[D');
-      this.buildVKey('↓', '\x1b[B');
-      this.buildVKey('→', '\x1b[C');
-      this.hideVKeyButton();
-    }
-    .margin({ left: 5, right: 5 })
   }
 
   async saveShowVirtKey() {
@@ -430,7 +418,7 @@ export default struct WebTerminal {
     
     // 只在移动设备上自动退出应用，PC 设备不自动退出
     // PC 设备用户可通过界面手动关闭应用
-    const isPc = deviceInfo.deviceType === '2in1';
+    const isPc = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet';
     if (!isPc) {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
       await context?.terminateSelf()

@@ -575,6 +575,7 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args) {
         sigaction(40, &sa, nullptr);
         sigaction(91, &sa, nullptr);
         sigaction(92, &sa, nullptr);
+        sigaction(89, &sa, nullptr); // [Fix] Ignore signal 89
         
         // Call entry point directly
         // Since we forked, we have a copy of the parent's memory state.
@@ -618,9 +619,9 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args) {
             }
         } else if (WIFSIGNALED(status)) {
              int sig = WTERMSIG(status);
-             // Signal 40, 91, 92 are OHOS-specific signals triggered during qemu-img cleanup
+             // Signal 40, 91, 92, 89 are OHOS-specific signals triggered during qemu-img cleanup
              // The operation is actually successful, so treat these as success
-             if (sig == 40 || sig == 91 || sig == 92) {
+             if (sig == 40 || sig == 91 || sig == 92 || sig == 89) {
                  OH_LOG_INFO(LOG_APP, "qemu-img terminated with signal %{public}d (expected, treating as success)", sig);
                  // Continue to success path
              } else {
@@ -941,6 +942,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_value nv_arg_lines;
     napi_value nv_unix_socket;
     napi_value nv_is_pc_device;
+    napi_value nv_pid_file_path;
 
     napi_create_string_utf8(env, "argsLines", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_arg_lines);
@@ -951,10 +953,14 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "isPcDevice", NAPI_AUTO_LENGTH, &key_name);
     napi_get_property(env, args[0], key_name, &nv_is_pc_device);
 
+    napi_create_string_utf8(env, "pidFilePath", NAPI_AUTO_LENGTH, &key_name);
+    napi_get_property(env, args[0], key_name, &nv_pid_file_path);
+
     std::string argsLines = getString(env, nv_arg_lines);
     std::vector<std::string> argsVector = splitStringByNewline(argsLines);
 
     std::string unixSocket = getString(env, nv_unix_socket);
+    std::string pidFilePath = getString(env, nv_pid_file_path);
 
     bool isPcDevice = false;
     napi_get_value_bool(env, nv_is_pc_device, &isPcDevice);
@@ -1011,6 +1017,18 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             
             OH_LOG_INFO(LOG_APP, "QEMU started in child process with PID: %{public}d", pid);
             
+            // 将 PID 写入文件（用于跨重启清理）
+            if (!pidFilePath.empty()) {
+                FILE* f = fopen(pidFilePath.c_str(), "w");
+                if (f) {
+                    fprintf(f, "%d", pid);
+                    fclose(f);
+                    OH_LOG_INFO(LOG_APP, "Wrote PID %{public}d to file: %{public}s", pid, pidFilePath.c_str());
+                } else {
+                    OH_LOG_ERROR(LOG_APP, "Failed to write PID file: %{public}s, errno: %{public}d", pidFilePath.c_str(), errno);
+                }
+            }
+            
             // 启动日志读取线程
             std::thread log_thread([pipefd]() {
                 char buffer[1024];
@@ -1039,11 +1057,17 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             });
             log_thread.detach();
             
-            std::thread monitor_thread([pid]() {
+            std::thread monitor_thread([pid, pidFilePath]() {
                 int status;
                 waitpid(pid, &status, 0);
                 qemu_child_pid = -1;  // 子进程已退出，清除 PID
                 OH_LOG_INFO(LOG_APP, "QEMU child process exited with status: %{public}d", status);
+                
+                // 删除 PID 文件
+                if (!pidFilePath.empty()) {
+                    unlink(pidFilePath.c_str());
+                    OH_LOG_INFO(LOG_APP, "Deleted PID file on exit: %{public}s", pidFilePath.c_str());
+                }
                 
                 if (on_shutdown_callback != nullptr) {
                     napi_call_threadsafe_function(on_shutdown_callback, nullptr, napi_tsfn_nonblocking);
@@ -1262,26 +1286,62 @@ static napi_value getCpuArchVersion(napi_env env, napi_callback_info info) {
 }
 
 // 杀死 QEMU 子进程 (PC 模式下使用)
+// 接受一个参数: pidFilePath (PID 文件路径)
 static napi_value killQemuProcess(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    
+    std::string pidFilePath;
+    if (argc >= 1) {
+        pidFilePath = getString(env, args[0]);
+    }
+    
+    pid_t pid_to_kill = -1;
+    
+    // 优先从内存中获取 PID
     if (qemu_child_pid > 0) {
-        OH_LOG_INFO(LOG_APP, "Killing QEMU child process with PID: %{public}d", qemu_child_pid);
+        pid_to_kill = qemu_child_pid;
+        OH_LOG_INFO(LOG_APP, "Using in-memory PID: %{public}d", pid_to_kill);
+    } 
+    // 如果内存中没有，尝试从文件读取
+    else if (!pidFilePath.empty()) {
+        FILE* f = fopen(pidFilePath.c_str(), "r");
+        if (f) {
+            int pid_from_file = 0;
+            if (fscanf(f, "%d", &pid_from_file) == 1 && pid_from_file > 0) {
+                pid_to_kill = pid_from_file;
+                OH_LOG_INFO(LOG_APP, "Read PID from file %{public}s: %{public}d", pidFilePath.c_str(), pid_to_kill);
+            }
+            fclose(f);
+        }
+    }
+    
+    if (pid_to_kill > 0) {
+        OH_LOG_INFO(LOG_APP, "Killing QEMU child process with PID: %{public}d", pid_to_kill);
         
         // 先尝试 SIGTERM（优雅关闭）
-        int result = kill(qemu_child_pid, SIGTERM);
+        int result = kill(pid_to_kill, SIGTERM);
         if (result == 0) {
             // 等待一小段时间让进程退出
             usleep(100000);  // 100ms
             
             // 检查进程是否还在运行
-            result = kill(qemu_child_pid, 0);
+            result = kill(pid_to_kill, 0);
             if (result == 0) {
                 // 进程还在，使用 SIGKILL 强制杀死
                 OH_LOG_INFO(LOG_APP, "QEMU process still running, sending SIGKILL");
-                kill(qemu_child_pid, SIGKILL);
+                kill(pid_to_kill, SIGKILL);
             }
         }
         
         qemu_child_pid = -1;
+        
+        // 删除 PID 文件
+        if (!pidFilePath.empty()) {
+            unlink(pidFilePath.c_str());
+            OH_LOG_INFO(LOG_APP, "Deleted PID file: %{public}s", pidFilePath.c_str());
+        }
     } else {
         OH_LOG_INFO(LOG_APP, "No QEMU child process to kill");
     }
