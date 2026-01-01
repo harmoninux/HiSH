@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <sys/prctl.h>
 #include <thread>
 #include <unistd.h>
 #include <sys/types.h>
@@ -799,6 +800,7 @@ void serial_output_worker(const char *unix_socket_path) {
 
     if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_un)) == -1) {
         OH_LOG_INFO(LOG_APP, "Failed to connect to unix socket: %{public}d", errno);
+        close(client_fd);  // 修复：连接失败时关闭 fd
         return;
     }
 
@@ -828,6 +830,10 @@ void serial_output_worker(const char *unix_socket_path) {
             } else if (r < 0) {
                 OH_LOG_INFO(LOG_APP, "Program exited, %{public}ld %{public}d", r, errno);
                 broken = true;
+            } else if (r == 0) {
+                // EOF: 对端关闭了连接
+                OH_LOG_INFO(LOG_APP, "Serial socket EOF - peer closed connection");
+                broken = true;
             }
         }
 
@@ -835,6 +841,11 @@ void serial_output_worker(const char *unix_socket_path) {
             break;
         }
     }
+
+    // 清理资源
+    close(client_fd);
+    serial_input_fd = -1;
+    OH_LOG_INFO(LOG_APP, "Closed serial socket fd: %{public}d", client_fd);
 
     if (on_data_callback != nullptr) {
         napi_release_threadsafe_function(on_data_callback, napi_threadsafe_function_release_mode::napi_tsfn_release);
@@ -922,6 +933,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
             return nullptr;
         } else if (pid == 0) {
             // 子进程：运行 QEMU
+            // 当父进程退出时，子进程自动收到 SIGKILL，确保不会成为孤儿进程
+            prctl(PR_SET_PDEATHSIG, SIGKILL);
+            
             close(pipefd[0]); // 关闭读端
             
             // 重定向 stdout 和 stderr 到管道
@@ -1250,16 +1264,34 @@ static napi_value killQemuProcess(napi_env env, napi_callback_info info) {
         // 先尝试 SIGTERM（优雅关闭）
         int result = kill(pid_to_kill, SIGTERM);
         if (result == 0) {
-            // 等待一小段时间让进程退出
-            usleep(100000);  // 100ms
+            // 等待更长时间让进程优雅退出（增加到 500ms）
+            usleep(500000);  // 500ms
             
             // 检查进程是否还在运行
             result = kill(pid_to_kill, 0);
             if (result == 0) {
                 // 进程还在，使用 SIGKILL 强制杀死
-                OH_LOG_INFO(LOG_APP, "QEMU process still running, sending SIGKILL");
+                OH_LOG_INFO(LOG_APP, "QEMU process still running after SIGTERM, sending SIGKILL");
                 kill(pid_to_kill, SIGKILL);
+                // 等待 SIGKILL 生效
+                usleep(100000);  // 100ms
             }
+        } else {
+            // SIGTERM 失败（可能进程已不存在），尝试 SIGKILL
+            OH_LOG_WARN(LOG_APP, "SIGTERM failed (errno: %{public}d), trying SIGKILL", errno);
+            kill(pid_to_kill, SIGKILL);
+            usleep(100000);  // 100ms
+        }
+        
+        // 收割 zombie 进程（非阻塞）
+        int status;
+        pid_t wait_result = waitpid(pid_to_kill, &status, WNOHANG);
+        if (wait_result > 0) {
+            OH_LOG_INFO(LOG_APP, "Reaped zombie process %{public}d with status: %{public}d", wait_result, status);
+        } else if (wait_result == 0) {
+            OH_LOG_INFO(LOG_APP, "Process %{public}d still running, will be reaped by prctl mechanism", pid_to_kill);
+        } else {
+            OH_LOG_INFO(LOG_APP, "waitpid returned %{public}d (errno: %{public}d) - process may already be gone", wait_result, errno);
         }
         
         qemu_child_pid = -1;

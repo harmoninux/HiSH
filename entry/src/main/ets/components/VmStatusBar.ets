@@ -155,16 +155,12 @@ export struct VmStatusBar {
     hilog.info(DOMAIN, 'VmStatusBar', '虚拟机状态变化: %{public}s', this.currentEmulatorStatus)
     
     if (this.currentEmulatorStatus === 'RUNNING') {
-      // 虚拟机开始运行，延迟一段时间后尝试连接 Agent（等待 Guest Agent 服务启动）
+      // 虚拟机开始运行，延迟后尝试首次连接（带重试机制）
       setTimeout((): void => {
         if (this.isComponentActive && this.currentEmulatorStatus === 'RUNNING' && !this.isPowerManagementOpen) {
-          this.refreshStatus()
-          // 如果启用了监控，启动定时刷新
-          if (this.settings.masterSwitch) {
-            this.startRefreshTimer()
-          }
+          this.initialConnectWithRetry()
         }
-      }, 3000)
+      }, 5000)  // 统一等待 5 秒，等待 Guest Agent 服务启动
     } else if (this.currentEmulatorStatus === 'REBOOTING') {
       // 重启中状态，等待更长时间后尝试刷新
       this.status.agentConnected = false
@@ -173,10 +169,7 @@ export struct VmStatusBar {
           // 只要状态不是 SHUTDOWN/PAUSED 就尝试刷新
           const status = this.currentEmulatorStatus
           if (status === 'RUNNING' || status === 'REBOOTING' || status === 'ABNORMAL') {
-            this.refreshStatus()
-            if (this.settings.masterSwitch) {
-              this.startRefreshTimer()
-            }
+            this.initialConnectWithRetry()  // 重启后也使用带重试的连接
           }
         }
       }, 8000) // 重启需要更长等待时间
@@ -190,6 +183,43 @@ export struct VmStatusBar {
       // 关机或暂停状态，标记 Agent 为断开
       this.status.agentConnected = false
       this.stopRefreshTimer()
+    }
+  }
+  
+  /**
+   * 虚拟机启动后的首次连接（带重试机制）
+   * 不受 masterSwitch 影响，确保首次连接成功
+   */
+  private async initialConnectWithRetry() {
+    const maxAttempts = 10     // 最多 10 次
+    const retryInterval = 2000 // 间隔 2 秒
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // 检查组件状态
+      if (!this.isComponentActive) return
+      if (this.currentEmulatorStatus !== 'RUNNING' && this.currentEmulatorStatus !== 'REBOOTING') return
+      if (this.isPowerManagementOpen) return
+      
+      hilog.info(DOMAIN, 'VmStatusBar', '首次连接尝试 %{public}d/%{public}d', attempt, maxAttempts)
+      
+      // 尝试刷新（内部会调用 acquire/ping/release）
+      await this.refreshStatus()
+      
+      // 检查是否成功
+      if (this.status.agentConnected) {
+        hilog.info(DOMAIN, 'VmStatusBar', '首次连接成功，共尝试 %{public}d 次', attempt)
+        break
+      }
+      
+      // 失败，等待后重试
+      if (attempt < maxAttempts) {
+        await new Promise<void>((resolve: () => void) => setTimeout(resolve, retryInterval))
+      }
+    }
+    
+    // 如果开启了监控，启动定时刷新
+    if (this.settings.masterSwitch) {
+      this.startRefreshTimer()
     }
   }
   

@@ -184,7 +184,7 @@ export default struct WebTerminal {
             name: 'native',
             methodList: ['sendInput', 'resize', 'load',
               'getFontSize', 'getCursorShape', 'getCursorBlink',
-              'copyToClipboard', 'requestCopy', 'requestPaste'],
+              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift'],
             controller: this.webviewController,
             asyncMethodList: ['pasteFromClipboard'],
             permission: `{
@@ -343,16 +343,41 @@ export default struct WebTerminal {
     this.webviewController.runJavaScript('exports.setShiftPressed(' + this.shiftPressed + ')')
   }
 
+  // 由 JavaScript 调用，用于自动重置 Shift 状态
+  resetShift(): void {
+    if (this.shiftPressed) {
+      this.shiftPressed = false;
+      // 不需要再调用 JS，因为 JS 侧已经重置了
+    }
+  }
+
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
+    
+    // 处理 Ctrl 状态：将小写字母转换为控制字符
+    if (this.ctrlPressed && data.length === 1) {
+      const char = data.charAt(0);
+      if (char >= 'a' && char <= 'z') {
+        data = String.fromCharCode(char.charCodeAt(0) - 'a'.charCodeAt(0) + 1);
+        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
+      }
+    }
+    
+    // 处理 Shift 状态：将小写字母转换为大写
+    if (this.shiftPressed && data.length === 1) {
+      const char = data.charAt(0);
+      if (char >= 'a' && char <= 'z') {
+        data = char.toUpperCase();
+        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
+      }
+    }
+    
     let buffer = stringToArrayBuffer(data, 'utf-8');
     napi.sendInput(buffer)
-
-    if (this.ctrlPressed) {
-      this.toggleCtrl()
-    }
+    
+    // 状态保持：不自动重置 Ctrl 和 Shift，需要用户手动点击取消
   }
 
   // 处理复制请求 - 使用类似右键菜单的方式
