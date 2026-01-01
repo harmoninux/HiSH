@@ -120,8 +120,6 @@ export default struct WebTerminal {
     .onClick(() => action())
   }
 
-
-
   @Builder
   settingsButton() {
     Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
@@ -132,6 +130,20 @@ export default struct WebTerminal {
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .bindMenu([{
+      value: $r('app.string.vnc_console_title'),
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.display')).fontSize($r('sys.float.Title_S')),
+      action: () => {
+        const vncPort = AppStorage.get<number>('vncWebSocketPort');
+        if (vncPort) {
+          this.getUIContext().getRouter().pushUrl({
+            url: 'pages/VncPage',
+            params: { vncPort: vncPort }
+          });
+        } else {
+          this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
+        }
+      }
+    }, {
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
@@ -172,7 +184,7 @@ export default struct WebTerminal {
             name: 'native',
             methodList: ['sendInput', 'resize', 'load',
               'getFontSize', 'getCursorShape', 'getCursorBlink',
-              'copyToClipboard', 'requestCopy', 'requestPaste'],
+              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift'],
             controller: this.webviewController,
             asyncMethodList: ['pasteFromClipboard'],
             permission: `{
@@ -194,7 +206,7 @@ export default struct WebTerminal {
           .onKeyEvent((event: KeyEvent) => {
             // 调试：打印所有键盘事件的 keyCode
             // hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: keyCode=%{public}d, type=%{public}d', event.keyCode, event.type);
-            
+
             // 在原生层捕获 Ctrl+Insert (复制) 和 Shift+Insert (粘贴)
             // Insert 键的 keyCode 是 2083
             if (event.keyCode === 2083 && event.type === KeyType.Down) {
@@ -202,9 +214,9 @@ export default struct WebTerminal {
               const ctrlPressed = event.getModifierKeyState ? event.getModifierKeyState(['Ctrl']) : false;
               const shiftPressed = event.getModifierKeyState ? event.getModifierKeyState(['Shift']) : false;
               const altPressed = event.getModifierKeyState ? event.getModifierKeyState(['Alt']) : false;
-              
 
-              
+
+
               if (ctrlPressed && !shiftPressed && !altPressed) {
                 // Ctrl+Insert: 复制
                 hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: Ctrl+Insert copy');
@@ -331,16 +343,41 @@ export default struct WebTerminal {
     this.webviewController.runJavaScript('exports.setShiftPressed(' + this.shiftPressed + ')')
   }
 
+  // 由 JavaScript 调用，用于自动重置 Shift 状态
+  resetShift(): void {
+    if (this.shiftPressed) {
+      this.shiftPressed = false;
+      // 不需要再调用 JS，因为 JS 侧已经重置了
+    }
+  }
+
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
+    
+    // 处理 Ctrl 状态：将小写字母转换为控制字符
+    if (this.ctrlPressed && data.length === 1) {
+      const char = data.charAt(0);
+      if (char >= 'a' && char <= 'z') {
+        data = String.fromCharCode(char.charCodeAt(0) - 'a'.charCodeAt(0) + 1);
+        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
+      }
+    }
+    
+    // 处理 Shift 状态：将小写字母转换为大写
+    if (this.shiftPressed && data.length === 1) {
+      const char = data.charAt(0);
+      if (char >= 'a' && char <= 'z') {
+        data = char.toUpperCase();
+        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
+      }
+    }
+    
     let buffer = stringToArrayBuffer(data, 'utf-8');
     napi.sendInput(buffer)
-
-    if (this.ctrlPressed) {
-      this.toggleCtrl()
-    }
+    
+    // 状态保持：不自动重置 Ctrl 和 Shift，需要用户手动点击取消
   }
 
   // 处理复制请求 - 使用类似右键菜单的方式
@@ -410,12 +447,12 @@ export default struct WebTerminal {
   private async onShutdown() {
     // QEMU 退出后记录日志
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
-    
+
     // 更新虚拟机状态 - 清除当前运行的模拟器标识
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
     AppStorage.setOrCreate(appOption.currentRunningEmulator, '');
     hilog.info(DOMAIN, 'WebTerminal', 'Updated emulator status to SHUTDOWN, cleared currentRunningEmulator');
-    
+
     // 只在移动设备上自动退出应用，PC 设备不自动退出
     // PC 设备用户可通过界面手动关闭应用
     const isPc = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet';

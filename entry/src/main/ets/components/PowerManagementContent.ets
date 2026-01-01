@@ -7,6 +7,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { startVm } from '../lib/startVm'
 import { Emulator, PortMapping } from '../model/Emulator'
 import napi from 'libentry.so'
+import preference from '@ohos.data.preferences'
 
 const DOMAIN = 0x0000
 
@@ -515,8 +516,14 @@ export default struct PowerManagementContent {
         return
       }
       
+      // 读取 VNC 启用配置
+      const appContext = getContext(this).getApplicationContext();
+      const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+      const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
+      const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+      
       // 获取 VNC 端口
-      const vncPort = getFreeVncPort(60000, 65000);
+      const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
       if (vncPort) {
         AppStorage.setOrCreate('vncWebSocketPort', vncPort);
       }
@@ -597,8 +604,14 @@ export default struct PowerManagementContent {
         return
       }
       
+      // 读取 VNC 启用配置
+      const appContext = getContext(this).getApplicationContext();
+      const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+      const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
+      const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+      
       // 获取 VNC 端口
-      const vncPort = getFreeVncPort(60000, 65000);
+      const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
       if (vncPort) {
         AppStorage.setOrCreate('vncWebSocketPort', vncPort);
       }

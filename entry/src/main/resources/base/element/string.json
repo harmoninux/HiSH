@@ -261,6 +261,18 @@
       "value": "Terminal"
     },
     {
+      "name": "setting_vnc",
+      "value": "VNC"
+    },
+    {
+      "name": "setting_enable_novnc",
+      "value": "Enable noVNC"
+    },
+    {
+      "name": "setting_vnc_restart_hint",
+      "value": "Takes effect after restarting the app"
+    },
+    {
       "name": "failed_to_force_background",
       "value": "Simulated background location failed. Please grant the app location permission and enable location in system settings"
     },
@@ -1327,6 +1339,10 @@
     {
       "name": "msg_restart_confirm_suffix",
       "value": ". Save your data first. Continue?"
+    },
+    {
+      "name": "msg_start_vm_confirm",
+      "value": "Confirm to start the virtual machine?"
     },
     {
       "name": "msg_delete_emulator_confirm",

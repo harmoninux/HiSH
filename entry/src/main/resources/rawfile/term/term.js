@@ -46,9 +46,11 @@ function installVirtualCtrl() {
     hterm.Keyboard.prototype.originalOnTextInput_ = hterm.Keyboard.prototype.onTextInput_;
     hterm.Keyboard.prototype.onTextInput_ = function (e) {
         console.log('textInput', e)
-        if (!ctrlPressed) {
+        if (!ctrlPressed && !shiftPressed) {
+            // 普通输入：直接传递
             this.originalOnTextInput_(e);
-        } else {
+        } else if (ctrlPressed) {
+            // Ctrl+字母：转换为控制字符
             var data = ''
             for (var i = 0; i < e.data.length; i++) {
                 var c;
@@ -56,6 +58,18 @@ function installVirtualCtrl() {
                     c = String.fromCharCode(e.data.charCodeAt(i) - 'a'.charCodeAt(0) + 1);
                 } else {
                     c = e.data.charAt(i);
+                }
+                data += c;
+            }
+            Object.defineProperty(e, 'data', { value: data })
+            this.originalOnTextInput_(e)
+        } else if (shiftPressed) {
+            // Shift+字母：转换为大写（状态保持，需要手动点击取消）
+            var data = ''
+            for (var i = 0; i < e.data.length; i++) {
+                var c = e.data[i];
+                if (c >= 'a' && c <= 'z') {
+                    c = c.toUpperCase();
                 }
                 data += c;
             }

@@ -253,6 +253,18 @@
       "value": "终端"
     },
     {
+      "name": "setting_vnc",
+      "value": "VNC"
+    },
+    {
+      "name": "setting_enable_novnc",
+      "value": "启用 noVNC"
+    },
+    {
+      "name": "setting_vnc_restart_hint",
+      "value": "下一次重新打开软件生效"
+    },
+    {
       "name": "root_outdated_prompt",
       "value": "当前模拟器的root路径为%s，可能导致Linux无法正常启动\n可以前往模拟器管理中修改模拟器的root设置，例如修改为/dev/sda"
     },
@@ -1327,6 +1339,10 @@
     {
       "name": "msg_restart_confirm_suffix",
       "value": "，建议保存好当前模拟器中的数据再操作。是否现在启动？"
+    },
+    {
+      "name": "msg_start_vm_confirm",
+      "value": "确认启动该虚拟机？"
     },
     {
       "name": "msg_delete_emulator_confirm",

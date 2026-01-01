@@ -135,7 +135,7 @@ export default class EntryAbility extends UIAbility {
       this.registerWindowSizeChangeListener(mainWindow);
 
       await this.prepareForSharedFolder(appContext)
-      const result = this.startDefaultEmulator()
+      const result = await this.startDefaultEmulator(appContext)
 
       this.promptRootVdaMessage(uiContext)
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
@@ -159,7 +159,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
 
-  private startDefaultEmulator(): StartResult {
+  private async startDefaultEmulator(appContext: common.ApplicationContext): Promise<StartResult> {
 
     const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
@@ -195,8 +195,13 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
 
+    // 读取 VNC 启用配置
+    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+    const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
+    const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+
     // 获取随机 VNC 端口 (60000-65000)
-    const vncPort = getFreeVncPort(60000, 65000);
+    const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
     if (vncPort) {
       AppStorage.setOrCreate('vncWebSocketPort', vncPort);
       hilog.info(DOMAIN, 'testTag', 'VNC WebSocket port: %{public}d', vncPort);
@@ -393,8 +398,8 @@ export default class EntryAbility extends UIAbility {
       
       hilog.info(DOMAIN, 'testTag', 'QGA 独立连接成功，执行 resize 命令')
       
-      // 直接执行 resize 命令
-      const pid = await resizeAgent.exec('/bin/sh', ['-c', 'resize >/dev/null 2>&1'])
+      // 直接执行 resize 命令，指定 ttyAMA0 终端设备
+      const pid = await resizeAgent.exec('/bin/sh', ['-c', 'resize ttyAMA0 >/dev/null 2>&1'])
       
       if (pid !== null) {
         hilog.info(DOMAIN, 'testTag', 'Resize window!')
@@ -459,6 +464,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalCursorShape, terminalCursorShape);
     const terminalCursorBlink = await appPref.get(appOption.terminalCursorBlink, false) as boolean;
     AppStorage.setOrCreate(appOption.terminalCursorBlink, terminalCursorBlink);
+    const vncEnabled = await appPref.get(appOption.vncEnabled, true) as boolean;
+    AppStorage.setOrCreate(appOption.vncEnabled, vncEnabled);
 
     const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
     AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)

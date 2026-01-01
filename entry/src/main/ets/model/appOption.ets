@@ -28,6 +28,7 @@ class appOption {
   static runningInBackground = 'runningInBackground';
   static showVirtKey = 'showVirtKey';
   static isPowerManagementOpen = 'isPowerManagementOpen';
+  static vncEnabled = 'vncEnabled';
   // qemu-img 后台任务状态
   static qemuImgTaskRunning = 'qemuImgTaskRunning';
   static qemuImgTaskDescription = 'qemuImgTaskDescription';

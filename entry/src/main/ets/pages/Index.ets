@@ -348,110 +348,24 @@ struct PcIndex {
 }
 
 @Component
-struct SharedFolderTab {
-  @StorageProp(appOption.sharedHost) sharedHost?: string = undefined
-  @StorageProp(appOption.sharedGuest) sharedGuest?: string = undefined
-  controller?: SharedFolderController
-
-  build() {
-    Column() {
-      if (this.sharedHost) {
-        SharedFolderContent({
-          host: this.sharedHost,
-          guest: this.sharedGuest,
-          controller: this.controller
-        })
-      }
-    }
-  }
-}
-
-@Component
 struct PhoneOrTablet {
-  @StorageProp(appOption.sharedHost) sharedHost: string = ''
-  @StorageProp(appOption.sharedGuest) sharedGuest: string = ''
-  @State currentIndex: number = 0;
-  private tabsController: TabsController = new TabsController();
-
-  @Builder
-  tabBuilder(title: Resource | string, index: number, selectedImg: Resource) {
-    Column() {
-      SymbolGlyph(selectedImg)
-        .fontSize('24vp')
-        .width(24)
-        .height(24)
-        .fontColor([this.currentIndex === index ? '#3388ff' : '#777777'])
-      Text(title)
-        .margin({ top: 4 })
-        .fontSize(10)
-        .fontColor(this.currentIndex === index ? '#3388ff' : '#777777')
-    }
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .height(52)
-    .width('100%')
-    .onClick(() => {
-      this.currentIndex = index;
-      this.tabsController.changeIndex(this.currentIndex);
-    })
-  }
-
   build() {
-    Tabs({
-      barPosition: BarPosition.End,
-      controller: this.tabsController
-    }) {
-      TabContent() {
-        Column() {
-          // 虚拟机状态监控条
-          Row() {
-            VmStatusBar()
-              .layoutWeight(1)
-          }
-          .width('100%')
-          .height(32)
-          .padding({ left: 12, right: 12 })
-          .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-
-          WebTerminal({ virtKeyEnabled: true })
-            .layoutWeight(1)
-        }
-        .width('100%')
-        .height('100%')
+    Column() {
+      // 虚拟机状态监控条
+      Row() {
+        VmStatusBar()
+          .layoutWeight(1)
       }
-      .tabBar(this.tabBuilder($r('app.string.shell'), 0, $r('sys.symbol.house')))
+      .width('100%')
+      .height(32)
+      .padding({ left: 12, right: 12 })
+      .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
 
-      TabContent() {
-        EmulatorManagementContent()
-      }
-      .tabBar(this.tabBuilder($r('app.string.emulator_management_title'), 1, $r('sys.symbol.more')))
-
-      TabContent() {
-        SharedFolderTab()
-      }
-      .tabBar(this.tabBuilder($r('app.string.setting_shared_folder'), 2, $r('sys.symbol.folder')))
-
-      TabContent() {
-        Column() {
-          Text($r('app.string.Setting_title'))
-            .fontSize(18)
-            .height(56)
-            .width('100%')
-            .padding({ left: 15, right: 15 })
-          SettingsContent()
-            .layoutWeight(1)
-        }
-        .width('100%')
-        .height('100%')
-      }
-      .tabBar(this.tabBuilder($r('app.string.Setting_title'), 3, $r('sys.symbol.gearshape')))
+      WebTerminal({ virtKeyEnabled: true })
+        .layoutWeight(1)
     }
     .width('100%')
-    .barHeight(52)
-    .barMode(BarMode.Fixed)
-    .onAnimationStart((index: number, targetIndex: number) => {
-      this.currentIndex = targetIndex;
-    })
+    .height('100%')
   }
 }
 
