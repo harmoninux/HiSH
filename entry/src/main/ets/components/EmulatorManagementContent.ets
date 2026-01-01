@@ -14,8 +14,6 @@ class MenuOption {
 @Component
 export default struct EmulatorManagementContent {
 
-
-
   build() {
     Column() {
       Row() {
@@ -108,23 +106,6 @@ export default struct EmulatorManagementContent {
         }
       }
     ];
-
-    if (deviceInfo.deviceType !== '2in1') {
-      options.push({
-        value: $r('app.string.vnc_console_title'),
-        action: () => {
-          const vncPort = AppStorage.get<number>('vncWebSocketPort');
-          if (vncPort) {
-            this.getUIContext().getRouter().pushUrl({
-              url: 'pages/VncPage',
-              params: { vncPort: vncPort }
-            });
-          } else {
-            this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
-          }
-        }
-      });
-    }
     return options;
   }
 }
