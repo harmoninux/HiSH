@@ -59,6 +59,18 @@ export default class EntryAbility extends UIAbility {
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
     
+    // 清理窗口大小变化防抖定时器
+    if (windowResizeTimer !== -1) {
+      clearTimeout(windowResizeTimer);
+      windowResizeTimer = -1;
+    }
+    
+    // 断开 resizeAgent 连接
+    if (resizeAgent) {
+      resizeAgent.disconnect().catch(() => { /* 忽略错误 */ });
+      resizeAgent = null;
+    }
+    
     // 停止 QMP 事件监听器
     stopQmpEventListener().catch((e: Error): void => {
       hilog.warn(DOMAIN, 'testTag', 'Failed to stop QMP event listener: %{public}s', e.message);
@@ -66,7 +78,8 @@ export default class EntryAbility extends UIAbility {
     
     // 杀死 QEMU 子进程（PC 模式下）
     try {
-      napi.killQemuProcess();
+      const pidFilePath = this.context.filesDir + '/qemu.pid';
+      napi.killQemuProcess(pidFilePath);
     } catch (e) {
       hilog.error(DOMAIN, 'testTag', 'Failed to kill QEMU process: %{public}s', JSON.stringify(e));
     }
@@ -270,6 +283,11 @@ export default class EntryAbility extends UIAbility {
       case 'RESET':
         // 虚拟机重置
         hilog.info(DOMAIN, 'testTag', '虚拟机正在重置')
+        // 断开 resizeAgent 连接，等待下次使用时重新建立
+        if (resizeAgent) {
+          resizeAgent.disconnect().catch(() => { /* 忽略错误 */ });
+          resizeAgent = null;
+        }
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')
         break
         

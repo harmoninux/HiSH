@@ -28,6 +28,7 @@ function startVm(options: VmOptions) {
   const basic = ['-machine', 'virt,gic-version=max,' +
     'iommu=none,its=off,usb=off,virtualization=off,memory-backend=mem0,compact-highmem=on,' +
     'dump-guest-core=off,mem-merge=off,hmat=off',
+    '-overcommit', 'cpu-pm=off',
     '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=2048',
     "-object", "rng-random,filename=/dev/urandom,id=rng0",
     "-device", "virtio-rng-pci-non-transitional,rng=rng0",
@@ -50,7 +51,8 @@ function startVm(options: VmOptions) {
     ",virtqueue_size=256,iothread=iothread0",
     "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1"]
   const kernelParam = ["-append",
-    "root=" + root + " rw rootfstype=ext4 rootwait console=ttyAMA0 console=tty0 consoleblank=0 elevator=noop skew_tick=1 acpi=off " +
+    "root=" + root + " rw rootfstype=ext4 rootwait console=ttyAMA0 console=tty0 consoleblank=0 " +
+    "elevator=noop skew_tick=1 acpi=off " +
     "mitigations=off audit=0 nmi_watchdog=0 hardened_usercopy=off random.trust_cpu=on virtio_balloon.config_impl=0 " +
     "security=none selinux=0 apparmor=0 psi=0 page_alloc.shuffle=0 swiotlb=noforce idle=halt " +
     "cpuidle.off=1 transparent_hugepage=always pci=noaer scsi_mod.use_blk_mq=1 rng_core.default_quality=1000 " +
@@ -110,11 +112,18 @@ function startVm(options: VmOptions) {
     fs.mkdirSync(options.sharedFolder)
   }
 
+  // 定义 PID 文件路径（与其他 socket 文件放在同一目录）
+  const pidFilePath = options.baseDir + '/qemu.pid';
+
+  // 清理可能残留的 QEMU 进程（防止资源冲突）
+  napi.killQemuProcess(pidFilePath);
+
   napi.startVM({
     argsLines: args.join('\n'),
     unixSocket: options.serialUnixSocket,
     qmpSocket: options.qmpUnixSocket,
-    isPcDevice: deviceInfo.deviceType === '2in1'
+    isPcDevice: deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet',
+    pidFilePath: pidFilePath
   });
 }
 

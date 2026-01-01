@@ -3,6 +3,7 @@ export type NapiVmOptions = {
   unixSocket: string
   qmpSocket: string
   isPcDevice: boolean
+  pidFilePath: string  // PID 文件路径，用于跨重启清理
 }
 
 export const startVM: (options: NapiVmOptions) => void;
@@ -73,5 +74,7 @@ export const needRestart: () => boolean;
 /**
  * 杀死 QEMU 子进程 (PC 模式下使用)
  * 在应用关闭时调用，确保 QEMU 进程被正确清理
+ * @param pidFilePath PID 文件路径，如果内存中没有 PID 则从文件读取
  */
-export const killQemuProcess: () => void;
+export const killQemuProcess: (pidFilePath?: string) => void;
+

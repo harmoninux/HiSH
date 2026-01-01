@@ -4,9 +4,18 @@ import EditEmulatorContent from './EditEmulatorContent';
 import EmulatorListGrid from './EmulatorListGrid';
 import { CustomContentDialog } from '@kit.ArkUI';
 import { BackButton } from './BackButton';
+import { deviceInfo } from '@kit.BasicServicesKit';
+
+class MenuOption {
+  value: string | Resource = '';
+  action: () => void = () => {};
+}
 
 @Component
 export default struct EmulatorManagementContent {
+
+
+
   build() {
     Column() {
       Row() {
@@ -35,14 +44,7 @@ export default struct EmulatorManagementContent {
           .hoverEffect(HoverEffect.Highlight)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .margin({ right: 5 })
-          .bindMenu([{
-            value: '镜像管理',
-            action: () => {
-              this.getUIContext().getRouter().pushUrl({
-                url: 'pages/RootfsManagement'
-              })
-            }
-          }])
+          .bindMenu(this.getMenuOptions())
       }
       .height(56)
 
@@ -93,5 +95,36 @@ export default struct EmulatorManagementContent {
       titleBar: false,
       editing: false
     })
+  }
+  
+  getMenuOptions(): Array<MenuOption> {
+    const options: Array<MenuOption> = [
+      {
+        value: '镜像管理',
+        action: () => {
+          this.getUIContext().getRouter().pushUrl({
+            url: 'pages/RootfsManagement'
+          })
+        }
+      }
+    ];
+
+    if (deviceInfo.deviceType !== '2in1') {
+      options.push({
+        value: 'noVNC控制台',
+        action: () => {
+          const vncPort = AppStorage.get<number>('vncWebSocketPort');
+          if (vncPort) {
+            this.getUIContext().getRouter().pushUrl({
+              url: 'pages/VncPage',
+              params: { vncPort: vncPort }
+            });
+          } else {
+            this.getUIContext().getPromptAction().showToast({ message: 'VNC 服务未启动' });
+          }
+        }
+      });
+    }
+    return options;
   }
 }

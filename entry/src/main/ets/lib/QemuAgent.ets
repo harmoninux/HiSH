@@ -77,6 +77,18 @@ export class QemuAgent {
         const message: string = decoder.decodeToString(new Uint8Array(value.message))
         this.pendingResponse += message
       })
+
+      // [修复] 监听错误事件
+      this.client.on('error', (err: ESObject): void => {
+        hilog.error(DOMAIN, 'QemuAgent', 'Socket 错误: %{public}s', JSON.stringify(err))
+        this.isConnected = false
+      })
+
+      // [修复] 监听关闭事件
+      this.client.on('close', (): void => {
+        hilog.info(DOMAIN, 'QemuAgent', 'Socket 连接已关闭')
+        this.isConnected = false
+      })
       
       this.isConnected = true
       hilog.info(DOMAIN, 'QemuAgent', '已连接到 QGA: %{public}s', this.socketPath)
@@ -95,7 +107,9 @@ export class QemuAgent {
   async disconnect(): Promise<void> {
     if (this.client) {
       try {
-        this.client.off('message')  // 移除监听器
+        this.client.off('message')
+        this.client.off('error')
+        this.client.off('close')
         await this.client.close()
       } catch (e) {
         // 忽略关闭错误
