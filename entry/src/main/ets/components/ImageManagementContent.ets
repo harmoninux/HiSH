@@ -83,7 +83,7 @@ export default struct ImageManagementContent {
   private promptAction = this.getUIContext().getPromptAction()
   
   // 优化进度对话框控制器
-  @State optimizeTaskMessage: string = '正在执行...'
+  @State optimizeTaskMessage: string = ''
   private optimizeProgressDialog: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: this.optimizeTaskMessage
@@ -95,12 +95,12 @@ export default struct ImageManagementContent {
   // 详情对话框控制器
   private detailDialogController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '镜像详情',
+      primaryTitle: $r('app.string.image_details'),
       contentBuilder: () => {
         this.buildDetailContent()
       },
       buttons: [{
-        value: '关闭',
+        value: $r('app.string.btn_close'),
         action: () => {
           this.detailDialogController.close()
         }
@@ -113,19 +113,19 @@ export default struct ImageManagementContent {
   // 创建快照对话框控制器
   private createSnapshotDialogController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '创建快照',
+      primaryTitle: $r('app.string.create_snapshot'),
       contentBuilder: () => {
         this.buildCreateSnapshotContent()
       },
       buttons: [
         {
-          value: '取消',
+          value: $r('app.string.setting_generic_cancel'),
           action: () => {
             this.createSnapshotDialogController.close()
           }
         },
         {
-          value: '创建',
+          value: $r('app.string.btn_create'),
           role: ButtonRole.NORMAL,
           action: () => {
             if (this.snapshotNameInput.trim()) {
@@ -143,7 +143,7 @@ export default struct ImageManagementContent {
   // 优化模式选择对话框控制器
   private optimizeModeDialogController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '选择优化模式',
+      primaryTitle: $r('app.string.dialog_optimize_mode'),
       contentBuilder: () => {
         this.buildOptimizeModeContent()
       }
@@ -168,7 +168,7 @@ export default struct ImageManagementContent {
   private checkPC(): boolean {
     if (!this.isPC) {
       this.promptAction.showToast({
-        message: '该功能仅适用于 PC/2in1 设备',
+        message: $r('app.string.msg_pc_only'),
         duration: 2000
       })
       return false
@@ -217,7 +217,7 @@ export default struct ImageManagementContent {
       }
     } catch (e) {
       hilog.error(DOMAIN, 'ImageManagement', '读取镜像信息失败: %{public}s', JSON.stringify(e))
-      this.errorMessage = '无法读取镜像信息'
+      this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_read_image_info_fail').id)
     }
   }
 
@@ -298,7 +298,7 @@ export default struct ImageManagementContent {
       this.detailDialogController.open()
     } catch (e) {
       hilog.error(DOMAIN, 'ImageManagement', '获取镜像详情失败: %{public}s', JSON.stringify(e))
-      this.errorMessage = '获取详情失败: ' + (e as Error).message
+      this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_get_detail_fail').id) + (e as Error).message
     } finally {
       this.isLoading = false
     }
@@ -331,7 +331,7 @@ export default struct ImageManagementContent {
       await board.setData(pasteData)
       
       this.promptAction.showToast({
-        message: '文件路径已复制到剪贴板',
+        message: $r('app.string.msg_path_copied'),
         duration: 2000
       })
     } catch (e) {
@@ -349,7 +349,7 @@ export default struct ImageManagementContent {
   private checkAndLockTask(description: string): boolean {
     if (this.globalTaskRunning) {
       this.promptAction.showToast({
-        message: `后台任务处理中: ${this.globalTaskDescription}`,
+        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_bg_task_running').id) + this.globalTaskDescription,
         duration: 2000
       })
       return false
@@ -394,7 +394,7 @@ export default struct ImageManagementContent {
       this.needRestart = await taskpool.execute(needRestartTask) as boolean
     } catch (e) {
       hilog.error(DOMAIN, 'ImageManagement', '加载快照失败: %{public}s', JSON.stringify(e))
-      this.snapshotError = '加载快照失败'
+      this.snapshotError = getContext(this).resourceManager.getStringSync($r('app.string.msg_load_snapshot_failed').id)
     } finally {
       this.isSnapshotLoading = false
     }
@@ -414,7 +414,7 @@ export default struct ImageManagementContent {
   private checkNeedShutdown(): boolean {
     if (this.isVmRunning) {
       this.promptAction.showToast({
-        message: '此操作需要虚拟机关机后执行',
+        message: $r('app.string.vm_shutdown_required'),
         duration: 3000
       })
       return true
@@ -428,7 +428,7 @@ export default struct ImageManagementContent {
   private checkNeedRestart(): boolean {
     if (this.needRestart) {
       this.promptAction.showToast({
-        message: '请重启应用后重试',
+        message: $r('app.string.restart_app_required'),
         duration: 3000
       })
       return true
@@ -442,7 +442,7 @@ export default struct ImageManagementContent {
   private async createSnapshot(name: string): Promise<void> {
     const basicInfo = this.basicInfo
     if (!basicInfo) return
-    if (!this.checkAndLockTask('创建快照...')) return
+    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_creating_snapshot').id))) return
     
     this.isLoading = true
     try {
@@ -458,14 +458,14 @@ export default struct ImageManagementContent {
         }
       } else {
         this.promptAction.showToast({
-          message: '快照创建成功',
+          message: $r('app.string.msg_snapshot_created'),
           duration: 2000
         })
         await this.loadSnapshots()
       }
     } catch (e) {
       hilog.error(DOMAIN, 'ImageManagement', '创建快照失败: %{public}s', JSON.stringify(e))
-      this.errorMessage = '创建快照失败: ' + (e as Error).message
+      this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_snapshot_create_fail').id) + (e as Error).message
     } finally {
       this.isLoading = false
     }
@@ -479,14 +479,14 @@ export default struct ImageManagementContent {
     if (!basicInfo) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
-    if (!this.checkAndLockTask('恢复快照...')) return
+    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_restoring_snapshot').id))) return
     
     this.promptAction.showDialog({
-      title: '确认恢复',
-      message: `确定要恢复到快照 "${name}" 吗？当前状态将会丢失。`,
+      title: $r('app.string.dialog_confirm_restore'),
+      message: getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_restore').id) + ` "${name}" ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_restore_suffix').id),
       buttons: [
-        { text: '取消', color: '#666666' },
-        { text: '恢复', color: '#E74C3C' }
+        { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
+        { text: $r('app.string.btn_restore'), color: '#E74C3C' }
       ]
     }).then(async (result) => {
       if (result.index === 1) {
@@ -504,13 +504,13 @@ export default struct ImageManagementContent {
             }
           } else {
             this.promptAction.showToast({
-              message: '快照恢复成功',
+              message: $r('app.string.msg_snapshot_restored'),
               duration: 2000
             })
           }
         } catch (e) {
           hilog.error(DOMAIN, 'ImageManagement', '恢复快照失败: %{public}s', JSON.stringify(e))
-          this.errorMessage = '恢复快照失败: ' + (e as Error).message
+          this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_snapshot_restore_fail').id) + (e as Error).message
         } finally {
           this.isLoading = false
           this.unlockTask()
@@ -529,14 +529,14 @@ export default struct ImageManagementContent {
     if (!basicInfo) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
-    if (!this.checkAndLockTask('删除快照...')) return
+    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_deleting_snapshot').id))) return
     
     this.promptAction.showDialog({
-      title: '确认删除',
-      message: `确定要删除快照 "${name}" 吗？`,
+      title: $r('app.string.dialog_confirm_delete'),
+      message: getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_delete_snapshot').id) + ` "${name}"?`,
       buttons: [
-        { text: '取消', color: '#666666' },
-        { text: '删除', color: '#E74C3C' }
+        { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
+        { text: $r('app.string.delete_this'), color: '#E74C3C' }
       ]
     }).then(async (result) => {
       if (result.index === 1) {
@@ -554,14 +554,14 @@ export default struct ImageManagementContent {
             }
           } else {
             this.promptAction.showToast({
-              message: '快照删除成功',
+              message: $r('app.string.msg_snapshot_deleted'),
               duration: 2000
             })
             await this.loadSnapshots()
           }
         } catch (e) {
           hilog.error(DOMAIN, 'ImageManagement', '删除快照失败: %{public}s', JSON.stringify(e))
-          this.errorMessage = '删除快照失败: ' + (e as Error).message
+          this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_snapshot_delete_fail').id) + (e as Error).message
         } finally {
           this.isLoading = false
           this.unlockTask()
@@ -580,14 +580,14 @@ export default struct ImageManagementContent {
     if (!basicInfo || this.selectedSnapshots.size === 0) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
-    if (!this.checkAndLockTask('批量删除快照...')) return
+    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_batch_deleting_snapshots').id))) return
 
     this.promptAction.showDialog({
-      title: '确认批量删除',
-      message: `确定要删除选中的 ${this.selectedSnapshots.size} 个快照吗？`,
+      title: $r('app.string.dialog_confirm_batch_delete'),
+      message: getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_batch_delete').id) + ` ${this.selectedSnapshots.size} ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_batch_delete_suffix').id),
       buttons: [
-        { text: '取消', color: '#666666' },
-        { text: '删除', color: '#E74C3C' }
+        { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
+        { text: $r('app.string.delete_this'), color: '#E74C3C' }
       ]
     }).then(async (result) => {
       if (result.index === 1) {
@@ -621,7 +621,7 @@ export default struct ImageManagementContent {
           }
           
           this.promptAction.showToast({
-            message: `批量删除完成: 成功 ${successCount}, 失败 ${failCount}`,
+            message: getContext(this).resourceManager.getStringSync($r('app.string.msg_batch_delete_result').id) + ` ${successCount}, ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_failed').id) + ` ${failCount}`,
             duration: 3000
           })
           
@@ -629,7 +629,7 @@ export default struct ImageManagementContent {
           await this.loadSnapshots()
           
         } catch (e) {
-          this.errorMessage = '批量删除失败: ' + (e as Error).message
+          this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_batch_delete_fail').id) + (e as Error).message
         } finally {
           this.isLoading = false
           this.unlockTask()
@@ -650,21 +650,21 @@ export default struct ImageManagementContent {
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
     
-    const modeNames: Record<string, string> = {
-      'sparse': '整理碎片',
-      'prealloc': '预分配',
-      'optimize': '格式优化'
+    const modeNames: Record<string, Resource> = {
+      'sparse': $r('app.string.optimize_mode_sparse'),
+      'prealloc': $r('app.string.optimize_mode_prealloc'),
+      'optimize': $r('app.string.optimize_mode_optimize')
     }
     const tempPath = `${basicInfo.path}.tmp`
     
     // 检查全局任务状态
     if (this.globalTaskRunning) {
       this.promptAction.showDialog({
-        title: '有任务正在执行',
-        message: `当前正在执行: ${this.globalTaskDescription}\n\n请等待任务完成后再进行新操作。\n\n如果任务已异常中断，可强制清理状态。`,
+        title: $r('app.string.dialog_task_running'),
+        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_task_running_prefix').id) + `${this.globalTaskDescription}\n\n` + getContext(this).resourceManager.getStringSync($r('app.string.msg_task_running_desc').id),
         buttons: [
-          { text: '继续等待', color: '#007DFF' },
-          { text: '强制清理', color: '#E74C3C' }
+          { text: $r('app.string.btn_wait'), color: '#007DFF' },
+          { text: $r('app.string.btn_force_cleanup'), color: '#E74C3C' }
         ]
       }).then(async (result) => {
         if (result.index === 1) {
@@ -676,7 +676,7 @@ export default struct ImageManagementContent {
             // 忽略
           }
           this.promptAction.showToast({
-            message: '已强制清理任务状态，请重新执行操作',
+            message: $r('app.string.msg_task_cleaned'),
             duration: 2000
           })
         }
@@ -688,7 +688,7 @@ export default struct ImageManagementContent {
     // 防止重复操作
     if (this.isLoading) {
       this.promptAction.showToast({
-        message: '有操作正在进行中，请稍候',
+        message: $r('app.string.msg_op_in_progress'),
         duration: 2000
       })
       return
@@ -704,11 +704,11 @@ export default struct ImageManagementContent {
       const elapsed = Math.round((Date.now() - modTime.getTime()) / 1000 / 60)  // 分钟
       
       this.promptAction.showDialog({
-        title: '发现残留临时文件',
-        message: `存在临时文件 (${tmpSize})，最后修改于 ${elapsed} 分钟前。\n\n如果任务仍在运行，文件会持续更新。\n如果文件长时间未更新，说明任务可能已异常中断。\n\n选择"强制清理"将删除临时文件。`,
+        title: $r('app.string.dialog_temp_file_found'),
+        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_found').id) + ` (${tmpSize})，` + getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_time').id) + ` ${elapsed} ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_desc').id),
         buttons: [
-          { text: '取消', color: '#666666' },
-          { text: '强制清理', color: '#E74C3C' }
+          { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
+          { text: $r('app.string.btn_force_cleanup'), color: '#E74C3C' }
         ]
       }).then(async (result) => {
         if (result.index === 1) {
@@ -717,11 +717,11 @@ export default struct ImageManagementContent {
             this.globalTaskRunning = false
             this.globalTaskDescription = ''
             this.promptAction.showToast({
-              message: '临时文件已清理，请重新执行操作',
+              message: $r('app.string.msg_temp_file_cleaned'),
               duration: 2000
             })
           } catch (e) {
-            this.errorMessage = '清理临时文件失败: ' + (e as Error).message
+            this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_clean_fail').id) + (e as Error).message
           }
         }
       })
@@ -732,10 +732,11 @@ export default struct ImageManagementContent {
     
     // 设置任务状态
     this.isLoading = true
-    this.checkAndLockTask(`${modeNames[mode]} (${new Date().toLocaleTimeString()})`)
+    const modeName = getContext(this).resourceManager.getStringSync(modeNames[mode].id)
+    this.checkAndLockTask(`${modeName} (${new Date().toLocaleTimeString()})`)
     
     // 显示进度对话框（不可关闭）
-    this.optimizeTaskMessage = `正在执行${modeNames[mode]}...\n此操作可能需要几分钟，请勿关闭应用`
+    this.optimizeTaskMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_executing_prefix').id) + `${modeName}` + getContext(this).resourceManager.getStringSync($r('app.string.msg_executing_suffix').id)
     this.optimizeProgressDialog.open()
     
     try {
@@ -769,16 +770,16 @@ export default struct ImageManagementContent {
         await fs.unlink(basicInfo.path)
         await fs.rename(tempPath, basicInfo.path)
       } catch (e) {
-        this.errorMessage = '替换文件失败: ' + (e as Error).message
+        this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_replace_file_fail').id) + (e as Error).message
         return
       }
       
       // 计算节省空间
       const savedBytes = oldSize - newSize
-      const savedStr = savedBytes > 0 ? `节省 ${this.formatSize(savedBytes)}` : `增加 ${this.formatSize(-savedBytes)}`
+      const savedStr = savedBytes > 0 ? getContext(this).resourceManager.getStringSync($r('app.string.msg_saved_space').id) + ` ${this.formatSize(savedBytes)}` : getContext(this).resourceManager.getStringSync($r('app.string.msg_increased_space').id) + ` ${this.formatSize(-savedBytes)}`
       
       this.promptAction.showToast({
-        message: `优化完成，${savedStr}`,
+        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_optimize_finished').id) + `${savedStr}`,
         duration: 3000
       })
       
@@ -786,7 +787,7 @@ export default struct ImageManagementContent {
       this.loadBasicInfo()
     } catch (e) {
       hilog.error(DOMAIN, 'ImageManagement', '优化镜像失败: %{public}s', JSON.stringify(e))
-      this.errorMessage = '优化失败: ' + (e as Error).message
+      this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_optimize_fail').id) + (e as Error).message
     } finally {
       this.optimizeProgressDialog.close()
       this.isLoading = false
@@ -802,11 +803,11 @@ export default struct ImageManagementContent {
     if (!basicInfo) return
     
     this.promptAction.showDialog({
-      title: '确认强制清理',
-      message: '这将清理任务状态和临时文件。\n\n仅在确认任务已异常中断时使用，否则可能导致数据丢失。',
+      title: $r('app.string.dialog_confirm_force_cleanup'),
+      message: $r('app.string.msg_confirm_force_cleanup'),
       buttons: [
-        { text: '取消', color: '#666666' },
-        { text: '强制清理', color: '#E74C3C' }
+        { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
+        { text: $r('app.string.btn_force_cleanup'), color: '#E74C3C' }
       ]
     }).then(async (result) => {
       if (result.index === 1) {
@@ -820,7 +821,7 @@ export default struct ImageManagementContent {
         this.isLoading = false
         this.unlockTask()
         this.promptAction.showToast({
-          message: '已强制清理任务状态',
+          message: $r('app.string.msg_task_state_cleaned'),
           duration: 2000
         })
       }
@@ -847,11 +848,11 @@ export default struct ImageManagementContent {
           Text('🚀')
             .fontSize(18)
           Column() {
-            Text('格式优化')
+            Text($r('app.string.optimize_mode_optimize'))
               .fontSize(14)
               .fontWeight(FontWeight.Medium)
               .fontColor('#FFFFFF')
-            Text('启用 lazy_refcounts 和 extended_l2 特性')
+            Text($r('app.string.desc_optimize'))
               .fontSize(10)
               .fontColor('#FFFFFF')
               .opacity(0.8)
@@ -868,7 +869,7 @@ export default struct ImageManagementContent {
       .borderRadius(8)
       .onClick(() => {
         this.optimizeModeDialogController.close()
-        this.confirmAndOptimize('optimize', '格式优化', '此操作将启用 lazy_refcounts 和 extended_l2 特性，提升镜像写入性能和空间效率。这会重写整个镜像文件。')
+        this.confirmAndOptimize('optimize', $r('app.string.optimize_mode_optimize'), $r('app.string.msg_optimize_confirm'))
       })
       
       // 整理碎片按钮 - 蓝色
@@ -877,11 +878,11 @@ export default struct ImageManagementContent {
           Text('🧹')
             .fontSize(18)
           Column() {
-            Text('整理碎片')
+            Text($r('app.string.optimize_mode_sparse'))
               .fontSize(14)
               .fontWeight(FontWeight.Medium)
               .fontColor('#FFFFFF')
-            Text('释放未使用空间，转换为稀疏格式')
+            Text($r('app.string.desc_sparse'))
               .fontSize(10)
               .fontColor('#FFFFFF')
               .opacity(0.8)
@@ -907,11 +908,11 @@ export default struct ImageManagementContent {
           Text('⚡')
             .fontSize(18)
           Column() {
-            Text('预分配格式')
+            Text($r('app.string.title_prealloc'))
               .fontSize(14)
               .fontWeight(FontWeight.Medium)
               .fontColor('#FFFFFF')
-            Text('最高性能，会占用完整虚拟磁盘空间')
+            Text($r('app.string.desc_prealloc'))
               .fontSize(10)
               .fontColor('#FFFFFF')
               .opacity(0.8)
@@ -928,7 +929,7 @@ export default struct ImageManagementContent {
       .borderRadius(8)
       .onClick(() => {
         this.optimizeModeDialogController.close()
-        this.confirmAndOptimize('prealloc', '预分配格式', '预分配格式会占用完整的虚拟磁盘空间，确定继续？')
+        this.confirmAndOptimize('prealloc', $r('app.string.title_prealloc'), $r('app.string.msg_prealloc_confirm'))
       })
     }
     .padding(8)
@@ -938,13 +939,13 @@ export default struct ImageManagementContent {
   /**
    * 确认后执行优化
    */
-  private confirmAndOptimize(mode: 'sparse' | 'prealloc' | 'cleanup' | 'optimize', title: string, message: string): void {
+  private confirmAndOptimize(mode: 'sparse' | 'prealloc' | 'cleanup' | 'optimize', title: Resource, message: Resource): void {
     this.promptAction.showDialog({
       title: title,
       message: message,
       buttons: [
-        { text: '取消', color: '#666666' },
-        { text: '开始', color: '#007DFF' }
+        { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
+        { text: $r('app.string.btn_start'), color: '#007DFF' }
       ]
     }).then((result) => {
       if (result.index === 1) {
@@ -973,7 +974,7 @@ export default struct ImageManagementContent {
         if (this.basicInfo) {
           // 基础信息区域
           Column() {
-            Text('基础信息')
+            Text($r('app.string.title_basic_info'))
               .fontSize(14)
               .fontWeight(FontWeight.Bold)
               .margin({ bottom: 12 })
@@ -981,7 +982,7 @@ export default struct ImageManagementContent {
 
             // 镜像名称
             Row() {
-              Text('镜像名称')
+              Text($r('app.string.image_name'))
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_secondary'))
                 .width(80)
@@ -999,7 +1000,7 @@ export default struct ImageManagementContent {
 
             // 系统路径（程序使用）
             Row() {
-              Text('系统路径')
+              Text($r('app.string.label_system_path'))
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_secondary'))
                 .width(80)
@@ -1017,7 +1018,7 @@ export default struct ImageManagementContent {
 
             // 用户路径（用户可访问）
             Row() {
-              Text('文件路径')
+              Text($r('app.string.label_file_path'))
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_secondary'))
                 .width(80)
@@ -1027,7 +1028,7 @@ export default struct ImageManagementContent {
                 .layoutWeight(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
                 .maxLines(2)
-              Button('复制', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+              Button($r('app.string.copy_this'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
                 .fontSize(10)
                 .onClick(() => this.copyPath())
             }
@@ -1038,7 +1039,7 @@ export default struct ImageManagementContent {
 
             // 虚拟大小
             Row() {
-              Text('虚拟大小')
+              Text($r('app.string.virtual_size'))
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_secondary'))
                 .width(80)
@@ -1054,7 +1055,7 @@ export default struct ImageManagementContent {
 
             // 实际占用
             Row() {
-              Text('实际占用')
+              Text($r('app.string.disk_size'))
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_secondary'))
                 .width(80)
@@ -1068,7 +1069,7 @@ export default struct ImageManagementContent {
 
             // 空间利用率
             Row() {
-              Text('空间利用率')
+              Text($r('app.string.space_usage'))
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_secondary'))
                 .width(80)
@@ -1088,14 +1089,14 @@ export default struct ImageManagementContent {
           // 操作按钮行
           Row() {
             // 查看详情按钮
-            Button('查看详情', { buttonStyle: ButtonStyleMode.TEXTUAL })
+            Button($r('app.string.view_details'), { buttonStyle: ButtonStyleMode.TEXTUAL })
               .layoutWeight(1)
               .height(36)
               .enabled(!this.isLoading && !this.globalTaskRunning)
               .onClick(() => this.loadDetailInfo())
 
             // 优化镜像按钮
-            Button('优化镜像')
+            Button($r('app.string.optimize_image'))
               .layoutWeight(1)
               .height(36)
               .backgroundColor('#007DFF')
@@ -1111,7 +1112,7 @@ export default struct ImageManagementContent {
               SymbolGlyph($r('sys.symbol.info_circle'))
                 .fontSize(14)
                 .fontColor(['#E67E22'])
-              Text('虚拟机正在运行，优化镜像功能需要先关闭虚拟机')
+              Text($r('app.string.msg_vm_running_optimize'))
                 .fontSize(11)
                 .fontColor('#E67E22')
                 .margin({ left: 6 })
@@ -1129,7 +1130,7 @@ export default struct ImageManagementContent {
               SymbolGlyph($r('sys.symbol.exclamationmark_triangle'))
                 .fontSize(14)
                 .fontColor(['#E74C3C'])
-              Text('镜像文件已被修改，需要重启应用后才能继续操作')
+              Text($r('app.string.msg_image_modified'))
                 .fontSize(11)
                 .fontColor('#E74C3C')
                 .margin({ left: 6 })
@@ -1147,12 +1148,12 @@ export default struct ImageManagementContent {
               LoadingProgress()
                 .width(20)
                 .height(20)
-              Text(`后台任务: ${this.globalTaskDescription}`)
+              Text(getContext(this).resourceManager.getStringSync($r('app.string.label_bg_task').id) + `${this.globalTaskDescription}`)
                 .fontSize(12)
                 .fontColor('#007DFF')
                 .margin({ left: 8 })
                 .layoutWeight(1)
-              Button('强制清理', { buttonStyle: ButtonStyleMode.TEXTUAL })
+              Button($r('app.string.btn_force_cleanup'), { buttonStyle: ButtonStyleMode.TEXTUAL })
                 .fontSize(12)
                 .fontColor('#E74C3C')
                 .onClick(() => this.forceCleanupTask())
@@ -1169,7 +1170,7 @@ export default struct ImageManagementContent {
               LoadingProgress()
                 .width(24)
                 .height(24)
-              Text('正在获取详细信息...')
+              Text($r('app.string.msg_getting_details'))
                 .fontSize(12)
                 .margin({ left: 8 })
             }
@@ -1181,7 +1182,7 @@ export default struct ImageManagementContent {
             LoadingProgress()
               .width(24)
               .height(24)
-            Text('正在加载镜像信息...')
+            Text($r('app.string.msg_loading_image_info'))
               .fontSize(12)
               .margin({ left: 8 })
           }
@@ -1189,7 +1190,7 @@ export default struct ImageManagementContent {
         }
 
         // 说明文字
-        Text('提示：虚拟大小是镜像的最大容量，实际占用是当前磁盘使用量。QCOW2 格式支持动态分配空间。')
+        Text($r('app.string.msg_image_size_hint'))
           .fontSize(11)
           .fontColor($r('sys.color.ohos_id_color_text_secondary'))
           .margin({ top: 16 })
@@ -1199,7 +1200,7 @@ export default struct ImageManagementContent {
         Column() {
           // 标题行
           Row() {
-            Text('快照管理')
+            Text($r('app.string.snapshot_management'))
               .fontSize(14)
               .fontWeight(FontWeight.Bold)
               .layoutWeight(1)
@@ -1223,7 +1224,7 @@ export default struct ImageManagementContent {
               LoadingProgress()
                 .width(20)
                 .height(20)
-              Text('加载快照中...')
+              Text($r('app.string.msg_loading_snapshots'))
                 .fontSize(12)
                 .margin({ left: 8 })
             }
@@ -1236,7 +1237,7 @@ export default struct ImageManagementContent {
               .fontColor('#E74C3C')
               .padding(16)
           } else if (this.snapshots.length === 0) {
-            Text('暂无快照')
+            Text($r('app.string.msg_no_snapshots'))
               .fontSize(12)
               .fontColor($r('sys.color.ohos_id_color_text_tertiary'))
               .width('100%')
@@ -1266,7 +1267,7 @@ export default struct ImageManagementContent {
                   .width(20)
                   .height(20)
                 
-                Text('全选')
+                Text($r('app.string.btn_select_all'))
                   .fontSize(12)
                   .margin({ left: 8 })
                   .fontWeight(FontWeight.Bold)
@@ -1308,13 +1309,13 @@ export default struct ImageManagementContent {
                     .width(80)
                   
                   // 恢复按钮
-                  Button('恢复', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+                  Button($r('app.string.btn_restore'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
                     .fontSize(10)
                     .onClick(() => this.applySnapshot(snapshot.name))
                     .enabled(!this.isVmRunning && !this.needRestart && !this.globalTaskRunning)
                   
                   // 删除按钮
-                  Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+                  Button($r('app.string.delete_this'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
                     .fontSize(10)
                     .fontColor('#E74C3C')
                     .onClick(() => this.deleteSnapshot(snapshot.name))
@@ -1335,7 +1336,7 @@ export default struct ImageManagementContent {
 
           // 底部操作栏
           Row() {
-            Button('创建快照')
+            Button($r('app.string.create_snapshot'))
               .layoutWeight(1)
               .height(40)
               .onClick(() => {
@@ -1350,7 +1351,7 @@ export default struct ImageManagementContent {
 
             Blank().width(12)
 
-            Button(`批量删除 (${this.selectedSnapshots.size})`)
+            Button(getContext(this).resourceManager.getStringSync($r('app.string.btn_batch_delete').id) + ` (${this.selectedSnapshots.size})`)
               .layoutWeight(1)
               .height(40)
               .backgroundColor('#E74C3C')
@@ -1367,7 +1368,7 @@ export default struct ImageManagementContent {
               SymbolGlyph($r('sys.symbol.info_circle'))
                 .fontSize(14)
                 .fontColor(['#E67E22'])
-              Text('虚拟机正在运行，快照操作需要先关闭虚拟机')
+              Text($r('app.string.msg_vm_running_snapshot'))
                 .fontSize(11)
                 .fontColor('#E67E22')
                 .margin({ left: 6 })
@@ -1390,7 +1391,7 @@ export default struct ImageManagementContent {
   }
 
   @Builder
-  buildDetailRow(label: string, value: string) {
+  buildDetailRow(label: Resource | string, value: string) {
     Row() {
       Text(label)
         .fontSize(12)
@@ -1409,14 +1410,14 @@ export default struct ImageManagementContent {
   buildCreateSnapshotContent() {
     Column() {
       TextInput({
-        placeholder: '请输入快照名称',
+        placeholder: $r('app.string.placeholder_snapshot_name'),
         text: $$this.snapshotNameInput
       })
         .width('100%')
         .height(40)
         .margin({ bottom: 8 })
       
-      Text('快照名称不能与现有快照重复')
+      Text($r('app.string.msg_snapshot_name_duplicate'))
         .fontSize(11)
         .fontColor($r('sys.color.ohos_id_color_text_tertiary'))
     }
@@ -1430,50 +1431,50 @@ export default struct ImageManagementContent {
       Scroll() {
         Column() {
           // 文件格式
-          this.buildDetailRow('文件格式', this.detailInfo.fileFormat)
+          this.buildDetailRow($r('app.string.label_file_format'), this.detailInfo.fileFormat)
           Divider().color($r('sys.color.ohos_id_color_list_separator'))
 
           // 虚拟大小
-          this.buildDetailRow('虚拟大小', this.formatSize(this.detailInfo.virtualSize))
+          this.buildDetailRow($r('app.string.virtual_size'), this.formatSize(this.detailInfo.virtualSize))
           Divider().color($r('sys.color.ohos_id_color_list_separator'))
 
           // 实际占用
-          this.buildDetailRow('实际占用', this.formatSize(this.detailInfo.diskSize))
+          this.buildDetailRow($r('app.string.disk_size'), this.formatSize(this.detailInfo.diskSize))
           Divider().color($r('sys.color.ohos_id_color_list_separator'))
 
           // 簇大小
           if (this.detailInfo.clusterSize) {
-            this.buildDetailRow('簇大小', this.formatSize(this.detailInfo.clusterSize))
+            this.buildDetailRow($r('app.string.label_cluster_size'), this.formatSize(this.detailInfo.clusterSize))
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // 兼容版本
           if (this.detailInfo.compat) {
-            this.buildDetailRow('兼容版本', this.detailInfo.compat)
+            this.buildDetailRow($r('app.string.label_compat'), this.detailInfo.compat)
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // Lazy Refcounts
           if (this.detailInfo.lazyRefcounts !== undefined) {
-            this.buildDetailRow('延迟引用计数', this.detailInfo.lazyRefcounts ? '启用' : '禁用')
+            this.buildDetailRow($r('app.string.label_lazy_refcounts'), this.detailInfo.lazyRefcounts ? getContext(this).resourceManager.getStringSync($r('app.string.status_enabled').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_disabled').id))
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // Extended L2
           if (this.detailInfo.extendedL2 !== undefined) {
-            this.buildDetailRow('扩展L2表', this.detailInfo.extendedL2 ? '启用' : '禁用')
+            this.buildDetailRow($r('app.string.label_extended_l2'), this.detailInfo.extendedL2 ? getContext(this).resourceManager.getStringSync($r('app.string.status_enabled').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_disabled').id))
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // Refcount Bits
           if (this.detailInfo.refcountBits) {
-            this.buildDetailRow('引用计数位数', this.detailInfo.refcountBits.toString())
+            this.buildDetailRow($r('app.string.label_refcount_bits'), this.detailInfo.refcountBits.toString())
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // 镜像状态
           if (this.detailInfo.corrupt !== undefined) {
-            this.buildDetailRow('镜像状态', this.detailInfo.corrupt ? '已损坏' : '正常')
+            this.buildDetailRow($r('app.string.label_image_status'), this.detailInfo.corrupt ? getContext(this).resourceManager.getStringSync($r('app.string.status_corrupt').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_normal').id))
           }
         }
         .width('100%')
@@ -1482,7 +1483,7 @@ export default struct ImageManagementContent {
       .width('100%')
       .constraintSize({ maxHeight: 400 })
     } else {
-      Text('无详细信息')
+      Text($r('app.string.msg_no_details'))
         .fontSize(12)
         .fontColor($r('sys.color.ohos_id_color_text_secondary'))
         .padding(16)

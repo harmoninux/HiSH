@@ -45,7 +45,7 @@ export default struct RootfsManagementContent {
 
   rootfsNameController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '镜像名称',
+      primaryTitle: $r('app.string.dialog_rootfs_name'),
       contentBuilder: () => {
         this.buildInputRootfsName()
       }
@@ -53,24 +53,24 @@ export default struct RootfsManagementContent {
   })
   importProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: '正在导入文件',
+      content: $r('app.string.dialog_import_shared'),
     }),
     autoCancel: false
   })
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: '正在导出文件',
+      content: $r('app.string.dialog_export_shared'),
     }),
     autoCancel: false
   })
   detailDialogController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '镜像详情',
+      primaryTitle: $r('app.string.image_details'),
       contentBuilder: () => {
         this.buildDetailContent()
       },
       buttons: [{
-        value: '关闭',
+        value: $r('app.string.btn_close'),
         action: () => {
           this.detailDialogController.close()
         }
@@ -111,12 +111,12 @@ export default struct RootfsManagementContent {
           BackButton()
             .padding({ left: 15 })
 
-          Text('镜像管理')
+          Text($r('app.string.image_management_title'))
             .fontSize(18)
 
           Blank().layoutWeight(1)
 
-          Button('导入', { buttonStyle: ButtonStyleMode.TEXTUAL })
+          Button($r('app.string.btn_import'), { buttonStyle: ButtonStyleMode.TEXTUAL })
             .onClick(() => {
               this.importRootFilesystem()
             })
@@ -141,7 +141,7 @@ export default struct RootfsManagementContent {
       .align(Alignment.Top)
 
       if (!this.toolBar) {
-        Button('导入')
+        Button($r('app.string.btn_import'))
           .width('100%')
           .onClick(() => {
             this.importRootFilesystem()
@@ -155,12 +155,12 @@ export default struct RootfsManagementContent {
     Column() {
       TextInput({
         text: this.tempRootfsName,
-        placeholder: '输入镜像名称'
+        placeholder: $r('app.string.placeholder_rootfs_name')
       })
         .onChange((value) => {
           this.tempRootfsName = value;
         })
-      Button('完成')
+      Button($r('app.string.btn_finish'))
         .margin({ top: 10 })
         .width('100%')
         .enabled(this.validateRootfsName())
@@ -176,50 +176,50 @@ export default struct RootfsManagementContent {
       Scroll() {
         Column() {
           // 文件格式
-          this.buildDetailRow('文件格式', this.detailInfo.fileFormat)
+          this.buildDetailRow($r('app.string.label_file_format'), this.detailInfo.fileFormat)
           Divider().color($r('sys.color.ohos_id_color_list_separator'))
 
           // 虚拟大小
-          this.buildDetailRow('虚拟大小', this.formatSize(this.detailInfo.virtualSize))
+          this.buildDetailRow($r('app.string.virtual_size'), this.formatSize(this.detailInfo.virtualSize))
           Divider().color($r('sys.color.ohos_id_color_list_separator'))
 
           // 实际占用
-          this.buildDetailRow('实际占用', this.formatSize(this.detailInfo.diskSize))
+          this.buildDetailRow($r('app.string.disk_size'), this.formatSize(this.detailInfo.diskSize))
           Divider().color($r('sys.color.ohos_id_color_list_separator'))
 
           // 簇大小
           if (this.detailInfo.clusterSize) {
-            this.buildDetailRow('簇大小', this.formatSize(this.detailInfo.clusterSize))
+            this.buildDetailRow($r('app.string.label_cluster_size'), this.formatSize(this.detailInfo.clusterSize))
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // 兼容版本
           if (this.detailInfo.compat) {
-            this.buildDetailRow('兼容版本', this.detailInfo.compat)
+            this.buildDetailRow($r('app.string.label_compat'), this.detailInfo.compat)
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // Lazy Refcounts
           if (this.detailInfo.lazyRefcounts !== undefined) {
-            this.buildDetailRow('延迟引用计数', this.detailInfo.lazyRefcounts ? '启用' : '禁用')
+            this.buildDetailRow($r('app.string.label_lazy_refcounts'), this.detailInfo.lazyRefcounts ? getContext(this).resourceManager.getStringSync($r('app.string.status_enabled').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_disabled').id))
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // Extended L2
           if (this.detailInfo.extendedL2 !== undefined) {
-            this.buildDetailRow('扩展L2表', this.detailInfo.extendedL2 ? '启用' : '禁用')
+            this.buildDetailRow($r('app.string.label_extended_l2'), this.detailInfo.extendedL2 ? getContext(this).resourceManager.getStringSync($r('app.string.status_enabled').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_disabled').id))
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // Refcount Bits
           if (this.detailInfo.refcountBits) {
-            this.buildDetailRow('引用计数位数', this.detailInfo.refcountBits.toString())
+            this.buildDetailRow($r('app.string.label_refcount_bits'), this.detailInfo.refcountBits.toString())
             Divider().color($r('sys.color.ohos_id_color_list_separator'))
           }
 
           // 镜像状态
           if (this.detailInfo.corrupt !== undefined) {
-            this.buildDetailRow('镜像状态', this.detailInfo.corrupt ? '已损坏' : '正常')
+            this.buildDetailRow($r('app.string.label_image_status'), this.detailInfo.corrupt ? getContext(this).resourceManager.getStringSync($r('app.string.status_corrupt').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_normal').id))
           }
         }
         .width('100%')
@@ -228,7 +228,7 @@ export default struct RootfsManagementContent {
       .width('100%')
       .constraintSize({ maxHeight: 400 })
     } else {
-      Text('无详细信息')
+      Text($r('app.string.msg_no_details'))
         .fontSize(12)
         .fontColor($r('sys.color.ohos_id_color_text_secondary'))
         .padding(16)
@@ -236,7 +236,7 @@ export default struct RootfsManagementContent {
   }
 
   @Builder
-  buildDetailRow(label: string, value: string) {
+  buildDetailRow(label: Resource | string, value: string) {
     Row() {
       Text(label)
         .fontSize(12)
@@ -268,7 +268,7 @@ export default struct RootfsManagementContent {
   private editRootfsName(item: RootFilesystem) {
     if (item.id === defaultRootfs.id) {
       this.promptAction.showToast({
-        message: '不支持修改默认镜像',
+        message: $r('app.string.msg_default_rootfs_edit'),
         duration: 3000
       });
     } else {
@@ -281,13 +281,13 @@ export default struct RootfsManagementContent {
   deleteRootFilesystem(item: RootFilesystem) {
     if (item.id === defaultRootfs.id) {
       this.promptAction.showToast({
-        message: '不支持删除默认镜像',
+        message: $r('app.string.msg_default_rootfs_delete'),
         duration: 3000
       });
     } else {
       this.getUIContext().showAlertDialog({
-        title: '确定删除',
-        message: '您正在操作删除镜像，删除后不可恢复，确定操作？',
+        title: $r('app.string.dialog_confirm_delete'),
+        message: $r('app.string.dialog_delete_rootfs_msg'),
         autoCancel: true,
         alignment: DialogAlignment.Center,
         buttons: [
@@ -356,9 +356,9 @@ export default struct RootfsManagementContent {
 
       if (info['error']) {
         this.promptAction.showDialog({
-          title: '获取磁盘信息失败',
+          title: $r('app.string.msg_get_disk_info_fail'),
           message: info['error'] as string,
-          buttons: [{ text: '确定', color: '#007DFF' }]
+          buttons: [{ text: $r('app.string.setting_generic_confirm'), color: '#007DFF' }]
         })
         return
       }
@@ -384,7 +384,7 @@ export default struct RootfsManagementContent {
       this.detailDialogController.open()
     } catch (e) {
       this.promptAction.showToast({
-        message: '获取磁盘信息失败',
+        message: $r('app.string.msg_get_disk_info_fail'),
         duration: 2000
       })
     }
@@ -528,7 +528,7 @@ struct RootFilesystemItem {
           Text(this.value.fileSize)
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
-          Text('文件大小').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.label_file_size')).fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -537,7 +537,7 @@ struct RootFilesystemItem {
           Text(this.value.virtualSize)
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
-          Text('虚拟大小').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.virtual_size')).fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -549,19 +549,19 @@ struct RootFilesystemItem {
 
       Row() {
         Blank().layoutWeight(1)
-        Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.delete_this'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onDelete(this.value.model))
-        Button('重命名', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_rename'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.value.model))
-        Button('详情', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_details'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onShowInfo(this.value.model))
-        Button('导出', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_export'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onExport(this.value.model))

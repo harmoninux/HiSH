@@ -27,8 +27,8 @@ export default struct EmulatorListGrid {
   @Prop specifiedBreak?: string = undefined
   emulatorNameController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '复制',
-      secondaryTitle: '输入新的模拟器名称，请注意不要与已有模拟器重复',
+      primaryTitle: $r('app.string.dialog_copy'),
+      secondaryTitle: $r('app.string.dialog_copy_subtitle'),
       contentBuilder: () => {
         this.buildInputEmulatorName()
       }
@@ -36,8 +36,8 @@ export default struct EmulatorListGrid {
   })
   rootfsNameController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '导出为镜像',
-      secondaryTitle: '输入新的镜像名称，请注意不要与已有镜像重复',
+      primaryTitle: $r('app.string.dialog_export_rootfs'),
+      secondaryTitle: $r('app.string.dialog_export_subtitle'),
       contentBuilder: () => {
         this.buildInputRootfsName()
       }
@@ -45,19 +45,19 @@ export default struct EmulatorListGrid {
   })
   copyProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: '正在复制',
+      content: $r('app.string.progress_copying'),
     }),
     autoCancel: false
   })
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: '正在导出',
+      content: $r('app.string.progress_exporting'),
     }),
     autoCancel: false
   })
   powerManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '电源管理',
+      primaryTitle: $r('app.string.dialog_power_management'),
       contentBuilder: () => {
         this.buildPowerManagement();
       }
@@ -77,12 +77,12 @@ export default struct EmulatorListGrid {
     Column() {
       TextInput({
         text: this.tempEmulatorName,
-        placeholder: '输入新的模拟器名称'
+        placeholder: $r('app.string.placeholder_emulator_name')
       })
         .onChange((value) => {
           this.tempEmulatorName = value;
         })
-      Button('完成')
+      Button($r('app.string.btn_done'))
         .margin({ top: 10 })
         .width('100%')
         .enabled(this.validateEmulatorName())
@@ -98,12 +98,12 @@ export default struct EmulatorListGrid {
     Column() {
       TextInput({
         text: this.tempRootfsName,
-        placeholder: '输入导出的镜像名称'
+        placeholder: $r('app.string.placeholder_export_name')
       })
         .onChange((value) => {
           this.tempRootfsName = value;
         })
-      Button('完成')
+      Button($r('app.string.btn_done'))
         .margin({ top: 10 })
         .width('100%')
         .enabled(this.validateRootfsName())
@@ -140,7 +140,7 @@ export default struct EmulatorListGrid {
       this.exportProgress.close()
     }
     this.promptAction.showToast({
-      message: '导出镜像完成，您可以前往“镜像管理”进行查看',
+      message: $r('app.string.msg_export_complete'),
       duration: 3000
     })
   }
@@ -180,9 +180,9 @@ export default struct EmulatorListGrid {
       },
       onDelete: (item) => {
         if (item.id === this.currentRunning) {
-          this.promptAction.showToast({ message: '不支持删除运行中的模拟器' })
+          this.promptAction.showToast({ message: $r('app.string.msg_cannot_delete_running') })
         } else if (item.id === this.defaultStart) {
-          this.promptAction.showToast({ message: '不支持删除默认启动的模拟器' })
+          this.promptAction.showToast({ message: $r('app.string.msg_cannot_delete_default') })
         } else {
           this.askForDeleteEmulator(item);
         }
@@ -206,10 +206,10 @@ export default struct EmulatorListGrid {
           
           if (snapshots && snapshots.length > 0) {
             this.promptAction.showDialog({
-              title: '无法导出',
-              message: `当前镜像包含 ${snapshots.length} 个快照。\n\n导出镜像前需要先删除所有快照，否则导出的镜像可能无法正常使用。\n\n请前往"镜像管理"删除所有快照后再导出。`,
+              title: $r('app.string.dialog_cannot_export'),
+              message: $r('app.string.msg_export_has_snapshots'),
               buttons: [
-                { text: '我知道了', color: '#007DFF' }
+                { text: $r('app.string.btn_got_it'), color: '#007DFF' }
               ]
             })
             return
@@ -236,7 +236,7 @@ export default struct EmulatorListGrid {
   askForStartEmulator(item: Emulator) {
     this.getUIContext().showAlertDialog({
       title: item.name,
-      message: '将重启HiSH并启动“' + item.name + "”，建议保存好当前模拟器中的数据再操作。是否现在启动？",
+      message: $r('app.string.msg_restart_confirm'),
       autoCancel: true,
       alignment: DialogAlignment.Center,
       buttons: [
@@ -249,7 +249,7 @@ export default struct EmulatorListGrid {
           enabled: true,
           style: DialogButtonStyle.HIGHLIGHT,
           backgroundColor: $r('sys.color.warning'),
-          value: '运行',
+          value: $r('app.string.btn_run'),
           action: async () => {
             this.startEmulator(item);
           }
@@ -274,8 +274,8 @@ export default struct EmulatorListGrid {
 
   private askForDeleteEmulator(item: Emulator) {
     this.getUIContext().showAlertDialog({
-      title: '确定删除',
-      message: '您正在操作删除模拟器，删除后不可恢复，确定操作？',
+      title: $r('app.string.dialog_confirm_delete'),
+      message: $r('app.string.msg_delete_emulator_confirm'),
       autoCancel: true,
       alignment: DialogAlignment.Center,
       buttons: [
@@ -377,7 +377,7 @@ export default struct EmulatorListGrid {
     this.selectedEmulatorForImage = emulator
     this.imageManagementController = new CustomDialogController({
       builder: CustomContentDialog({
-        primaryTitle: '镜像管理',
+        primaryTitle: $r('app.string.dialog_image_management'),
         contentBuilder: () => {
           this.buildImageManagement()
         }

@@ -132,15 +132,15 @@ export default struct WebTerminal {
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .bindMenu([{
-      value: '模拟器管理',
+      value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
     }, {
-      value: '共享文件夹',
+      value: $r('app.string.menu_shared_folder'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SharedFolderPage' })
     }, {
-      value: '设置',
+      value: $r('app.string.menu_settings'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
     }])
@@ -222,7 +222,7 @@ export default struct WebTerminal {
 
         if (this.currentStatus === 'PAUSED') {
           Column() {
-            Text('已暂停')
+            Text($r('app.string.status_paused'))
               .fontSize(30)
               .fontColor(Color.White)
               .fontWeight(FontWeight.Bold)
@@ -236,7 +236,7 @@ export default struct WebTerminal {
 
         if (this.currentStatus === 'SHUTDOWN') {
           Column() {
-            Text('已关机，您现在可以正常退出程序。')
+            Text($r('app.string.status_shutdown_exit'))
               .fontSize(24)
               .fontColor(Color.White)
               .fontWeight(FontWeight.Medium)

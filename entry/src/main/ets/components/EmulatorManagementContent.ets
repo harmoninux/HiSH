@@ -22,12 +22,12 @@ export default struct EmulatorManagementContent {
         BackButton()
           .padding({ left: 15 })
 
-        Text('模拟器管理')
+        Text($r('app.string.emulator_management_title'))
           .fontSize(18)
 
         Blank().layoutWeight(1)
 
-        Button('添加', { buttonStyle: ButtonStyleMode.TEXTUAL })
+        Button($r('app.string.btn_add'), { buttonStyle: ButtonStyleMode.TEXTUAL })
           .onClick(() => {
             const id = util.generateRandomUUID()
             this.getUIContext().getRouter().pushUrl({
@@ -100,7 +100,7 @@ export default struct EmulatorManagementContent {
   getMenuOptions(): Array<MenuOption> {
     const options: Array<MenuOption> = [
       {
-        value: '镜像管理',
+        value: $r('app.string.image_management_title'),
         action: () => {
           this.getUIContext().getRouter().pushUrl({
             url: 'pages/RootfsManagement'
@@ -111,7 +111,7 @@ export default struct EmulatorManagementContent {
 
     if (deviceInfo.deviceType !== '2in1') {
       options.push({
-        value: 'noVNC控制台',
+        value: $r('app.string.vnc_console_title'),
         action: () => {
           const vncPort = AppStorage.get<number>('vncWebSocketPort');
           if (vncPort) {
@@ -120,7 +120,7 @@ export default struct EmulatorManagementContent {
               params: { vncPort: vncPort }
             });
           } else {
-            this.getUIContext().getPromptAction().showToast({ message: 'VNC 服务未启动' });
+            this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
           }
         }
       });

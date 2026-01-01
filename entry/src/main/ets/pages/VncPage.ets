@@ -34,7 +34,7 @@ struct VncPage {
           router.back();
         })
 
-        Text('noVNC控制台')
+        Text($r('app.string.vnc_console_title'))
           .fontSize(18)
           .fontWeight(FontWeight.Medium)
           .layoutWeight(1)

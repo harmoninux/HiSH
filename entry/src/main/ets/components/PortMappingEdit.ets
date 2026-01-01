@@ -136,7 +136,7 @@ export struct PortMappingEdit {
               this.portCandidatesController.open()
             }
           }, {
-            value: '自定义端口',
+            value: $r('app.string.menu_custom_port'),
             action: () => {
               this.addPortMapping();
             }
@@ -183,7 +183,7 @@ export struct PortMappingEdit {
     ListItem() {
       Row() {
         Row() {
-          TextInput({ text: item.guest?.toString(), placeholder: 'Guest' })
+          TextInput({ text: item.guest?.toString(), placeholder: $r('app.string.placeholder_guest_port') })
             .fontSize($r('sys.float.Body_M'))
             .type(InputType.Number)
             .width(90)
@@ -193,7 +193,7 @@ export struct PortMappingEdit {
               updateGuest(guest)
             })
           Divider().vertical(true)
-          TextInput({ text: item.host?.toString(), placeholder: 'Host' })
+          TextInput({ text: item.host?.toString(), placeholder: $r('app.string.placeholder_host_port') })
             .fontSize($r('sys.float.Body_M'))
             .type(InputType.Number)
             .width(90)

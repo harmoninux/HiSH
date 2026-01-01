@@ -63,13 +63,13 @@ export default struct PowerManagementContent {
   async connectToQGA(maxRetries: number = 5, retryDelay: number = 3000) {
     // 如果已关机或暂停，不尝试连接
     if (this.currentEmulatorStatus === 'SHUTDOWN' || this.currentEmulatorStatus === '') {
-      this.statusMessage = '已关机'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
       this.isConnected = false
       this.isConnecting = false
       return
     }
     if (this.currentEmulatorStatus === 'PAUSED') {
-      this.statusMessage = '已暂停'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_paused').id)
       this.isConnected = false
       this.isConnecting = false
       return
@@ -81,7 +81,7 @@ export default struct PowerManagementContent {
     }
 
     this.isConnecting = true
-    this.statusMessage = '正在连接 Guest Agent...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connecting').id)
     
     // 重试循环
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -101,7 +101,7 @@ export default struct PowerManagementContent {
       }
       
       if (attempt > 0) {
-        this.statusMessage = `正在重试连接 (${attempt}/${maxRetries})...`
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_retrying').id, attempt, maxRetries)
         // 重试前等待
         await new Promise<void>((resolve: () => void) => setTimeout(resolve, retryDelay))
         
@@ -121,7 +121,7 @@ export default struct PowerManagementContent {
           const pingResult = await this.qgaAgent.ping()
           if (pingResult) {
             this.isConnected = true
-            this.statusMessage = '已连接到 Guest Agent'
+            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connected').id)
             this.isConnecting = false
             
             // 如果当前状态是异常或重启中，连接成功后自动恢复为 RUNNING
@@ -148,7 +148,7 @@ export default struct PowerManagementContent {
     
     // 所有重试都失败
     this.isConnected = false
-    this.statusMessage = 'Agent 连接失败，请点击重新连接'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connect_failed_final').id)
     this.isConnecting = false
   }
 
@@ -159,7 +159,7 @@ export default struct PowerManagementContent {
    */
   async forceReconnectAgent(silent: boolean = false) {
     if (!silent) {
-      this.statusMessage = '正在连接 Agent...'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connecting_short').id)
     }
     
     // 1. 强制重置所有状态
@@ -179,16 +179,16 @@ export default struct PowerManagementContent {
 
   async performAction(action: string, actionFn: () => Promise<boolean>) {
     if (!this.qgaAgent || !this.isConnected) {
-      this.statusMessage = '未连接到 Guest Agent'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_not_connected').id)
       return
     }
 
-    this.statusMessage = `正在执行${action}...`
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_executing').id, action)
     try {
       const result = await actionFn()
-      this.statusMessage = result ? `${action}命令已发送` : `${action}失败`
+      this.statusMessage = result ? getContext(this).resourceManager.getStringSync($r('app.string.pm_status_command_sent').id, action) : getContext(this).resourceManager.getStringSync($r('app.string.pm_status_action_failed').id, action)
     } catch (e) {
-      this.statusMessage = `${action}失败: ` + JSON.stringify(e)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_action_failed_detail').id, action, JSON.stringify(e))
       hilog.error(DOMAIN, 'PowerManagement', '%{public}s失败: %{public}s', action, JSON.stringify(e))
     }
   }
@@ -223,17 +223,17 @@ export default struct PowerManagementContent {
   async performResume() {
     if (this.isOperating) return
     this.isOperating = true
-    this.statusMessage = '正在恢复虚拟机...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resuming').id)
     try {
       const qmpClient = await this.connectToQmp()
       
       if (qmpClient) {
         try {
-          this.statusMessage = '正在发送恢复命令...'
+          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_sending_resume').id)
           const result = await qmpClient.cont()
           
           if (result) {
-            this.statusMessage = '已恢复运行'
+            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resumed').id)
             AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
             // 使用强制重连（清除历史阻塞）
             setTimeout((): void => {
@@ -242,16 +242,16 @@ export default struct PowerManagementContent {
               }
             }, 2000)
           } else {
-            this.statusMessage = '恢复失败：QMP 命令执行错误'
+            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resume_failed_cmd').id)
           }
         } finally {
           await qmpClient.disconnect()
         }
       } else {
-        this.statusMessage = '无法连接到 QMP (请尝试完全重启应用)'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_qmp_connect_failed').id)
       }
     } catch (e) {
-      this.statusMessage = '恢复失败: ' + JSON.stringify(e)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resume_failed').id) + JSON.stringify(e)
       hilog.error(DOMAIN, 'PowerManagement', '恢复失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
@@ -261,7 +261,7 @@ export default struct PowerManagementContent {
   async performPause() {
     if (this.isOperating) return
     this.isOperating = true
-    this.statusMessage = '正在暂停虚拟机...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_pausing').id)
     // 主动断开 Guest Agent
     if (this.qgaAgent) {
       try { await this.qgaAgent.disconnect() } catch (e) {}
@@ -277,19 +277,19 @@ export default struct PowerManagementContent {
           const result = await qmpClient.stop()
           
           if (result) {
-            this.statusMessage = '已暂停'
+            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_paused').id)
             AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'PAUSED')
           } else {
-            this.statusMessage = '暂停失败'
+            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_pause_failed').id)
           }
         } finally {
           await qmpClient.disconnect()
         }
       } else {
-        this.statusMessage = '无法连接到 QMP (请尝试完全重启应用)'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_qmp_connect_failed').id)
       }
     } catch (e) {
-      this.statusMessage = '暂停失败: ' + JSON.stringify(e)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_pause_failed').id) + JSON.stringify(e)
       hilog.error(DOMAIN, 'PowerManagement', '暂停失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
@@ -299,16 +299,16 @@ export default struct PowerManagementContent {
   async performShutdown() {
     if (this.isOperating) return  // [4.1] 添加操作锁
     this.isOperating = true
-    this.statusMessage = '系统正在关闭...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutting_down').id)
     
     try {
       // 优先尝试执行 poweroff 命令（最兼容）
       if (this.qgaAgent && this.isConnected) {
         try {
-          this.statusMessage = '执行关机命令...'
+          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_exec_poweroff').id)
           const pid = await this.qgaAgent.exec('/sbin/poweroff', [])
           if (pid !== null) {
-            this.statusMessage = '已关机'
+            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
             this.isConnected = false
             AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
             await this.qgaAgent.disconnect()
@@ -320,10 +320,10 @@ export default struct PowerManagementContent {
         
         // Fallback: 尝试 guest-shutdown
         try {
-          this.statusMessage = '尝试 guest-shutdown...'
+          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_try_guest_shutdown').id)
           const result = await this.qgaAgent.shutdown()
           if (result) {
-            this.statusMessage = '已关机'
+            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
             this.isConnected = false
             AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
             await this.qgaAgent.disconnect()
@@ -335,22 +335,22 @@ export default struct PowerManagementContent {
       }
       
       // Fallback: 尝试 ACPI 关机
-      this.statusMessage = '尝试 ACPI 关机...'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_try_acpi').id)
       const qmpClient = await this.connectToQmp()
       if (qmpClient) {
         try {
           await qmpClient.sendCommand('system_powerdown')
-          this.statusMessage = '已关机'
+          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
           AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
         } finally {
           await qmpClient.disconnect()
         }
       } else {
-        this.statusMessage = '关机失败: 无法连接到 QMP'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown_failed_qmp').id)
       }
     } catch (e) {
       hilog.error(DOMAIN, 'PowerManagement', 'ACPI 关机失败: %{public}s', JSON.stringify(e))
-      this.statusMessage = '关机失败: ' + JSON.stringify(e)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown_failed').id, JSON.stringify(e))
     } finally {
       this.isOperating = false
     }
@@ -360,16 +360,16 @@ export default struct PowerManagementContent {
     if (this.isOperating) return  // [4.2] 添加操作锁
     this.isOperating = true
     if (!this.qgaAgent || !this.isConnected) {
-      this.statusMessage = '未连接到 Guest Agent'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_not_connected').id)
       this.isOperating = false
       return
     }
-    this.statusMessage = '正在执行重启...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_rebooting').id)
     try {
       // 优先尝试执行 reboot 命令（最兼容）
       let rebootSuccess = false
       try {
-        this.statusMessage = '执行重启命令...'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_exec_reboot').id)
         const pid = await this.qgaAgent.exec('/sbin/reboot', [])
         if (pid !== null) {
           rebootSuccess = true
@@ -381,7 +381,7 @@ export default struct PowerManagementContent {
       // Fallback: 尝试 guest-shutdown (mode: reboot)
       if (!rebootSuccess) {
         try {
-          this.statusMessage = '尝试 guest-shutdown...'
+          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_try_guest_shutdown').id)
           const result = await this.qgaAgent.reboot()
           if (result) {
             rebootSuccess = true
@@ -392,7 +392,7 @@ export default struct PowerManagementContent {
       }
       
       if (rebootSuccess) {
-        this.statusMessage = '重启命令已发送，正在重新连接...'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_sent').id)
         this.isConnected = false
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')
         await this.qgaAgent.disconnect()
@@ -408,10 +408,10 @@ export default struct PowerManagementContent {
           }
         }, 5000)
       } else {
-        this.statusMessage = '重启失败'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_failed').id)
       }
     } catch (e) {
-      this.statusMessage = '重启失败: ' + JSON.stringify(e)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_failed_detail').id, JSON.stringify(e))
       hilog.error(DOMAIN, 'PowerManagement', '重启失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
@@ -474,7 +474,7 @@ export default struct PowerManagementContent {
   async performHardReset() {
     if (this.isOperating) return
     this.isOperating = true
-    this.statusMessage = '正在重置...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resetting').id)
     
     // 1. 断开 Agent
     this.isConnected = false
@@ -485,7 +485,7 @@ export default struct PowerManagementContent {
     
     try {
       // 2. 断电
-      this.statusMessage = '正在断电...'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_powering_off').id)
       const qmpClient = await this.connectToQmp()
       if (qmpClient) {
         try {
@@ -501,7 +501,7 @@ export default struct PowerManagementContent {
       await new Promise<void>((resolve: () => void) => setTimeout(resolve, 1000))
       
       // 4. 重新开机
-      this.statusMessage = '正在开机...'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_powering_on').id)
       const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
       const appTempDir = AppStorage.get(appOption.appTempDir) as string
       const kernelFile = AppStorage.get(appOption.kernel) as string
@@ -511,7 +511,7 @@ export default struct PowerManagementContent {
       const emulator = emulators.find((e: Emulator) => e.id === currentEmulatorId)
       
       if (!emulator) {
-        this.statusMessage = '重置失败：未找到虚拟机配置'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_failed_no_config').id)
         return
       }
       
@@ -539,14 +539,14 @@ export default struct PowerManagementContent {
         vncWebSocketPort: vncPort
       })
       
-      this.statusMessage = '运行中'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_running').id)
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
       // 延迟后连接 Agent
       setTimeout((): void => { 
         if (this.isComponentActive) this.forceReconnectAgent(true) 
       }, 3000)
     } catch (e) {
-      this.statusMessage = '重置失败: ' + JSON.stringify(e)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, JSON.stringify(e))
       hilog.error(DOMAIN, 'PowerManagement', '重置失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
@@ -556,7 +556,7 @@ export default struct PowerManagementContent {
   async performForceShutdown() {
     if (this.isOperating) return
     this.isOperating = true
-    this.statusMessage = '正在执行强制断电...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_force_shutdown').id)
     this.isConnected = false
     
     if (this.qgaAgent) {
@@ -575,14 +575,14 @@ export default struct PowerManagementContent {
     } catch (e) {}
     
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
-    this.statusMessage = '已关机'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
     this.isOperating = false
   }
 
   async performPowerOn() {
     if (this.isOperating) return  // 添加操作锁
     this.isOperating = true
-    this.statusMessage = '系统正在启动...'
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_starting').id)
     try {
       const appTempDir = AppStorage.get(appOption.appTempDir) as string
       const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
@@ -593,7 +593,7 @@ export default struct PowerManagementContent {
       const emulator = emulators.find((e: Emulator) => e.id === currentEmulatorId)
       
       if (!emulator) {
-        this.statusMessage = '开机失败：未找到虚拟机配置'
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_poweron_failed_no_config').id)
         return
       }
       
@@ -621,14 +621,14 @@ export default struct PowerManagementContent {
         vncWebSocketPort: vncPort
       })
       
-      this.statusMessage = '运行中'
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_running').id)
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
       // 使用强制重连
       setTimeout((): void => { 
         if (this.isComponentActive) this.forceReconnectAgent(true) 
       }, 3000)
     } catch (e) {
-      this.statusMessage = '开机失败: ' + JSON.stringify(e)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_poweron_failed').id, JSON.stringify(e))
       hilog.error(DOMAIN, 'PowerManagement', '开机失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
@@ -640,7 +640,7 @@ export default struct PowerManagementContent {
       Column() {
         // 状态显示
         Row() {
-          Text('Guest Agent 状态:')
+          Text($r('app.string.pm_label_ga_status'))
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
           Blank()
@@ -662,7 +662,7 @@ export default struct PowerManagementContent {
 
         // 强制重连按钮（只要 VM 在运行就显示）
         if (this.currentEmulatorStatus === 'RUNNING' && !this.isConnecting) {
-          Button('强制重连 Agent')
+          Button($r('app.string.pm_btn_force_reconnect'))
             .width('100%')
             .margin({ bottom: 16 })
             .onClick(() => {
@@ -671,7 +671,7 @@ export default struct PowerManagementContent {
         }
 
         // 电源管理按钮
-        Text('电源管理')
+        Text($r('app.string.pm_title'))
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .margin({ bottom: 8 })
@@ -684,7 +684,7 @@ export default struct PowerManagementContent {
               SymbolGlyph($r('sys.symbol.bolt_fill'))
                 .fontSize(16)
                 .fontColor(['#FFFFFF'])
-              Text('断电')
+              Text($r('app.string.pm_btn_force_shutdown'))
                 .fontSize(14)
                 .fontColor('#FFFFFF')
             }
@@ -702,7 +702,7 @@ export default struct PowerManagementContent {
               SymbolGlyph($r('sys.symbol.arrow_counterclockwise'))
                 .fontSize(16)
                 .fontColor(['#FFFFFF'])
-              Text('重置')
+              Text($r('app.string.pm_btn_reset'))
                 .fontSize(14)
                 .fontColor('#FFFFFF')
             }
@@ -720,7 +720,7 @@ export default struct PowerManagementContent {
               SymbolGlyph($r('sys.symbol.power'))
                 .fontSize(16)
                 .fontColor(['#FFFFFF'])
-              Text('关机')
+              Text($r('app.string.pm_btn_shutdown'))
                 .fontSize(14)
                 .fontColor('#FFFFFF')
             }
@@ -738,7 +738,7 @@ export default struct PowerManagementContent {
               SymbolGlyph($r('sys.symbol.arrow_clockwise'))
                 .fontSize(16)
                 .fontColor(['#FFFFFF'])
-              Text('重启')
+              Text($r('app.string.pm_btn_reboot'))
                 .fontSize(14)
                 .fontColor('#FFFFFF')
             }
@@ -756,7 +756,7 @@ export default struct PowerManagementContent {
               SymbolGlyph($r('sys.symbol.pause'))
                 .fontSize(16)
                 .fontColor(['#FFFFFF'])
-              Text('暂停')
+              Text($r('app.string.pm_btn_pause'))
                 .fontSize(14)
                 .fontColor('#FFFFFF')
             }
@@ -774,7 +774,7 @@ export default struct PowerManagementContent {
               SymbolGlyph($r('sys.symbol.play'))
                 .fontSize(16)
                 .fontColor(['#FFFFFF'])
-              Text('恢复')
+              Text($r('app.string.pm_btn_resume'))
                 .fontSize(14)
                 .fontColor('#FFFFFF')
             }
@@ -792,7 +792,7 @@ export default struct PowerManagementContent {
               SymbolGlyph($r('sys.symbol.power'))
                 .fontSize(16)
                 .fontColor(['#FFFFFF'])
-              Text('开机')
+              Text($r('app.string.pm_btn_poweron'))
                 .fontSize(14)
                 .fontColor('#FFFFFF')
             }
@@ -807,7 +807,7 @@ export default struct PowerManagementContent {
         .width('100%')
 
         // 说明文字
-        Text('注意：需要在虚拟机内安装 qemu-guest-agent 服务才能使用电源管理功能。')
+        Text($r('app.string.pm_note_qga'))
           .fontSize(12)
           .fontColor($r('sys.color.ohos_id_color_text_secondary'))
           .margin({ top: 24 })

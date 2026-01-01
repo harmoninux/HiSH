@@ -73,7 +73,7 @@ export struct SharedFolderContent {
   })
   deletingProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: '正在删除',
+      content: $r('app.string.dialog_deleting'),
     }),
     autoCancel: false
   })
@@ -255,8 +255,8 @@ export struct SharedFolderContent {
   async askForDeleteCurrent(item: Entry): Promise<void> {
 
     this.getUIContext().showAlertDialog({
-      title: '确定删除',
-      message: '您正在操作删除文件，删除后不可恢复，确定删除？',
+      title: $r('app.string.dialog_confirm_delete'),
+      message: $r('app.string.dialog_delete_file_msg'),
       autoCancel: true,
       alignment: DialogAlignment.Center,
       buttons: [
@@ -397,7 +397,7 @@ export struct SharedFolderContent {
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .margin({ right: 5 })
           .bindMenu([{
-            value: '打开文件管理',
+            value: $r('app.string.menu_open_file_manager'),
             action: () => this.openInFileManager(),
           }])
       }
@@ -407,15 +407,13 @@ export struct SharedFolderContent {
       if (this.current.length === 1 && this.files.length === 0) {
         Column() {
           Text() {
-            Span('点击右上角添加文件至共享文件夹\n' +
-              '即可在HiSH的/mnt/share下进行访问\n' +
-              '详情可参考“')
-            Span('使用指南->共享文件夹')
+            Span($r('app.string.msg_shared_folder_guide'))
+            Span($r('app.string.msg_shared_folder_guide_link'))
               .fontColor('#3388ff')
               .onClick(() => {
                 this.gotoSharedFolderGuide()
               })
-            Span('”')
+            Span($r('app.string.msg_shared_folder_guide_suffix'))
           }
           .textAlign(TextAlign.Center)
           .fontColor($r('sys.color.icon_secondary'))
@@ -459,9 +457,15 @@ export struct SharedFolderContent {
       })
       controller.open()
     } else {
+      let title = 'Shared Folder';
+      try {
+        title = this.uiContext.getHostContext()?.resourceManager.getStringSync($r('app.string.setting_shared_folder').id) || 'Shared Folder';
+      } catch (e) {
+        // ignore
+      }
       this.getUIContext().getRouter().pushUrl({
         url: 'pages/GuideWebPage',
-        params: { page: 'guide/06_Shared_Folder.html', title: '共享文件夹' }
+        params: { page: 'guide/06_Shared_Folder.html', title: title }
       })
     }
   }
@@ -479,19 +483,19 @@ export struct SharedFolderContent {
     const dir = this.current.join('/')
     if (board.dir === dir) {
       this.getUIContext().getPromptAction().showToast({
-        message: '不能粘贴到同一个位置',
+        message: $r('app.string.msg_paste_same_location'),
         duration: 3000
       })
     } else {
       const target = [...this.current, board.name].join('/')
       if (fs.accessSync(target, fs.AccessModeType.EXIST)) {
         this.getUIContext().getPromptAction().showToast({
-          message: '目标文件已存在',
+          message: $r('app.string.msg_target_exists'),
           duration: 3000
         })
       } else {
 
-        const title = board.action === 'move' ? '正在移动' : '正在复制'
+        const title = board.action === 'move' ? $r('app.string.dialog_moving') : $r('app.string.dialog_copying')
         const progress = new CustomDialogController({
           builder: LoadingDialog({
             content: title,
