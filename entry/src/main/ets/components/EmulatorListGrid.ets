@@ -14,6 +14,7 @@ import ImageManagementContent from './ImageManagementContent';
 import deviceInfo from '@ohos.deviceInfo';
 import preference from '@ohos.data.preferences';
 import { startVm } from '../lib/startVm';
+import { startQmpEventListener, QmpEventType, QmpEventData } from '../lib/QmpEventListener';
 
 const DOMAIN = 0x0000;
 
@@ -297,6 +298,13 @@ export default struct EmulatorListGrid {
       const kernelFile = AppStorage.get(appOption.kernel) as string;
       const sharedFolder = AppStorage.get(appOption.sharedHost) as string;
 
+      // 检查端口占用情况
+      const portUsed = item.portMapping.map(it => it.host!!).filter(p => napi.checkPortUsed(p));
+      const portMapping = item.portMapping.filter(it => portUsed.indexOf(it.host!!) < 0);
+
+      hilog.info(DOMAIN, 'EmulatorListGrid', 'host port %{public}s of PortMapping is used by others', JSON.stringify(portUsed));
+      AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed);
+
       // 读取 VNC 启用配置
       const appContext = this.getUIContext().getHostContext()!!.getApplicationContext();
       const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
@@ -309,12 +317,12 @@ export default struct EmulatorListGrid {
         AppStorage.setOrCreate('vncWebSocketPort', vncPort);
       }
 
-      // 调用 startVm
+      // 调用 startVm（startVm 内部会清理旧进程和 socket 文件）
       startVm({
         baseDir: vmBaseDir,
         cpu: item.cpu,
         memory: item.memory,
-        portMapping: item.portMapping.filter((pm: PortMapping) => pm.host),
+        portMapping: portMapping,  // 使用过滤后的端口映射
         kernel: kernelFile,
         rootVda: item.rootVda,
         rootFilesystem: item.rootFilesystem,
@@ -332,6 +340,29 @@ export default struct EmulatorListGrid {
       AppStorage.setOrCreate(appOption.currentRunningEmulator, item.id);
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
 
+      // 立即触发 QMP 重连（优化：避免等待 5 秒自动重连）
+      setTimeout(async (): Promise<void> => {
+        try {
+          const qmpSocketPath = appTempDir + '/qmp_socket_ui';
+          hilog.info(DOMAIN, 'EmulatorListGrid', '手动触发 QMP 重连: %{public}s', qmpSocketPath);
+          
+          const started = await startQmpEventListener(qmpSocketPath, 
+            (event: QmpEventType, data: QmpEventData | undefined): void => {
+              hilog.info(DOMAIN, 'EmulatorListGrid', '收到 QMP 事件: %{public}s', event);
+              this.handleQmpEvent(event, data);
+            }
+          );
+          
+          if (started) {
+            hilog.info(DOMAIN, 'EmulatorListGrid', 'QMP 监听器已成功重连');
+          } else {
+            hilog.warn(DOMAIN, 'EmulatorListGrid', 'QMP 监听器重连失败，将在后台自动重试');
+          }
+        } catch (e) {
+          hilog.error(DOMAIN, 'EmulatorListGrid', 'QMP 重连异常: %{public}s', JSON.stringify(e));
+        }
+      }, 2000);  // 2 秒延迟，确保 QEMU 已创建 socket
+
       hilog.info(DOMAIN, 'EmulatorListGrid', '虚拟机启动成功: %{public}s', item.name);
     } catch (e) {
       hilog.error(DOMAIN, 'EmulatorListGrid', '虚拟机启动失败: %{public}s', JSON.stringify(e));
@@ -347,6 +378,44 @@ export default struct EmulatorListGrid {
           }
         ]
       });
+    }
+  }
+
+  /**
+   * 处理 QMP 事件
+   */
+  private handleQmpEvent(event: QmpEventType, data: QmpEventData | undefined): void {
+    hilog.info(DOMAIN, 'EmulatorListGrid', '收到 QMP 事件: %{public}s, 数据: %{public}s', 
+               event, JSON.stringify(data));
+    
+    switch (event) {
+      case 'SHUTDOWN':
+        // 虚拟机关机
+        hilog.info(DOMAIN, 'EmulatorListGrid', '虚拟机已关机');
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
+        AppStorage.setOrCreate(appOption.currentRunningEmulator, '');
+        break;
+        
+      case 'RESET':
+        // 虚拟机重置
+        hilog.info(DOMAIN, 'EmulatorListGrid', '虚拟机正在重置');
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING');
+        break;
+        
+      case 'STOP':
+        // 虚拟机暂停
+        hilog.info(DOMAIN, 'EmulatorListGrid', '虚拟机已暂停');
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'PAUSED');
+        break;
+        
+      case 'RESUME':
+        // 虚拟机恢复运行
+        hilog.info(DOMAIN, 'EmulatorListGrid', '虚拟机已恢复运行');
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
+        break;
+        
+      default:
+        hilog.info(DOMAIN, 'EmulatorListGrid', '未处理的 QMP 事件: %{public}s', event);
     }
   }
 
