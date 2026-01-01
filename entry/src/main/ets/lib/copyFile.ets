@@ -14,7 +14,7 @@ async function copyFile(srcPathOrUri: string, destPathOrUri: string) {
   } catch (e) {
     hilog.error(DOMAIN, 'copyFile', '复制文件失败: %{public}s -> %{public}s, 错误: %{public}s', 
       srcPathOrUri, destPathOrUri, JSON.stringify(e))
-    throw new Error(`复制文件失败: ${srcPathOrUri} -> ${destPathOrUri}`)
+    throw new Error(`Copy file failed: ${srcPathOrUri} -> ${destPathOrUri}`)
   } finally {
     if (srcFile) {
       try { await fs.close(srcFile.fd) } catch (closeErr) { /* 忽略关闭错误 */ }

@@ -77,4 +77,3 @@ export const needRestart: () => boolean;
  * @param pidFilePath PID 文件路径，如果内存中没有 PID 则从文件读取
  */
 export const killQemuProcess: (pidFilePath?: string) => void;
-

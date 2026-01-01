@@ -6,7 +6,7 @@ import { common, Want } from '@kit.AbilityKit'
 @Component
 struct GuideWebPage {
   page: string = (this.getUIContext().getRouter().getParams() as Record<string, string>)['page']!!
-  title?: string = (this.getUIContext().getRouter().getParams() as Record<string, string>)['title']
+  title?: string | Resource = (this.getUIContext().getRouter().getParams() as Record<string, string | Resource>)['title']
   controller: WebviewController = new webview.WebviewController()
 
   build() {

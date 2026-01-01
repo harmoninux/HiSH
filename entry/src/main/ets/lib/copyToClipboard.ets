@@ -10,7 +10,7 @@ export default async function copyToClipboard(content: pasteboard.ValueType,
     const systemPasteboard = pasteboard.getSystemPasteboard();
     await systemPasteboard.setData(pasteboardData);
     uiContext?.getPromptAction().showToast({
-      message: '已复制到剪贴板',
+      message: $r('app.string.msg_copied_to_clipboard'),
       duration: 2000
     })
   } catch (e) {

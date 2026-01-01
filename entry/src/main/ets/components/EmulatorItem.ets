@@ -1,6 +1,7 @@
 import { Emulator } from '../model/Emulator';
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
 import appOption from '../model/appOption';
+import { util } from '@kit.ArkTS';
 
 @Component
 export default struct EmulatorItem {
@@ -39,20 +40,20 @@ export default struct EmulatorItem {
             .fontSize($r('sys.float.Body_M'))
             .fontColor(this.getStatusColor())
             .height(20)
-          Button('电源管理', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          Button($r('app.string.btn_power_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onPowerManage(this.emulator))
             .height(20)
-          Button('镜像管理', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onImageManage(this.emulator))
             .height(20)
         } else {
-          Button('运行', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          Button($r('app.string.btn_run'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onStart(this.emulator))
             .height(20)
-          Button('镜像管理', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onImageManage(this.emulator))
             .height(20)
@@ -69,7 +70,7 @@ export default struct EmulatorItem {
 
       Row() {
         Column() {
-          Text(this.emulator.cpu + ' 核').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
+          Text(this.emulator.cpu + ' ' + getContext(this).resourceManager.getStringSync($r('app.string.label_cores').id)).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
           Text('CPU').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
@@ -77,7 +78,7 @@ export default struct EmulatorItem {
 
         Column() {
           Text(this.formatMemory()).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
-          Text('内存').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.label_memory')).fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -86,7 +87,7 @@ export default struct EmulatorItem {
           Text(this.storageSize.toFixed(1) + ' GB')
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
-          Text('虚拟盘').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.label_virtual_disk')).fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -95,7 +96,7 @@ export default struct EmulatorItem {
           Text(this.emulator.portMapping.length.toString())
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
-          Text('端口映射').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.label_port_mapping')).fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -111,7 +112,7 @@ export default struct EmulatorItem {
             .select(this.isDefault)
             .size({ width: $r('sys.float.Body_L'), height: $r('sys.float.Body_L') })
             .enabled(false)
-          Text('设为默认启动').fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.label_set_default')).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT })
         .onClick(() => {
@@ -119,19 +120,19 @@ export default struct EmulatorItem {
         })
 
         Blank().layoutWeight(1)
-        Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_delete'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onDelete(this.emulator))
-        Button('导出', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_export'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onExport(this.emulator))
-        Button('复制', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_copy'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onCopy(this.emulator))
-        Button('修改', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_modify'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.emulator))
@@ -155,19 +156,19 @@ export default struct EmulatorItem {
     return this.emulator.memory + ' MB';
   }
 
-  private getStatusText(): string {
+  private getStatusText(): Resource {
     switch (this.currentStatus) {
       case 'PAUSED':
-        return '已暂停'
+        return $r('app.string.status_paused2')
       case 'REBOOTING':
-        return '重启中'
+        return $r('app.string.status_rebooting')
       case 'SHUTDOWN':
-        return '已关机'
+        return $r('app.string.status_shutdown2')
       case 'ABNORMAL':
-        return '异常'
+        return $r('app.string.status_abnormal')
       case 'RUNNING':
       default:
-        return '运行中'
+        return $r('app.string.status_running')
     }
   }
 

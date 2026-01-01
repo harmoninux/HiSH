@@ -3,6 +3,7 @@ import { CustomContentDialog } from '@kit.ArkUI'
 import QemuAgent, { CpuStats } from '../lib/QemuAgent'
 import { QemuAgentManager, AgentPriority } from '../lib/QemuAgentManager'
 import appOption from '../model/appOption'
+import { util } from '@kit.ArkTS'
 
 const DOMAIN = 0x0000
 
@@ -480,7 +481,7 @@ export struct VmStatusBar {
         
         // CPU
         if (this.settings.showCpu) {
-          Text(`🔲 ${this.status.agentConnected ? this.status.cpuCount + '核 ' + this.status.cpuUsage + '%' : '-'}`)
+          Text(`🔲 ${this.status.agentConnected ? this.status.cpuCount + getContext(this).resourceManager.getStringSync($r('app.string.label_cores').id) + ' ' + this.status.cpuUsage + '%' : '-'}`)
             .fontSize(12)
             .fontColor('#FFFFFF')
         }
@@ -532,7 +533,7 @@ export struct VmStatusBar {
         .onClick(() => {
           new CustomDialogController({
             builder: CustomContentDialog({
-              primaryTitle: '虚拟机状态',
+              primaryTitle: $r('app.string.dialog_vm_status'),
               contentBuilder: () => {
                 this.dialogBuilder()
               }
@@ -555,7 +556,7 @@ export struct VmStatusBar {
             .onChange((isOn: boolean) => {
               this.settings.masterSwitch = isOn
             })
-          Text('启用监控信息显示')
+          Text($r('app.string.label_enable_monitor'))
             .fontSize(16)
             .fontWeight(FontWeight.Bold)
             .margin({ left: 8 })
@@ -571,12 +572,12 @@ export struct VmStatusBar {
             .enabled(false) // 禁用交互
           Text(this.status.agentConnected ? '🟢' : '🔴')
             .fontSize(16)
-          Text(`Agent：${this.status.agentConnected ? '通信正常' : '通信断开'}`)
+          Text(`${getContext(this).resourceManager.getStringSync($r('app.string.label_agent').id)}：${this.status.agentConnected ? getContext(this).resourceManager.getStringSync($r('app.string.status_connected').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_disconnected').id)}`)
             .fontSize(14)
           
           // 未连接时显示重试链接
           if (!this.status.agentConnected) {
-            Text(this.isForceReconnecting ? '正在重连...' : '重试')
+            Text(this.isForceReconnecting ? getContext(this).resourceManager.getStringSync($r('app.string.status_reconnecting').id) : getContext(this).resourceManager.getStringSync($r('app.string.btn_retry').id))
               .fontSize(14)
               .fontColor(this.isForceReconnecting ? '#999999' : '#007AFF')
               .enabled(!this.isForceReconnecting)
@@ -589,46 +590,46 @@ export struct VmStatusBar {
         // 监控项始终显示
         if (this.settings.masterSwitch) {
           // 主机名
-          this.statusRow(this.settings.showHostname, '🖥️', '主机名',
+          this.statusRow(this.settings.showHostname, '🖥️', getContext(this).resourceManager.getStringSync($r('app.string.label_hostname').id),
             this.status.agentConnected ? this.status.hostname : '-',
             (checked: boolean) => { this.settings.showHostname = checked })
           
           // CPU
           this.statusRow(this.settings.showCpu, '🔲', 'CPU',
             this.status.agentConnected 
-              ? `${this.status.cpuCount} 核，使用率 ${this.status.cpuUsage}%` 
+              ? `${this.status.cpuCount} ${getContext(this).resourceManager.getStringSync($r('app.string.label_cores2').id)} ${this.status.cpuUsage}%` 
               : '-',
             (checked: boolean) => { this.settings.showCpu = checked })
           
           // 内存
-          this.statusRow(this.settings.showMemory, '🔷', '内存',
+          this.statusRow(this.settings.showMemory, '🔷', getContext(this).resourceManager.getStringSync($r('app.string.label_memory2').id),
             this.status.agentConnected 
-              ? `${formatBytes(this.status.memoryTotal, true)}，使用率 ${this.status.memoryUsage}%` 
+              ? `${formatBytes(this.status.memoryTotal, true)}${getContext(this).resourceManager.getStringSync($r('app.string.label_usage2').id)} ${this.status.memoryUsage}%` 
               : '-',
             (checked: boolean) => { this.settings.showMemory = checked })
           
           // 硬盘
-          this.statusRow(this.settings.showDisk, '📦', '硬盘',
+          this.statusRow(this.settings.showDisk, '📦', getContext(this).resourceManager.getStringSync($r('app.string.label_disk').id),
             this.status.agentConnected 
-              ? `已用 ${formatBytesToGB(this.status.diskUsed)} / 总量 ${formatBytesToGB(this.status.diskTotal)} (${this.status.diskUsage}%)` 
+              ? `${getContext(this).resourceManager.getStringSync($r('app.string.label_used2').id)} ${formatBytesToGB(this.status.diskUsed)} ${getContext(this).resourceManager.getStringSync($r('app.string.label_total2').id)} ${formatBytesToGB(this.status.diskTotal)} (${this.status.diskUsage}%)` 
               : '-',
             (checked: boolean) => { this.settings.showDisk = checked })
           
           // SWAP
           this.statusRow(this.settings.showSwap, '💫', 'SWAP',
             this.status.agentConnected && this.status.swapTotal > 0 
-              ? `总量 ${formatBytes(this.status.swapTotal, true)}，使用率 ${this.status.swapUsage}%` 
+              ? `${getContext(this).resourceManager.getStringSync($r('app.string.label_total3').id)} ${formatBytes(this.status.swapTotal, true)}${getContext(this).resourceManager.getStringSync($r('app.string.label_usage2').id)} ${this.status.swapUsage}%` 
               : '-',
             (checked: boolean) => { this.settings.showSwap = checked })
           
           // SSH
           this.statusRow(this.settings.showSsh, this.status.sshRunning ? '🔐' : '🔒', 'SSH',
             this.status.agentConnected 
-              ? (this.status.sshRunning ? '已开启' : '未开启') 
+              ? (this.status.sshRunning ? getContext(this).resourceManager.getStringSync($r('app.string.status_ssh_on').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_ssh_off').id)) 
               : '-',
             (checked: boolean) => { this.settings.showSsh = checked })
         } else {
-           Text('提示：开启"启用监控信息显示"以查看更多详情')
+           Text($r('app.string.msg_enable_monitor_hint'))
              .fontSize(14)
              .fontColor('#999999')
              .margin({ top: 8, bottom: 8 })
@@ -641,18 +642,18 @@ export struct VmStatusBar {
       
       // 刷新间隔设置
       Column({ space: 8 }) {
-        Text('⚙️ 刷新设置')
+        Text($r('app.string.label_refresh_settings'))
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
         
         Row() {
-          Text('刷新间隔：')
+          Text($r('app.string.label_refresh_interval'))
             .fontSize(14)
           Select([
-            { value: '15秒' },
-            { value: '30秒' },
-            { value: '45秒' },
-            { value: '60秒' }
+            { value: $r('app.string.option_15s') },
+            { value: $r('app.string.option_30s') },
+            { value: $r('app.string.option_45s') },
+            { value: $r('app.string.option_60s') }
           ])
             .value(this.getIntervalLabel())
             .onSelect((index: number) => {
@@ -689,13 +690,13 @@ export struct VmStatusBar {
   
   private getIntervalLabel(): string {
     const map: Record<number, string> = {
-      15000: '15秒',
-      30000: '30秒',
-      45000: '45秒',
-      60000: '60秒'
+      15000: getContext(this).resourceManager.getStringSync($r('app.string.option_15s').id),
+      30000: getContext(this).resourceManager.getStringSync($r('app.string.option_30s').id),
+      45000: getContext(this).resourceManager.getStringSync($r('app.string.option_45s').id),
+      60000: getContext(this).resourceManager.getStringSync($r('app.string.option_60s').id)
     }
     // 默认回退值改为15秒
-    return map[this.settings.refreshInterval] || '15秒'
+    return map[this.settings.refreshInterval] || getContext(this).resourceManager.getStringSync($r('app.string.option_15s').id)
   }
 }
 

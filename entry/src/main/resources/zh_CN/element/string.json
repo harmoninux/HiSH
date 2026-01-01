@@ -347,6 +347,1242 @@
     {
       "name": "hide_virtual_key_toast",
       "value": "虚拟按键已隐藏，可点击屏幕下方中间的“▲”图标重新打开虚拟按键。"
+    },
+    {
+      "name": "pasteboard_reason",
+      "value": "用于在终端中复制和粘贴文本"
+    },
+    {
+      "name": "pm_status_shutdown",
+      "value": "已关机"
+    },
+    {
+      "name": "pm_status_paused",
+      "value": "已暂停"
+    },
+    {
+      "name": "pm_status_connecting",
+      "value": "正在连接 Guest Agent..."
+    },
+    {
+      "name": "pm_status_retrying",
+      "value": "重试连接中 (%d/%d)..."
+    },
+    {
+      "name": "pm_status_connected",
+      "value": "已连接到 Guest Agent"
+    },
+    {
+      "name": "pm_status_connect_failed_attempt",
+      "value": "Agent 连接尝试 %d 失败"
+    },
+    {
+      "name": "pm_status_connect_error",
+      "value": "连接 QGA 失败: %s"
+    },
+    {
+      "name": "pm_status_connect_failed_final",
+      "value": "Agent 连接失败，点击重试"
+    },
+    {
+      "name": "pm_status_connecting_short",
+      "value": "正在连接 Agent..."
+    },
+    {
+      "name": "pm_status_not_connected",
+      "value": "未连接到 Guest Agent"
+    },
+    {
+      "name": "pm_status_executing",
+      "value": "正在执行 %s..."
+    },
+    {
+      "name": "pm_status_command_sent",
+      "value": "%s 命令已发送"
+    },
+    {
+      "name": "pm_status_action_failed",
+      "value": "%s 失败"
+    },
+    {
+      "name": "pm_status_action_failed_detail",
+      "value": "%s 失败: %s"
+    },
+    {
+      "name": "pm_status_qmp_failed",
+      "value": "QMP 连接失败 (重试 3 次)"
+    },
+    {
+      "name": "pm_status_resuming",
+      "value": "正在恢复虚拟机..."
+    },
+    {
+      "name": "pm_status_sending_resume",
+      "value": "正在发送恢复命令..."
+    },
+    {
+      "name": "pm_status_resumed",
+      "value": "已恢复"
+    },
+    {
+      "name": "pm_status_resume_failed_cmd",
+      "value": "恢复失败: QMP 命令错误"
+    },
+    {
+      "name": "pm_status_qmp_connect_failed",
+      "value": "连接 QMP 失败 (请重启应用)"
+    },
+    {
+      "name": "pm_status_pausing",
+      "value": "正在暂停虚拟机..."
+    },
+    {
+      "name": "pm_status_pause_failed",
+      "value": "暂停失败"
+    },
+    {
+      "name": "pm_status_shutting_down",
+      "value": "系统正在关机..."
+    },
+    {
+      "name": "pm_status_exec_poweroff",
+      "value": "正在执行 poweroff 命令..."
+    },
+    {
+      "name": "pm_status_poweroff_failed",
+      "value": "poweroff 命令失败: %s"
+    },
+    {
+      "name": "pm_status_try_guest_shutdown",
+      "value": "尝试 guest-shutdown..."
+    },
+    {
+      "name": "pm_status_guest_shutdown_failed",
+      "value": "guest-shutdown 失败: %s"
+    },
+    {
+      "name": "pm_status_agent_shutdown_failed",
+      "value": "Agent 关机失败: %s"
+    },
+    {
+      "name": "pm_status_try_acpi",
+      "value": "尝试 ACPI 关机..."
+    },
+    {
+      "name": "pm_status_shutdown_failed_qmp",
+      "value": "关机失败: 无法连接到 QMP"
+    },
+    {
+      "name": "pm_status_acpi_failed",
+      "value": "ACPI 关机失败: %s"
+    },
+    {
+      "name": "pm_status_shutdown_failed",
+      "value": "关机失败: %s"
+    },
+    {
+      "name": "pm_status_rebooting",
+      "value": "正在重启..."
+    },
+    {
+      "name": "pm_status_exec_reboot",
+      "value": "正在执行 reboot 命令..."
+    },
+    {
+      "name": "pm_status_reboot_failed_cmd",
+      "value": "reboot 命令失败: %s"
+    },
+    {
+      "name": "pm_status_guest_reboot_failed",
+      "value": "guest-shutdown 重启失败: %s"
+    },
+    {
+      "name": "pm_status_reboot_sent",
+      "value": "重启命令已发送，正在重新连接..."
+    },
+    {
+      "name": "pm_status_reboot_failed",
+      "value": "重启失败"
+    },
+    {
+      "name": "pm_status_reboot_failed_detail",
+      "value": "重启失败: %s"
+    },
+    {
+      "name": "pm_status_verifying",
+      "value": "正在验证虚拟机状态..."
+    },
+    {
+      "name": "pm_status_verified_running",
+      "value": "验证成功，状态已更新为运行中"
+    },
+    {
+      "name": "pm_status_verified_abnormal",
+      "value": "验证失败，状态已更新为异常"
+    },
+    {
+      "name": "pm_status_verify_failed",
+      "value": "验证虚拟机状态失败: %s"
+    },
+    {
+      "name": "pm_status_resetting",
+      "value": "正在重置..."
+    },
+    {
+      "name": "pm_status_powering_off",
+      "value": "正在断电..."
+    },
+    {
+      "name": "pm_status_powering_on",
+      "value": "正在开机..."
+    },
+    {
+      "name": "pm_status_reset_failed_no_config",
+      "value": "重置失败: 未找到 VM 配置"
+    },
+    {
+      "name": "pm_status_running",
+      "value": "运行中"
+    },
+    {
+      "name": "pm_status_reset_failed",
+      "value": "重置失败: %s"
+    },
+    {
+      "name": "pm_status_force_shutdown",
+      "value": "正在执行强制关机..."
+    },
+    {
+      "name": "pm_status_starting",
+      "value": "系统正在启动..."
+    },
+    {
+      "name": "pm_status_poweron_failed_no_config",
+      "value": "开机失败: 未找到 VM 配置"
+    },
+    {
+      "name": "pm_status_poweron_failed",
+      "value": "开机失败: %s"
+    },
+    {
+      "name": "pm_label_ga_status",
+      "value": "Guest Agent 状态:"
+    },
+    {
+      "name": "pm_btn_force_reconnect",
+      "value": "强制重连 Agent"
+    },
+    {
+      "name": "pm_title",
+      "value": "电源管理"
+    },
+    {
+      "name": "pm_btn_force_shutdown",
+      "value": "强制关机"
+    },
+    {
+      "name": "pm_btn_reset",
+      "value": "重置"
+    },
+    {
+      "name": "pm_btn_shutdown",
+      "value": "关机"
+    },
+    {
+      "name": "pm_btn_reboot",
+      "value": "重启"
+    },
+    {
+      "name": "pm_btn_pause",
+      "value": "暂停"
+    },
+    {
+      "name": "pm_btn_resume",
+      "value": "恢复"
+    },
+    {
+      "name": "pm_btn_poweron",
+      "value": "开机"
+    },
+    {
+      "name": "pm_note_qga",
+      "value": "注意：需要在虚拟机内安装 qemu-guest-agent 服务才能使用电源管理功能。"
+    },
+    {
+      "name": "emulator_management_title",
+      "value": "模拟器管理"
+    },
+    {
+      "name": "image_management_title",
+      "value": "镜像管理"
+    },
+    {
+      "name": "user_guide_title",
+      "value": "使用指南"
+    },
+    {
+      "name": "power_management_title",
+      "value": "电源管理"
+    },
+    {
+      "name": "vnc_service_not_started",
+      "value": "VNC 服务未启动"
+    },
+    {
+      "name": "btn_add",
+      "value": "添加"
+    },
+    {
+      "name": "edit_emulator_title",
+      "value": "编辑模拟器"
+    },
+    {
+      "name": "vnc_console_title",
+      "value": "noVNC控制台"
+    },
+    {
+      "name": "guide_basic_title",
+      "value": "基本功能"
+    },
+    {
+      "name": "guide_linux_shell_title",
+      "value": "Linux Shell"
+    },
+    {
+      "name": "guide_linux_shell_desc",
+      "value": "Linux Shell 基本功能介绍"
+    },
+    {
+      "name": "guide_pkg_manager_title",
+      "value": "包管理器"
+    },
+    {
+      "name": "guide_pkg_manager_desc",
+      "value": "Alpine Linux 包管理器的基本用法"
+    },
+    {
+      "name": "guide_openrc_title",
+      "value": "OpenRC"
+    },
+    {
+      "name": "guide_openrc_desc",
+      "value": "使用 OpenRC 进行服务管理"
+    },
+    {
+      "name": "guide_management_title",
+      "value": "管理功能"
+    },
+    {
+      "name": "guide_emulator_mgmt_desc",
+      "value": "管理模拟器实例和配置"
+    },
+    {
+      "name": "guide_image_mgmt_desc",
+      "value": "添加、导出系统镜像"
+    },
+    {
+      "name": "guide_shared_folder_title",
+      "value": "共享文件夹"
+    },
+    {
+      "name": "guide_shared_folder_desc",
+      "value": "在Linux和设备之间传输文件"
+    },
+    {
+      "name": "guide_examples_title",
+      "value": "示例"
+    },
+    {
+      "name": "guide_c_cpp_title",
+      "value": "C/C++"
+    },
+    {
+      "name": "guide_c_cpp_desc",
+      "value": "在模拟器中使用gcc进行C语言编程"
+    },
+    {
+      "name": "guide_docker_title",
+      "value": "Docker"
+    },
+    {
+      "name": "guide_docker_desc",
+      "value": "在模拟器中使用 Docker 运行容器"
+    },
+    {
+      "name": "setting_font_size",
+      "value": "字体大小"
+    },
+    {
+      "name": "setting_font_size_desc",
+      "value": "设置终端字体大小"
+    },
+    {
+      "name": "setting_cursor_style",
+      "value": "光标样式"
+    },
+    {
+      "name": "setting_cursor_style_desc",
+      "value": "设置终端光标样式"
+    },
+    {
+      "name": "setting_cursor_blink",
+      "value": "光标闪烁"
+    },
+    {
+      "name": "setting_cursor_blink_desc",
+      "value": "设置终端光标闪烁"
+    },
+    {
+      "name": "emulator_name",
+      "value": "名称"
+    },
+    {
+      "name": "emulator_name_placeholder",
+      "value": "名称"
+    },
+    {
+      "name": "setting_block_image",
+      "value": "镜像"
+    },
+    {
+      "name": "setting_image_desc",
+      "value": "选择模拟器使用的镜像"
+    },
+    {
+      "name": "setting_shared_readonly",
+      "value": "共享文件夹只读"
+    },
+    {
+      "name": "setting_shared_readonly_desc",
+      "value": "禁止模拟器对共享文件夹进行写操作"
+    },
+    {
+      "name": "setting_advanced",
+      "value": "高级设置"
+    },
+    {
+      "name": "setting_init_script",
+      "value": "init"
+    },
+    {
+      "name": "setting_init_desc",
+      "value": "模拟器Linux启动脚本"
+    },
+    {
+      "name": "setting_root_device",
+      "value": "root"
+    },
+    {
+      "name": "setting_root_desc",
+      "value": "根文件系统设备路径"
+    },
+    {
+      "name": "btn_finish",
+      "value": "完成"
+    },
+    {
+      "name": "err_input_name",
+      "value": "请输入模拟器名称"
+    },
+    {
+      "name": "err_name_duplicate",
+      "value": "模拟器名称重复，请换一个"
+    },
+    {
+      "name": "err_need_init",
+      "value": "需要指定init"
+    },
+    {
+      "name": "dialog_rootfs_name",
+      "value": "镜像名称"
+    },
+    {
+      "name": "placeholder_rootfs_name",
+      "value": "输入镜像名称"
+    },
+    {
+      "name": "btn_import",
+      "value": "导入"
+    },
+    {
+      "name": "label_file_format",
+      "value": "文件格式"
+    },
+    {
+      "name": "label_cluster_size",
+      "value": "簇大小"
+    },
+    {
+      "name": "label_compat",
+      "value": "兼容版本"
+    },
+    {
+      "name": "label_lazy_refcounts",
+      "value": "延迟引用计数"
+    },
+    {
+      "name": "label_extended_l2",
+      "value": "扩展L2表"
+    },
+    {
+      "name": "label_refcount_bits",
+      "value": "引用计数位数"
+    },
+    {
+      "name": "label_image_status",
+      "value": "镜像状态"
+    },
+    {
+      "name": "status_corrupt",
+      "value": "已损坏"
+    },
+    {
+      "name": "status_normal",
+      "value": "正常"
+    },
+    {
+      "name": "btn_rename",
+      "value": "重命名"
+    },
+    {
+      "name": "btn_details",
+      "value": "详情"
+    },
+    {
+      "name": "btn_export",
+      "value": "导出"
+    },
+    {
+      "name": "msg_get_disk_info_fail",
+      "value": "获取磁盘信息失败"
+    },
+    {
+      "name": "msg_default_rootfs_edit",
+      "value": "不支持修改默认镜像"
+    },
+    {
+      "name": "msg_default_rootfs_delete",
+      "value": "不支持删除默认镜像"
+    },
+    {
+      "name": "dialog_delete_rootfs_msg",
+      "value": "您正在操作删除镜像，删除后不可恢复，确定操作？"
+    },
+    {
+      "name": "dialog_import_shared",
+      "value": "正在导入文件"
+    },
+    {
+      "name": "dialog_export_shared",
+      "value": "正在导出文件"
+    },
+    {
+      "name": "dialog_deleting",
+      "value": "正在删除"
+    },
+    {
+      "name": "placeholder_folder_name",
+      "value": "请输入文件夹名称"
+    },
+    {
+      "name": "menu_export_file",
+      "value": "导出文件"
+    },
+    {
+      "name": "dialog_delete_file_msg",
+      "value": "您正在操作删除文件，删除后不可恢复，确定删除？"
+    },
+    {
+      "name": "menu_import_file",
+      "value": "导入文件"
+    },
+    {
+      "name": "menu_open_file_manager",
+      "value": "打开文件管理"
+    },
+    {
+      "name": "msg_shared_folder_guide",
+      "value": "点击右上角添加文件至共享文件夹\n即可在HiSH的/mnt/share下进行访问\n详情可参考“"
+    },
+    {
+      "name": "msg_shared_folder_guide_link",
+      "value": "使用指南->共享文件夹"
+    },
+    {
+      "name": "msg_shared_folder_guide_suffix",
+      "value": "”"
+    },
+    {
+      "name": "msg_paste_same_location",
+      "value": "不能粘贴到同一个位置"
+    },
+    {
+      "name": "msg_target_exists",
+      "value": "目标文件已存在"
+    },
+    {
+      "name": "dialog_moving",
+      "value": "正在移动"
+    },
+    {
+      "name": "dialog_copying",
+      "value": "正在复制"
+    },
+    {
+      "name": "guide_jit_title",
+      "value": "运行加速"
+    },
+    {
+      "name": "dialog_executing",
+      "value": "正在执行..."
+    },
+    {
+      "name": "btn_close",
+      "value": "关闭"
+    },
+    {
+      "name": "btn_create",
+      "value": "创建"
+    },
+    {
+      "name": "dialog_optimize_mode",
+      "value": "选择优化模式"
+    },
+    {
+      "name": "msg_pc_only",
+      "value": "该功能仅适用于 PC/2in1 设备"
+    },
+    {
+      "name": "msg_read_image_info_fail",
+      "value": "无法读取镜像信息"
+    },
+    {
+      "name": "msg_get_detail_fail",
+      "value": "获取详情失败: "
+    },
+    {
+      "name": "msg_path_copied",
+      "value": "文件路径已复制到剪贴板"
+    },
+    {
+      "name": "msg_bg_task_running",
+      "value": "后台任务处理中: "
+    },
+    {
+      "name": "msg_snapshot_created",
+      "value": "快照创建成功"
+    },
+    {
+      "name": "msg_snapshot_create_fail",
+      "value": "创建快照失败: "
+    },
+    {
+      "name": "dialog_confirm_restore",
+      "value": "确认恢复"
+    },
+    {
+      "name": "msg_confirm_restore",
+      "value": "确定要恢复到快照"
+    },
+    {
+      "name": "msg_confirm_restore_suffix",
+      "value": " 吗？当前状态将会丢失。"
+    },
+    {
+      "name": "btn_restore",
+      "value": "恢复"
+    },
+    {
+      "name": "msg_snapshot_restored",
+      "value": "快照恢复成功"
+    },
+    {
+      "name": "msg_snapshot_restore_fail",
+      "value": "恢复快照失败: "
+    },
+    {
+      "name": "dialog_confirm_delete",
+      "value": "确认删除"
+    },
+    {
+      "name": "msg_confirm_delete_snapshot",
+      "value": "确定要删除快照"
+    },
+    {
+      "name": "msg_snapshot_deleted",
+      "value": "快照删除成功"
+    },
+    {
+      "name": "msg_snapshot_delete_fail",
+      "value": "删除快照失败: "
+    },
+    {
+      "name": "dialog_confirm_batch_delete",
+      "value": "确认批量删除"
+    },
+    {
+      "name": "msg_confirm_batch_delete",
+      "value": "确定要删除选中的"
+    },
+    {
+      "name": "msg_confirm_batch_delete_suffix",
+      "value": "个快照吗？"
+    },
+    {
+      "name": "msg_batch_delete_result",
+      "value": "批量删除完成: 成功"
+    },
+    {
+      "name": "msg_failed",
+      "value": "失败"
+    },
+    {
+      "name": "msg_batch_delete_fail",
+      "value": "批量删除失败: "
+    },
+    {
+      "name": "optimize_mode_sparse",
+      "value": "整理碎片"
+    },
+    {
+      "name": "optimize_mode_prealloc",
+      "value": "预分配"
+    },
+    {
+      "name": "optimize_mode_optimize",
+      "value": "格式优化"
+    },
+    {
+      "name": "dialog_task_running",
+      "value": "有任务正在执行"
+    },
+    {
+      "name": "msg_task_running_prefix",
+      "value": "当前正在执行: "
+    },
+    {
+      "name": "msg_task_running_desc",
+      "value": "请等待任务完成后再进行新操作。\n\n如果任务已异常中断，可强制清理状态。"
+    },
+    {
+      "name": "btn_wait",
+      "value": "继续等待"
+    },
+    {
+      "name": "btn_force_cleanup",
+      "value": "强制清理"
+    },
+    {
+      "name": "msg_task_cleaned",
+      "value": "已强制清理任务状态，请重新执行操作"
+    },
+    {
+      "name": "msg_op_in_progress",
+      "value": "有操作正在进行中，请稍候"
+    },
+    {
+      "name": "dialog_temp_file_found",
+      "value": "发现残留临时文件"
+    },
+    {
+      "name": "msg_temp_file_found",
+      "value": "存在临时文件"
+    },
+    {
+      "name": "msg_temp_file_time",
+      "value": "最后修改于"
+    },
+    {
+      "name": "msg_temp_file_desc",
+      "value": "分钟前。\n\n如果任务仍在运行，文件会持续更新。\n如果文件长时间未更新，说明任务可能已异常中断。\n\n选择\"强制清理\"将删除临时文件。"
+    },
+    {
+      "name": "msg_temp_file_cleaned",
+      "value": "临时文件已清理，请重新执行操作"
+    },
+    {
+      "name": "msg_temp_file_clean_fail",
+      "value": "清理临时文件失败: "
+    },
+    {
+      "name": "msg_executing_prefix",
+      "value": "正在执行"
+    },
+    {
+      "name": "msg_executing_suffix",
+      "value": "...\n此操作可能需要几分钟，请勿关闭应用"
+    },
+    {
+      "name": "msg_replace_file_fail",
+      "value": "替换文件失败: "
+    },
+    {
+      "name": "msg_saved_space",
+      "value": "节省"
+    },
+    {
+      "name": "msg_increased_space",
+      "value": "增加"
+    },
+    {
+      "name": "msg_optimize_finished",
+      "value": "优化完成，"
+    },
+    {
+      "name": "msg_optimize_fail",
+      "value": "优化失败: "
+    },
+    {
+      "name": "dialog_confirm_force_cleanup",
+      "value": "确认强制清理"
+    },
+    {
+      "name": "msg_confirm_force_cleanup",
+      "value": "这将清理任务状态和临时文件。\n\n仅在确认任务已异常中断时使用，否则可能导致数据丢失。"
+    },
+    {
+      "name": "msg_task_state_cleaned",
+      "value": "已强制清理任务状态"
+    },
+    {
+      "name": "desc_optimize",
+      "value": "启用 lazy_refcounts 和 extended_l2 特性"
+    },
+    {
+      "name": "msg_optimize_confirm",
+      "value": "此操作将启用 lazy_refcounts 和 extended_l2 特性，提升镜像写入性能和空间效率。这会重写整个镜像文件。"
+    },
+    {
+      "name": "desc_sparse",
+      "value": "释放未使用空间，转换为稀疏格式"
+    },
+    {
+      "name": "title_prealloc",
+      "value": "预分配格式"
+    },
+    {
+      "name": "desc_prealloc",
+      "value": "最高性能，会占用完整虚拟磁盘空间"
+    },
+    {
+      "name": "msg_prealloc_confirm",
+      "value": "预分配格式会占用完整的虚拟磁盘空间，确定继续？"
+    },
+    {
+      "name": "btn_start",
+      "value": "开始"
+    },
+    {
+      "name": "title_basic_info",
+      "value": "基础信息"
+    },
+    {
+      "name": "label_system_path",
+      "value": "系统路径"
+    },
+    {
+      "name": "label_file_path",
+      "value": "文件路径"
+    },
+    {
+      "name": "msg_vm_running_optimize",
+      "value": "虚拟机正在运行，优化镜像功能需要先关闭虚拟机"
+    },
+    {
+      "name": "msg_image_modified",
+      "value": "镜像文件已被修改，需要重启应用后才能继续操作"
+    },
+    {
+      "name": "label_bg_task",
+      "value": "后台任务: "
+    },
+    {
+      "name": "msg_getting_details",
+      "value": "正在获取详细信息..."
+    },
+    {
+      "name": "msg_loading_image_info",
+      "value": "正在加载镜像信息..."
+    },
+    {
+      "name": "msg_image_size_hint",
+      "value": "提示：虚拟大小是镜像的最大容量，实际占用是当前磁盘使用量。QCOW2 格式支持动态分配空间。"
+    },
+    {
+      "name": "msg_loading_snapshots",
+      "value": "加载快照中..."
+    },
+    {
+      "name": "msg_no_snapshots",
+      "value": "暂无快照"
+    },
+    {
+      "name": "btn_select_all",
+      "value": "全选"
+    },
+    {
+      "name": "btn_batch_delete",
+      "value": "批量删除"
+    },
+    {
+      "name": "msg_vm_running_snapshot",
+      "value": "虚拟机正在运行，快照操作需要先关闭虚拟机"
+    },
+    {
+      "name": "status_enabled",
+      "value": "启用"
+    },
+    {
+      "name": "status_disabled",
+      "value": "禁用"
+    },
+    {
+      "name": "msg_no_details",
+      "value": "无详细信息"
+    },
+    {
+      "name": "placeholder_snapshot_name",
+      "value": "请输入快照名称"
+    },
+    {
+      "name": "msg_snapshot_name_duplicate",
+      "value": "快照名称不能与现有快照重复"
+    },
+    {
+      "name": "label_file_size",
+      "value": "文件大小"
+    },
+    {
+      "name": "btn_power_management",
+      "value": "电源管理"
+    },
+    {
+      "name": "btn_image_management",
+      "value": "镜像管理"
+    },
+    {
+      "name": "btn_run",
+      "value": "运行"
+    },
+    {
+      "name": "label_memory",
+      "value": "内存"
+    },
+    {
+      "name": "label_virtual_disk",
+      "value": "虚拟盘"
+    },
+    {
+      "name": "label_port_mapping",
+      "value": "端口映射"
+    },
+    {
+      "name": "label_set_default",
+      "value": "设为默认启动"
+    },
+    {
+      "name": "btn_delete",
+      "value": "删除"
+    },
+    {
+      "name": "btn_copy",
+      "value": "复制"
+    },
+    {
+      "name": "btn_modify",
+      "value": "修改"
+    },
+    {
+      "name": "placeholder_emulator_name",
+      "value": "输入新的模拟器名称"
+    },
+    {
+      "name": "placeholder_export_name",
+      "value": "输入导出的镜像名称"
+    },
+    {
+      "name": "btn_done",
+      "value": "完成"
+    },
+    {
+      "name": "msg_export_complete",
+      "value": "导出镜像完成，您可以前往\"镜像管理\"进行查看"
+    },
+    {
+      "name": "msg_cannot_delete_running",
+      "value": "不支持删除运行中的模拟器"
+    },
+    {
+      "name": "msg_cannot_delete_default",
+      "value": "不支持删除默认启动的模拟器"
+    },
+    {
+      "name": "dialog_cannot_export",
+      "value": "无法导出"
+    },
+    {
+      "name": "msg_restart_confirm",
+      "value": "将重启HiSH并启动"
+    },
+    {
+      "name": "msg_restart_confirm_suffix",
+      "value": "，建议保存好当前模拟器中的数据再操作。是否现在启动？"
+    },
+    {
+      "name": "msg_delete_emulator_confirm",
+      "value": "您正在操作删除模拟器，删除后不可恢复，确定操作？"
+    },
+    {
+      "name": "label_enable_monitor",
+      "value": "启用监控信息显示"
+    },
+    {
+      "name": "msg_enable_monitor_hint",
+      "value": "提示：开启\"启用监控信息显示\"以查看更多详情"
+    },
+    {
+      "name": "label_refresh_settings",
+      "value": "⚙️ 刷新设置"
+    },
+    {
+      "name": "label_refresh_interval",
+      "value": "刷新间隔："
+    },
+    {
+      "name": "option_15s",
+      "value": "15秒"
+    },
+    {
+      "name": "option_30s",
+      "value": "30秒"
+    },
+    {
+      "name": "option_45s",
+      "value": "45秒"
+    },
+    {
+      "name": "option_60s",
+      "value": "60秒"
+    },
+    {
+      "name": "menu_emulator_management",
+      "value": "模拟器管理"
+    },
+    {
+      "name": "menu_shared_folder",
+      "value": "共享文件夹"
+    },
+    {
+      "name": "menu_settings",
+      "value": "设置"
+    },
+    {
+      "name": "status_paused",
+      "value": "已暂停"
+    },
+    {
+      "name": "status_shutdown_exit",
+      "value": "已关机，您现在可以正常退出程序。"
+    },
+    {
+      "name": "menu_custom_port",
+      "value": "自定义端口"
+    },
+    {
+      "name": "msg_copied_to_clipboard",
+      "value": "已复制到剪贴板"
+    },
+    {
+      "name": "placeholder_guest_port",
+      "value": "Guest"
+    },
+    {
+      "name": "placeholder_host_port",
+      "value": "Host"
+    },
+    {
+      "name": "status_paused2",
+      "value": "已暂停"
+    },
+    {
+      "name": "status_rebooting",
+      "value": "重启中"
+    },
+    {
+      "name": "status_shutdown2",
+      "value": "已关机"
+    },
+    {
+      "name": "status_abnormal",
+      "value": "异常"
+    },
+    {
+      "name": "status_running",
+      "value": "运行中"
+    },
+    {
+      "name": "dialog_copy",
+      "value": "复制"
+    },
+    {
+      "name": "dialog_copy_subtitle",
+      "value": "输入新的模拟器名称，请注意不要与已有模拟器重复"
+    },
+    {
+      "name": "dialog_export_rootfs",
+      "value": "导出为镜像"
+    },
+    {
+      "name": "dialog_export_subtitle",
+      "value": "输入新的镜像名称，请注意不要与已有镜像重复"
+    },
+    {
+      "name": "progress_copying",
+      "value": "正在复制"
+    },
+    {
+      "name": "progress_exporting",
+      "value": "正在导出"
+    },
+    {
+      "name": "dialog_power_management",
+      "value": "电源管理"
+    },
+    {
+      "name": "dialog_image_management",
+      "value": "镜像管理"
+    },
+    {
+      "name": "msg_export_has_snapshots",
+      "value": "当前镜像包含快照。导出镜像前需要先删除所有快照，请前往\"镜像管理\"删除所有快照后再导出。"
+    },
+    {
+      "name": "btn_got_it",
+      "value": "我知道了"
+    },
+    {
+      "name": "label_hostname",
+      "value": "主机名"
+    },
+    {
+      "name": "label_cpu",
+      "value": "CPU"
+    },
+    {
+      "name": "label_memory2",
+      "value": "内存"
+    },
+    {
+      "name": "label_disk",
+      "value": "硬盘"
+    },
+    {
+      "name": "label_swap",
+      "value": "SWAP"
+    },
+    {
+      "name": "label_ssh",
+      "value": "SSH"
+    },
+    {
+      "name": "label_cores",
+      "value": "核"
+    },
+    {
+      "name": "label_usage",
+      "value": "使用率"
+    },
+    {
+      "name": "label_used",
+      "value": "已用"
+    },
+    {
+      "name": "label_total",
+      "value": "总量"
+    },
+    {
+      "name": "label_agent",
+      "value": "Agent"
+    },
+    {
+      "name": "status_connected",
+      "value": "通信正常"
+    },
+    {
+      "name": "status_disconnected",
+      "value": "通信断开"
+    },
+    {
+      "name": "btn_retry",
+      "value": "重试"
+    },
+    {
+      "name": "status_reconnecting",
+      "value": "正在重连..."
+    },
+    {
+      "name": "status_ssh_on",
+      "value": "已开启"
+    },
+    {
+      "name": "status_ssh_off",
+      "value": "未开启"
+    },
+    {
+      "name": "default_emulator_name",
+      "value": "默认模拟器"
+    },
+    {
+      "name": "label_cores2",
+      "value": "核，使用率"
+    },
+    {
+      "name": "label_usage2",
+      "value": "，使用率"
+    },
+    {
+      "name": "label_used2",
+      "value": "已用"
+    },
+    {
+      "name": "label_total2",
+      "value": "/ 总量"
+    },
+    {
+      "name": "label_total3",
+      "value": "总量"
+    },
+    {
+      "name": "dialog_vm_status",
+      "value": "虚拟机状态"
+    },
+    {
+      "name": "pm_status_resume_failed",
+      "value": "恢复失败: "
+    },
+    {
+      "name": "msg_load_snapshot_failed",
+      "value": "加载快照失败"
+    },
+    {
+      "name": "task_creating_snapshot",
+      "value": "创建快照..."
+    },
+    {
+      "name": "task_restoring_snapshot",
+      "value": "恢复快照..."
+    },
+    {
+      "name": "task_deleting_snapshot",
+      "value": "删除快照..."
+    },
+    {
+      "name": "task_batch_deleting_snapshots",
+      "value": "批量删除快照..."
+    },
+    {
+      "name": "error_copy_file_failed",
+      "value": "复制文件失败: "
     }
   ]
 }
