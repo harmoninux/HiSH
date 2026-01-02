@@ -107,6 +107,20 @@ export default struct WebTerminal {
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .bindMenu([{
+      value: $r('app.string.vnc_console_title'),
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.display')).fontSize($r('sys.float.Title_S')),
+      action: () => {
+        const vncPort = AppStorage.get<number>('vncWebSocketPort');
+        if (vncPort) {
+          this.getUIContext().getRouter().pushUrl({
+            url: 'pages/VncPage',
+            params: { vncPort: vncPort }
+          });
+        } else {
+          this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
+        }
+      }
+    }, {
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })

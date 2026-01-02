@@ -19,6 +19,27 @@ interface StartResult {
   portsSkipped: number[]
 }
 
+/**
+ * 获取一个未被占用的随机端口 (用于 VNC WebSocket)
+ * @param min 最小端口号 (包含)
+ * @param max 最大端口号 (包含)
+ * @returns 可用端口号，如果找不到则返回 undefined
+ */
+function getFreeVncPort(min: number, max: number): number | undefined {
+  const range = max - min + 1;
+  const maxAttempts = 100; // 最大尝试次数
+
+  for (let i = 0; i < maxAttempts; i++) {
+    const port = min + Math.floor(Math.random() * range);
+    if (!napi.checkPortUsed(port)) {
+      return port;
+    }
+  }
+
+  hilog.warn(DOMAIN, 'testTag', 'Could not find a free VNC port after %{public}d attempts', maxAttempts);
+  return undefined;
+}
+
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
@@ -64,7 +85,7 @@ export default class EntryAbility extends UIAbility {
       }
 
       await this.prepareForSharedFolder(appContext)
-      const result = this.startDefaultEmulator()
+      const result = await this.startDefaultEmulator(appContext)
 
       this.promptRootVdaMessage(uiContext)
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
@@ -88,7 +109,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
 
-  private startDefaultEmulator(): StartResult {
+  private async startDefaultEmulator(appContext: common.ApplicationContext): Promise<StartResult> {
 
     const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
@@ -121,6 +142,20 @@ export default class EntryAbility extends UIAbility {
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
+    // 读取 VNC 启用配置
+    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
+    const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
+    const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+
+    // 获取随机 VNC 端口 (60000-65000)
+    const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
+    if (vncPort) {
+      AppStorage.setOrCreate('vncWebSocketPort', vncPort);
+      hilog.info(DOMAIN, 'testTag', 'VNC WebSocket port: %{public}d', vncPort);
+    } else {
+      hilog.warn(DOMAIN, 'testTag', 'No free VNC port found, VNC will be disabled');
+    }
+
     startVm({
       baseDir: vmBaseDir,
       cpu: cpuCount,
@@ -133,7 +168,8 @@ export default class EntryAbility extends UIAbility {
       serialUnixSocket,
       sharedFolderReadonly,
       init,
-      qmpUnixSocket
+      qmpUnixSocket,
+      vncWebSocketPort: vncPort
     })
 
     return { portsSkipped: portUsed }
@@ -180,6 +216,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalCursorShape, terminalCursorShape);
     const terminalCursorBlink = await appPref.get(appOption.terminalCursorBlink, false) as boolean;
     AppStorage.setOrCreate(appOption.terminalCursorBlink, terminalCursorBlink);
+    const vncEnabled = await appPref.get(appOption.vncEnabled, true) as boolean;
+    AppStorage.setOrCreate(appOption.vncEnabled, vncEnabled);
 
     const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
     AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)
@@ -224,6 +262,32 @@ export default class EntryAbility extends UIAbility {
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
+
+    // 确保 keymaps 目录存在
+    const keymapsDir = vmBaseDir + '/keymaps';
+    if (!fs.accessSync(keymapsDir, fs.AccessModeType.EXIST)) {
+      fs.mkdirSync(keymapsDir);
+    }
+    // 尝试提取到 vm/keymaps/en-us (标准路径)
+    this.extractVmResourceFile(appContext, 'vm/keymaps/en-us', 'vm/keymaps/en-us', forceOverride);
+    // 同时提取到 vm/en-us (备用路径)
+    this.extractVmResourceFile(appContext, 'vm/keymaps/en-us', 'vm/en-us', forceOverride);
+
+    // 验证文件是否存在及大小
+    const keymapPath = vmBaseDir + '/keymaps/en-us';
+    const keymapPath2 = vmBaseDir + '/en-us';
+    try {
+      const stat1 = fs.statSync(keymapPath);
+      hilog.info(DOMAIN, 'testTag', 'Keymap check - %{public}s: EXISTS, size=%{public}d', keymapPath, stat1.size);
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Keymap check - %{public}s: MISSING or ERROR: %{public}s', keymapPath, JSON.stringify(e));
+    }
+    try {
+      const stat2 = fs.statSync(keymapPath2);
+      hilog.info(DOMAIN, 'testTag', 'Keymap check - %{public}s: EXISTS, size=%{public}d', keymapPath2, stat2.size);
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Keymap check - %{public}s: MISSING or ERROR: %{public}s', keymapPath2, JSON.stringify(e));
+    }
     await appPref.put(appOption.lastResourceVersion, bundleInfo.versionCode)
     await appPref.flush()
 
@@ -305,7 +369,7 @@ export default class EntryAbility extends UIAbility {
           duration: 5000
         });
       } catch (e) {
-        console.error(`showToast error`, e);
+        hilog.error(DOMAIN, 'testTag', 'showToast error: %{public}s', JSON.stringify(e));
       }
     }
   }
@@ -323,7 +387,7 @@ export default class EntryAbility extends UIAbility {
           duration: 10000
         });
       } catch (e) {
-        console.error(`showToast error`, e);
+        hilog.error(DOMAIN, 'testTag', 'showToast error: %{public}s', JSON.stringify(e));
       }
     }
   }
@@ -347,7 +411,7 @@ export default class EntryAbility extends UIAbility {
         }
       }
     } catch (e) {
-      console.log(e)
+      hilog.warn(DOMAIN, 'testTag', '迁移共享文件夹失败: %{public}s', JSON.stringify(e))
     }
   }
 

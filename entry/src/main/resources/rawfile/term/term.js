@@ -1,63 +1,12 @@
 window.exports = {};
 
-function installVirtualCtrl() {
-    var ctrlPressed = false;
-
-    function preProcessKeyEvent(e) {
-        if (ctrlPressed) {
-            Object.defineProperty(e, 'ctrlKey', { value: true });
-            Object.defineProperty(e, 'returnValue', { value: true });
-            Object.defineProperty(e, 'defaultPrevented', { value: true });
-        }
-    }
-
-    hterm.Keyboard.prototype.originalOnKeyDown_ = hterm.Keyboard.prototype.onKeyDown_;
-    hterm.Keyboard.prototype.onKeyDown_ = function (e) {
-        console.log('keyDown', e)
-        preProcessKeyEvent(e);
-        this.originalOnKeyDown_(e);
-    };
-    hterm.Keyboard.prototype.originalonKeyPress_ = hterm.Keyboard.prototype.onKeyPress_;
-    hterm.Keyboard.prototype.onKeyPress_ = function (e) {
-        console.log('keyPress', e)
-        preProcessKeyEvent(e);
-        this.originalonKeyPress_(e);
-    };
-    hterm.Keyboard.prototype.originalOnKeyUp_ = hterm.Keyboard.prototype.onKeyUp_;
-    hterm.Keyboard.prototype.onKeyUp_ = function (e) {
-        console.log('keyUp', e)
-        preProcessKeyEvent(e);
-        this.originalOnKeyUp_(e);
-    };
-    hterm.Keyboard.prototype.originalOnTextInput_ = hterm.Keyboard.prototype.onTextInput_;
-    hterm.Keyboard.prototype.onTextInput_ = function (e) {
-        console.log('textInput', e)
-        if (!ctrlPressed) {
-            this.originalOnTextInput_(e);
-        } else {
-            var data = ''
-            for (var i = 0; i < e.data.length; i++) {
-                var c;
-                if (e.data[i] >= 'a' && e.data[i] <= 'z') {
-                    c = String.fromCharCode(e.data.charCodeAt(i) - 'a'.charCodeAt(0) + 1);
-                } else {
-                    c = e.data.charAt(i);
-                }
-                data += c;
-            }
-            Object.defineProperty(e, 'data', { value: data })
-            this.originalOnTextInput_(e)
-        }
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    exports.setCtrlPressed = (b) => {
-        ctrlPressed = b;
-    };
-}
-
-installVirtualCtrl();
+hterm.Keyboard.prototype.originalOnTextInput_ = hterm.Keyboard.prototype.onTextInput_;
+hterm.Keyboard.prototype.onTextInput_ = function (e) {
+    // console.log('textInput', e)
+    this.originalOnTextInput_(e);
+    e.preventDefault();
+    e.stopPropagation();
+};
 
 hterm.Terminal.IO.prototype.sendString = function (data) {
     console.log('sendString', data)
@@ -155,11 +104,22 @@ function onTerminalReady() {
 
     io.print(
         'HiSH is starting...\r\n\r\n' +
-            '     |  | _)   __|  |  |\r\n' +
-            '     __ |  | \\__ \\  __ |\r\n' +
-            '    _| _| _| ____/ _| _|\r\n'+
-            '\r\n'
+        '     |  | _)   __|  |  |\r\n' +
+        '     __ |  | \\__ \\  __ |\r\n' +
+        '    _| _| _| ____/ _| _|\r\n' +
+        '\r\n'
     );
 
     native.load();
+
+    let selectionTimeout;
+    document.addEventListener('selectionchange', () => {
+        clearTimeout(selectionTimeout);
+        selectionTimeout = setTimeout(() => {
+            const text = term.getSelectionText();
+            if (text) {
+                native.onSelectionChange(text);
+            }
+        }, 200);
+    });
 }

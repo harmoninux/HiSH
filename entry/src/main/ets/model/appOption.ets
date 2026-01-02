@@ -26,6 +26,7 @@ class appOption {
   static lastResourceVersion = 'lastResourceVersion';
   static runningInBackground = 'runningInBackground';
   static showVirtKey = 'showVirtKey';
+  static vncEnabled = 'vncEnabled';
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

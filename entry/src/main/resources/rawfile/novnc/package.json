@@ -1,0 +1,6 @@
+{
+    "name": "novnc",
+    "version": "1.5.0",
+    "description": "VNC client using HTML5 (Web Sockets, Canvas)",
+    "main": "core/rfb.js"
+}
