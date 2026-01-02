@@ -38,4 +38,4 @@ all: download/qemu
 
 download/qemu:
 	mkdir -p download
-	cd download && git clone -b libqemu-ohos-dev --depth=1 https://github.com/hackeris/harmony-qemu qemu
+	cd download && git clone -b libqemu-ohos-10.2 --depth=1 https://github.com/hackeris/harmony-qemu qemu
