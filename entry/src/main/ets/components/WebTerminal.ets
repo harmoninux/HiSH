@@ -221,12 +221,6 @@ export default struct WebTerminal {
                 this.handleCopyRequest();
                 return;
               }
-              if (shiftPressed && !ctrlPressed && !altPressed) {
-                // Shift+Insert: 粘贴
-                hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: Shift+Insert paste');
-                this.handlePasteRequest();
-                return;
-              }
             }
           })
 
