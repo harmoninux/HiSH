@@ -412,8 +412,8 @@ export default struct WebTerminal {
 
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
-    napi.onData((d: ArrayBuffer) => this.onData(d))
-    napi.onShutdown(() => this.onShutdown())
+    napi.onData((d: ArrayBuffer): void => this.onData(d))
+    napi.onShutdown((): void => { this.onShutdown() })
   }
 
   async resize(width: number, height: number): Promise<void> {

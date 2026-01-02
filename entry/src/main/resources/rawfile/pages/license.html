@@ -1,12 +1,15 @@
 <!doctype html>
 <html>
+
 <head>
    <meta charset="utf-8">
    <meta name="viewport"
-         content="height=device-height, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+      content="height=device-height, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
    <style>
-
-      * { margin: 0; padding: 0; }
+      * {
+         margin: 0;
+         padding: 0;
+      }
 
       .item {
          padding: 5px;
@@ -14,18 +17,18 @@
          background-color: #222;
       }
 
-      .item + .item {
+      .item+.item {
          margin: 5px 0;
       }
 
-      .item > pre {
+      .item>pre {
          padding: 10px 0;
          font-size: 12px;
       }
 
       body {
-          background-color: #121212!important;
-          color: #ffffff!important;
+         background-color: #121212 !important;
+         color: #ffffff !important;
       }
 
       a {
@@ -33,10 +36,11 @@
       }
    </style>
 </head>
+
 <body>
-<div class="item">
-   <a href="https://gitlab.com/qemu-project/qemu">QEMU</a>
-   <pre>The QEMU distribution includes both the QEMU emulator and
+   <div class="item">
+      <a href="https://gitlab.com/qemu-project/qemu">QEMU</a>
+      <pre>The QEMU distribution includes both the QEMU emulator and
 various firmware files.  These are separate programs that are
 distributed together for our users' convenience, and they have
 separate licenses.
@@ -64,11 +68,11 @@ specific licensing information in each source file.
 
 Fabrice Bellard and the QEMU team
 </pre>
-</div>
+   </div>
 
-<div class="item">
-   <a href="https://chromium.googlesource.com/apps/libapps">libapps</a>
-   <pre>Copyright 2006-2009 The ChromiumOS Authors
+   <div class="item">
+      <a href="https://chromium.googlesource.com/apps/libapps">libapps</a>
+      <pre>Copyright 2006-2009 The ChromiumOS Authors
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -94,6 +98,32 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 </pre>
-</div>
+   </div>
+
+   <div class="item">
+      <a href="https://github.com/novnc/noVNC">noVNC</a>
+      <pre>Copyright (C) 2020 The noVNC Authors
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+noVNC is a VNC client JavaScript library and application that runs
+well in modern web browsers including mobile browsers.
+
+---
+
+This project includes code from the following sources:
+
+* Web Cryptography API shim:
+  Copyright (c) 2016-2022 nicktimko
+  Licensed under the MIT License
+
+* pako (zlib implementation):
+  Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn
+  Licensed under the MIT License and zlib License
+</pre>
+   </div>
 </body>
+
 </html>

@@ -205,12 +205,12 @@ export default struct EmulatorListGrid {
       onStart: (item) => {
         this.askForStartEmulator(item)
       },
-      onExport: async (item) => {
+      onExport: async (item: Emulator): Promise<void> => {
         // 检查是否有快照
         try {
-          const result = napi.getSnapshots(item.rootFilesystem)
-          const response = JSON.parse(result) as Record<string, Object>
-          const snapshots = response['snapshots'] as Array<Object>
+          const result: string = napi.getSnapshots(item.rootFilesystem)
+          const response: Record<string, ESObject> = JSON.parse(result) as Record<string, ESObject>
+          const snapshots: Array<ESObject> = response['snapshots'] as Array<ESObject>
           
           if (snapshots && snapshots.length > 0) {
             this.promptAction.showDialog({
@@ -307,11 +307,11 @@ export default struct EmulatorListGrid {
    * @returns 是否成功关机
    */
   private async gracefulShutdownAndWait(appTempDir: string, timeoutMs: number = 30000): Promise<boolean> {
-    const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string;
-    const pidFilePath = vmBaseDir + '/qemu.pid';
+    const vmBaseDir: string = AppStorage.get(appOption.vmBaseDir) as string;
+    const pidFilePath: string = vmBaseDir + '/qemu.pid';
     
     // 检查是否有正在运行的 QEMU 进程
-    const isRunning = napi.checkQemuAlive(pidFilePath);
+    const isRunning: boolean = napi.checkQemuAlive(pidFilePath);
     if (!isRunning) {
       hilog.info(DOMAIN, 'EmulatorListGrid', '没有正在运行的 QEMU 进程，无需关机');
       return true;
@@ -388,11 +388,11 @@ export default struct EmulatorListGrid {
     }
     
     // 等待 QEMU 进程退出
-    const pollInterval = 500; // 每 500ms 检查一次
-    const startTime = Date.now();
+    const pollInterval: number = 500; // 每 500ms 检查一次
+    const startTime: number = Date.now();
     
     while (Date.now() - startTime < timeoutMs) {
-      const stillRunning = napi.checkQemuAlive(pidFilePath);
+      const stillRunning: boolean = napi.checkQemuAlive(pidFilePath);
       if (!stillRunning) {
         hilog.info(DOMAIN, 'EmulatorListGrid', '✓ QEMU 进程已正常退出（等待 %{public}d ms）', Date.now() - startTime);
         return true;
@@ -440,8 +440,8 @@ export default struct EmulatorListGrid {
       }
 
       // 检查端口占用情况
-      const portUsed = item.portMapping.map(it => it.host!!).filter(p => napi.checkPortUsed(p));
-      const portMapping = item.portMapping.filter(it => portUsed.indexOf(it.host!!) < 0);
+      const portUsed = item.portMapping.map((it: PortMapping): number => it.host!!).filter((p: number): boolean => napi.checkPortUsed(p));
+      const portMapping = item.portMapping.filter((it: PortMapping): boolean => portUsed.indexOf(it.host!!) < 0);
 
       hilog.info(DOMAIN, 'EmulatorListGrid', 'host port %{public}s of PortMapping is used by others', JSON.stringify(portUsed));
       AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed);
