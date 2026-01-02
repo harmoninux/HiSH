@@ -1,101 +1,12 @@
 window.exports = {};
 
-function installVirtualCtrl() {
-    var ctrlPressed = false;
-    var shiftPressed = false;
-
-    function preProcessKeyEvent(e) {
-        if (ctrlPressed) {
-            Object.defineProperty(e, 'ctrlKey', { value: true });
-            Object.defineProperty(e, 'returnValue', { value: true });
-            Object.defineProperty(e, 'defaultPrevented', { value: true });
-        }
-        if (shiftPressed) {
-            Object.defineProperty(e, 'shiftKey', { value: true });
-        }
-    }
-
-    hterm.Keyboard.prototype.originalOnKeyDown_ = hterm.Keyboard.prototype.onKeyDown_;
-    hterm.Keyboard.prototype.onKeyDown_ = function (e) {
-        // console.log('keyDown', e)
-
-        // 拦截 Ctrl+Insert 和 Shift+Insert，由原生层处理，防止 hterm 重复处理
-        // Insert 键在 JS 中的 keyCode 是 45
-        if ((e.key === 'Insert' || e.keyCode === 45) && (e.ctrlKey || e.shiftKey)) {
-            // console.log('[term.js] Blocking Insert key combo, native will handle');
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-        }
-
-        preProcessKeyEvent(e);
-        this.originalOnKeyDown_(e);
-    };
-    hterm.Keyboard.prototype.originalonKeyPress_ = hterm.Keyboard.prototype.onKeyPress_;
-    hterm.Keyboard.prototype.onKeyPress_ = function (e) {
-        // console.log('keyPress', e)
-        preProcessKeyEvent(e);
-        this.originalonKeyPress_(e);
-    };
-    hterm.Keyboard.prototype.originalOnKeyUp_ = hterm.Keyboard.prototype.onKeyUp_;
-    hterm.Keyboard.prototype.onKeyUp_ = function (e) {
-        console.log('keyUp', e)
-        preProcessKeyEvent(e);
-        this.originalOnKeyUp_(e);
-    };
-    hterm.Keyboard.prototype.originalOnTextInput_ = hterm.Keyboard.prototype.onTextInput_;
-    hterm.Keyboard.prototype.onTextInput_ = function (e) {
-        console.log('textInput', e)
-        if (!ctrlPressed && !shiftPressed) {
-            // 普通输入：直接传递
-            this.originalOnTextInput_(e);
-        } else if (ctrlPressed) {
-            // Ctrl+字母：转换为控制字符
-            var data = ''
-            for (var i = 0; i < e.data.length; i++) {
-                var c;
-                if (e.data[i] >= 'a' && e.data[i] <= 'z') {
-                    c = String.fromCharCode(e.data.charCodeAt(i) - 'a'.charCodeAt(0) + 1);
-                } else {
-                    c = e.data.charAt(i);
-                }
-                data += c;
-            }
-            Object.defineProperty(e, 'data', { value: data })
-            this.originalOnTextInput_(e)
-        } else if (shiftPressed) {
-            // Shift+字母：转换为大写（状态保持，需要手动点击取消）
-            var data = ''
-            for (var i = 0; i < e.data.length; i++) {
-                var c = e.data[i];
-                if (c >= 'a' && c <= 'z') {
-                    c = c.toUpperCase();
-                }
-                data += c;
-            }
-            Object.defineProperty(e, 'data', { value: data })
-            this.originalOnTextInput_(e)
-        }
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    exports.setCtrlPressed = (b) => {
-        ctrlPressed = b;
-    };
-
-    // 暴露虚拟 CTRL 状态，供快捷键处理使用
-    exports.getCtrlPressed = () => ctrlPressed;
-
-    exports.setShiftPressed = (b) => {
-        shiftPressed = b;
-    };
-
-    // 暴露虚拟 Shift 状态，供快捷键处理使用
-    exports.getShiftPressed = () => shiftPressed;
-}
-
-installVirtualCtrl();
+hterm.Keyboard.prototype.originalOnTextInput_ = hterm.Keyboard.prototype.onTextInput_;
+hterm.Keyboard.prototype.onTextInput_ = function (e) {
+    // console.log('textInput', e)
+    this.originalOnTextInput_(e);
+    e.preventDefault();
+    e.stopPropagation();
+};
 
 hterm.Terminal.IO.prototype.sendString = function (data) {
     console.log('sendString', data)
