@@ -14,7 +14,9 @@ import ImageManagementContent from './ImageManagementContent';
 import deviceInfo from '@ohos.deviceInfo';
 import preference from '@ohos.data.preferences';
 import { startVm } from '../lib/startVm';
-import { startQmpEventListener, QmpEventType, QmpEventData } from '../lib/QmpEventListener';
+import { startQmpEventListener, stopQmpEventListener, QmpEventType, QmpEventData } from '../lib/QmpEventListener';
+import QmpClient from '../lib/QmpClient';
+import { QemuAgent } from '../lib/QemuAgent';
 
 const DOMAIN = 0x0000;
 
@@ -203,12 +205,12 @@ export default struct EmulatorListGrid {
       onStart: (item) => {
         this.askForStartEmulator(item)
       },
-      onExport: async (item) => {
+      onExport: async (item: Emulator): Promise<void> => {
         // 检查是否有快照
         try {
-          const result = napi.getSnapshots(item.rootFilesystem)
-          const response = JSON.parse(result) as Record<string, Object>
-          const snapshots = response['snapshots'] as Array<Object>
+          const result: string = napi.getSnapshots(item.rootFilesystem)
+          const response: Record<string, ESObject> = JSON.parse(result) as Record<string, ESObject>
+          const snapshots: Array<ESObject> = response['snapshots'] as Array<ESObject>
           
           if (snapshots && snapshots.length > 0) {
             this.promptAction.showDialog({
@@ -273,8 +275,18 @@ export default struct EmulatorListGrid {
       // PC/平板：直接启动虚拟机
       await this.directStartVM(item);
     } else {
-      // 手机：重启 HiSH
+      // 手机：先优雅关机，再重启 HiSH
       await savePreference(appOption.temporaryStartEmulator, item.id, this.getUIContext())
+      
+      // 执行优雅关机（等待最多 15 秒，因为手机端用户体验需要更快响应）
+      const appTempDir = AppStorage.get(appOption.appTempDir) as string;
+      const gracefulSuccess = await this.gracefulShutdownAndWait(appTempDir, 15000);
+      if (gracefulSuccess) {
+        hilog.info(DOMAIN, 'EmulatorListGrid', '✓ 旧虚拟机已正常关机，准备重启应用');
+      } else {
+        hilog.warn(DOMAIN, 'EmulatorListGrid', '优雅关机失败或超时，应用重启时将强制清理');
+      }
+      
       await this.restartApp()
     }
   }
@@ -289,18 +301,147 @@ export default struct EmulatorListGrid {
   }
 
   /**
+   * 优雅关闭当前运行的虚拟机并等待退出
+   * @param appTempDir 应用临时目录
+   * @param timeoutMs 超时时间（毫秒），默认 30 秒
+   * @returns 是否成功关机
+   */
+  private async gracefulShutdownAndWait(appTempDir: string, timeoutMs: number = 30000): Promise<boolean> {
+    const vmBaseDir: string = AppStorage.get(appOption.vmBaseDir) as string;
+    const pidFilePath: string = vmBaseDir + '/qemu.pid';
+    
+    // 检查是否有正在运行的 QEMU 进程
+    const isRunning: boolean = napi.checkQemuAlive(pidFilePath);
+    if (!isRunning) {
+      hilog.info(DOMAIN, 'EmulatorListGrid', '没有正在运行的 QEMU 进程，无需关机');
+      return true;
+    }
+    
+    hilog.info(DOMAIN, 'EmulatorListGrid', '尝试优雅关机...');
+    
+    let shutdownSent = false;
+    const qgaSocketPath = appTempDir + '/qga_socket';
+    const qmpSocketPath = appTempDir + '/qmp_socket_ui';
+    
+    // 步骤 1: 尝试 QGA 执行 /sbin/poweroff（最兼容）
+    try {
+      const qgaAgent = new QemuAgent(qgaSocketPath);
+      const qgaConnected = await qgaAgent.connect();
+      
+      if (qgaConnected) {
+        hilog.info(DOMAIN, 'EmulatorListGrid', 'QGA 已连接，尝试执行 /sbin/poweroff...');
+        try {
+          const pid = await qgaAgent.exec('/sbin/poweroff', []);
+          if (pid !== null) {
+            shutdownSent = true;
+            hilog.info(DOMAIN, 'EmulatorListGrid', '✓ /sbin/poweroff 执行成功');
+          }
+        } catch (e) {
+          hilog.warn(DOMAIN, 'EmulatorListGrid', '/sbin/poweroff 失败: %{public}s', JSON.stringify(e));
+        }
+        
+        // 步骤 2: 如果 poweroff 失败，尝试 guest-shutdown
+        if (!shutdownSent) {
+          try {
+            hilog.info(DOMAIN, 'EmulatorListGrid', '尝试 guest-shutdown...');
+            const result = await qgaAgent.shutdown();
+            if (result) {
+              shutdownSent = true;
+              hilog.info(DOMAIN, 'EmulatorListGrid', '✓ guest-shutdown 执行成功');
+            }
+          } catch (e) {
+            hilog.warn(DOMAIN, 'EmulatorListGrid', 'guest-shutdown 失败: %{public}s', JSON.stringify(e));
+          }
+        }
+        
+        await qgaAgent.disconnect();
+      } else {
+        hilog.warn(DOMAIN, 'EmulatorListGrid', 'QGA 连接失败');
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, 'EmulatorListGrid', 'QGA 异常: %{public}s', JSON.stringify(e));
+    }
+    
+    // 步骤 3: 如果 QGA 方法都失败，使用 QMP ACPI 信号
+    if (!shutdownSent) {
+      try {
+        hilog.info(DOMAIN, 'EmulatorListGrid', 'QGA 方法失败，尝试 QMP system_powerdown...');
+        const qmpClient = new QmpClient(qmpSocketPath);
+        const connected = await qmpClient.connect();
+        
+        if (connected) {
+          const result = await qmpClient.sendCommand('system_powerdown');
+          shutdownSent = result !== null;
+          hilog.info(DOMAIN, 'EmulatorListGrid', 'system_powerdown 发送结果: %{public}s', shutdownSent ? '成功' : '失败');
+          await qmpClient.disconnect();
+        } else {
+          hilog.warn(DOMAIN, 'EmulatorListGrid', 'QMP 连接失败');
+        }
+      } catch (e) {
+        hilog.warn(DOMAIN, 'EmulatorListGrid', 'QMP 异常: %{public}s', JSON.stringify(e));
+      }
+    }
+    
+    if (!shutdownSent) {
+      hilog.warn(DOMAIN, 'EmulatorListGrid', '所有优雅关机方法都失败，将使用强制终止');
+      return false;
+    }
+    
+    // 等待 QEMU 进程退出
+    const pollInterval: number = 500; // 每 500ms 检查一次
+    const startTime: number = Date.now();
+    
+    while (Date.now() - startTime < timeoutMs) {
+      const stillRunning: boolean = napi.checkQemuAlive(pidFilePath);
+      if (!stillRunning) {
+        hilog.info(DOMAIN, 'EmulatorListGrid', '✓ QEMU 进程已正常退出（等待 %{public}d ms）', Date.now() - startTime);
+        return true;
+      }
+      
+      // 等待一段时间后再检查
+      await new Promise<void>((resolve: () => void) => setTimeout(resolve, pollInterval));
+    }
+    
+    hilog.warn(DOMAIN, 'EmulatorListGrid', '优雅关机超时（%{public}d ms），将使用强制终止', timeoutMs);
+    return false;
+  }
+
+  /**
    * PC/平板直接启动虚拟机（不重启 HiSH）
    */
   private async directStartVM(item: Emulator) {
     try {
+      hilog.info(DOMAIN, 'EmulatorListGrid', '准备启动虚拟机: %{public}s (ID: %{public}s)', item.name, item.id);
+
+      // 设置 VM 切换标志，防止 WebTerminal.onShutdown 覆盖状态
+      AppStorage.setOrCreate(appOption.isVmSwitching, true);
+      hilog.info(DOMAIN, 'EmulatorListGrid', '✓ 已设置 VM 切换标志');
+
+      // 停止旧的 QMP 监听器，避免接收旧虚拟机的关机事件
+      try {
+        hilog.info(DOMAIN, 'EmulatorListGrid', '停止旧 QMP 监听器...');
+        await stopQmpEventListener();
+        hilog.info(DOMAIN, 'EmulatorListGrid', '✓ 旧 QMP 监听器已停止');
+      } catch (e) {
+        hilog.warn(DOMAIN, 'EmulatorListGrid', '停止 QMP 监听器异常（可忽略）: %{public}s', JSON.stringify(e));
+      }
+
       const appTempDir = AppStorage.get(appOption.appTempDir) as string;
       const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string;
       const kernelFile = AppStorage.get(appOption.kernel) as string;
       const sharedFolder = AppStorage.get(appOption.sharedHost) as string;
 
+      // 尝试优雅关闭当前运行的虚拟机（先正常关机再切换）
+      const gracefulSuccess = await this.gracefulShutdownAndWait(appTempDir, 30000);
+      if (gracefulSuccess) {
+        hilog.info(DOMAIN, 'EmulatorListGrid', '✓ 旧虚拟机已正常关机');
+      } else {
+        hilog.warn(DOMAIN, 'EmulatorListGrid', '优雅关机失败或超时，startVm 将强制清理旧进程');
+      }
+
       // 检查端口占用情况
-      const portUsed = item.portMapping.map(it => it.host!!).filter(p => napi.checkPortUsed(p));
-      const portMapping = item.portMapping.filter(it => portUsed.indexOf(it.host!!) < 0);
+      const portUsed = item.portMapping.map((it: PortMapping): number => it.host!!).filter((p: number): boolean => napi.checkPortUsed(p));
+      const portMapping = item.portMapping.filter((it: PortMapping): boolean => portUsed.indexOf(it.host!!) < 0);
 
       hilog.info(DOMAIN, 'EmulatorListGrid', 'host port %{public}s of PortMapping is used by others', JSON.stringify(portUsed));
       AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed);
@@ -340,11 +481,11 @@ export default struct EmulatorListGrid {
       AppStorage.setOrCreate(appOption.currentRunningEmulator, item.id);
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
 
-      // 立即触发 QMP 重连（优化：避免等待 5 秒自动重连）
+      // 延迟 3 秒后启动 QMP 监听器，确保旧进程完全退出，新进程已创建 socket 文件
       setTimeout(async (): Promise<void> => {
         try {
           const qmpSocketPath = appTempDir + '/qmp_socket_ui';
-          hilog.info(DOMAIN, 'EmulatorListGrid', '手动触发 QMP 重连: %{public}s', qmpSocketPath);
+          hilog.info(DOMAIN, 'EmulatorListGrid', '启动新 QMP 监听器: %{public}s', qmpSocketPath);
           
           const started = await startQmpEventListener(qmpSocketPath, 
             (event: QmpEventType, data: QmpEventData | undefined): void => {
@@ -354,14 +495,20 @@ export default struct EmulatorListGrid {
           );
           
           if (started) {
-            hilog.info(DOMAIN, 'EmulatorListGrid', 'QMP 监听器已成功重连');
+            hilog.info(DOMAIN, 'EmulatorListGrid', '✓ QMP 监听器已成功启动');
           } else {
-            hilog.warn(DOMAIN, 'EmulatorListGrid', 'QMP 监听器重连失败，将在后台自动重试');
+            hilog.warn(DOMAIN, 'EmulatorListGrid', '✗ QMP 监听器启动失败，将在后台自动重试');
           }
+
+          // QMP 连接完成后清除 VM 切换标志
+          AppStorage.setOrCreate(appOption.isVmSwitching, false);
+          hilog.info(DOMAIN, 'EmulatorListGrid', '✓ 已清除 VM 切换标志');
         } catch (e) {
           hilog.error(DOMAIN, 'EmulatorListGrid', 'QMP 重连异常: %{public}s', JSON.stringify(e));
+          // 异常时也要清除标志
+          AppStorage.setOrCreate(appOption.isVmSwitching, false);
         }
-      }, 2000);  // 2 秒延迟，确保 QEMU 已创建 socket
+      }, 3000);
 
       hilog.info(DOMAIN, 'EmulatorListGrid', '虚拟机启动成功: %{public}s', item.name);
     } catch (e) {
@@ -378,6 +525,8 @@ export default struct EmulatorListGrid {
           }
         ]
       });
+      // 启动失败时也要清除切换标志
+      AppStorage.setOrCreate(appOption.isVmSwitching, false);
     }
   }
 

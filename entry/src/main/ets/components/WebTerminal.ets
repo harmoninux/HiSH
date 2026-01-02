@@ -412,8 +412,8 @@ export default struct WebTerminal {
 
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
-    napi.onData((d: ArrayBuffer) => this.onData(d))
-    napi.onShutdown(() => this.onShutdown())
+    napi.onData((d: ArrayBuffer): void => this.onData(d))
+    napi.onShutdown((): void => { this.onShutdown() })
   }
 
   async resize(width: number, height: number): Promise<void> {
@@ -437,6 +437,13 @@ export default struct WebTerminal {
   private async onShutdown() {
     // QEMU 退出后记录日志
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
+
+    // 检查是否正在切换 VM，如果是则跳过状态更新，避免覆盖新 VM 的状态
+    const isVmSwitching = AppStorage.get(appOption.isVmSwitching) as boolean;
+    if (isVmSwitching) {
+      hilog.info(DOMAIN, 'WebTerminal', '检测到 VM 切换进行中，跳过 shutdown 状态更新');
+      return;
+    }
 
     // 更新虚拟机状态 - 清除当前运行的模拟器标识
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');

@@ -351,8 +351,8 @@ export default struct RootfsManagementContent {
    */
   private showDiskInfo(item: RootFilesystem): void {
     try {
-      const result = napi.getImageInfo(item.path)
-      const info = JSON.parse(result) as Record<string, Object>
+      const result: string = napi.getImageInfo(item.path)
+      const info: Record<string, ESObject> = JSON.parse(result) as Record<string, ESObject>
 
       if (info['error']) {
         this.promptAction.showDialog({

@@ -9,7 +9,7 @@ import bundleManager from '@ohos.bundle.bundleManager';
 import napi from 'libentry.so';
 import appOption, { CursorShape } from '../model/appOption'
 import { startVm } from '../lib/startVm';
-import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
+import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem, PortMapping } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
@@ -178,8 +178,8 @@ export default class EntryAbility extends UIAbility {
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernelFile = AppStorage.get(appOption.kernel) as string
 
-    const portUsed = portMappingRaw.map(it => it.host!!).filter(p => napi.checkPortUsed(p))
-    const portMapping = portMappingRaw.filter(it => portUsed.indexOf(it.host!!) < 0)
+    const portUsed = portMappingRaw.map((it: PortMapping): number => it.host!!).filter((p: number): boolean => napi.checkPortUsed(p))
+    const portMapping = portMappingRaw.filter((it: PortMapping): boolean => portUsed.indexOf(it.host!!) < 0)
 
     hilog.info(DOMAIN, 'testTag', 'host port %{public}s of PortMapping is used by others', portUsed)
     AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed)

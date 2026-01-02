@@ -1599,6 +1599,18 @@
     {
       "name": "error_copy_file_failed",
       "value": "复制文件失败: "
+    },
+    {
+      "name": "msg_switching_vm",
+      "value": "正在切换虚拟机，请稍候..."
+    },
+    {
+      "name": "msg_stopping_current_vm",
+      "value": "正在停止当前虚拟机..."
+    },
+    {
+      "name": "msg_vm_switch_failed",
+      "value": "切换虚拟机失败，请重试。"
     }
   ]
 }
