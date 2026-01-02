@@ -1,5 +1,13 @@
 window.exports = {};
 
+hterm.Keyboard.prototype.originalOnTextInput_ = hterm.Keyboard.prototype.onTextInput_;
+hterm.Keyboard.prototype.onTextInput_ = function (e) {
+    // console.log('textInput', e)
+    this.originalOnTextInput_(e);
+    e.preventDefault();
+    e.stopPropagation();
+};
+
 hterm.Terminal.IO.prototype.sendString = function (data) {
     console.log('sendString', data)
     native.sendInput(data);
