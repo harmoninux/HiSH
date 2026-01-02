@@ -77,3 +77,10 @@ export const needRestart: () => boolean;
  * @param pidFilePath PID 文件路径，如果内存中没有 PID 则从文件读取
  */
 export const killQemuProcess: (pidFilePath?: string) => void;
+
+/**
+ * 检查 QEMU 进程是否存活
+ * @param pidFilePath PID 文件路径，如果内存中没有 PID 则从文件读取
+ * @returns true 表示进程存活, false 表示进程已退出
+ */
+export const checkQemuAlive: (pidFilePath?: string) => boolean;

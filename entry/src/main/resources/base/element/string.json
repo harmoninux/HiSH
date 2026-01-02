@@ -1599,6 +1599,18 @@
     {
       "name": "error_copy_file_failed",
       "value": "Copy file failed: "
+    },
+    {
+      "name": "msg_switching_vm",
+      "value": "Switching virtual machine, please wait..."
+    },
+    {
+      "name": "msg_stopping_current_vm",
+      "value": "Stopping current virtual machine..."
+    },
+    {
+      "name": "msg_vm_switch_failed",
+      "value": "Failed to switch virtual machine. Please try again."
     }
   ]
 }

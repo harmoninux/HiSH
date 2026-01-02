@@ -32,6 +32,8 @@ class appOption {
   // qemu-img 后台任务状态
   static qemuImgTaskRunning = 'qemuImgTaskRunning';
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
+  // VM 切换标志，防止 shutdown 回调覆盖状态
+  static isVmSwitching = 'isVmSwitching';
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {
