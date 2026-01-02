@@ -18,7 +18,7 @@ struct PcIndex {
   @StorageProp(appOption.sharedGuest) sharedGuest?: string = undefined
   emulatorManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '模拟器管理',
+      primaryTitle: $r('app.string.emulator_management_title'),
       contentBuilder: () => {
         this.buildSimulatorManagement();
       }
@@ -26,7 +26,7 @@ struct PcIndex {
   })
   rootfsManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '镜像管理',
+      primaryTitle: $r('app.string.image_management_title'),
       contentBuilder: () => {
         this.buildRootfsManagement();
       }
@@ -50,7 +50,7 @@ struct PcIndex {
   })
   userGuideController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '使用指南',
+      primaryTitle: $r('app.string.user_guide_title'),
       contentBuilder: () => {
         this.buildGuideList();
       }
@@ -176,7 +176,7 @@ struct PcIndex {
         },
         specifiedBreak: 'xs'
       })
-      Button('添加')
+      Button($r('app.string.btn_add'))
         .width('100%')
         .onClick(() => {
           const id = util.generateRandomUUID()
@@ -210,7 +210,7 @@ struct PcIndex {
     };
     const controller = new CustomDialogController({
       builder: CustomContentDialog({
-        primaryTitle: edit ? '编辑模拟器' : item.name,
+        primaryTitle: edit ? $r('app.string.edit_emulator_title') : item.name,
         contentBuilder: () => {
           this.buildEditEmulator(emulatorToEdit, edit, (): void => controller.close());
         }
@@ -243,7 +243,7 @@ struct PcIndex {
   @Builder
   buildGuideList() {
     UserGuide({
-      openPage: (title: string, url: string) => {
+      openPage: (title: string | Resource, url: string) => {
         const controller = new CustomDialogController({
           builder: CustomContentDialog({
             primaryTitle: title,

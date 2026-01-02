@@ -261,6 +261,18 @@
       "value": "Terminal"
     },
     {
+      "name": "setting_vnc",
+      "value": "VNC"
+    },
+    {
+      "name": "setting_enable_novnc",
+      "value": "Enable noVNC"
+    },
+    {
+      "name": "setting_vnc_restart_hint",
+      "value": "Takes effect after restarting the app"
+    },
+    {
       "name": "failed_to_force_background",
       "value": "Simulated background location failed. Please grant the app location permission and enable location in system settings"
     },
@@ -293,8 +305,1300 @@
       "value": "I like HiSH"
     },
     {
+      "name": "image_management",
+      "value": "Image Management"
+    },
+    {
+      "name": "image_name",
+      "value": "Image Name"
+    },
+    {
+      "name": "image_path",
+      "value": "Image Path"
+    },
+    {
+      "name": "virtual_size",
+      "value": "Virtual Size"
+    },
+    {
+      "name": "disk_size",
+      "value": "Disk Size"
+    },
+    {
+      "name": "view_details",
+      "value": "View Details"
+    },
+    {
+      "name": "image_details",
+      "value": "Image Details"
+    },
+    {
+      "name": "space_usage",
+      "value": "Space Usage"
+    },
+    {
+      "name": "snapshot_management",
+      "value": "Snapshot Management"
+    },
+    {
+      "name": "create_snapshot",
+      "value": "Create Snapshot"
+    },
+    {
+      "name": "optimize_image",
+      "value": "Optimize Image"
+    },
+    {
+      "name": "vm_shutdown_required",
+      "value": "VM must be shut down for this operation"
+    },
+    {
+      "name": "restart_app_required",
+      "value": "Please restart the app and try again"
+    },
+    {
       "name": "hide_virtual_key_toast",
       "value": "Virtual keys is hidden, you can enable it again by click ▲ at bottom of screen"
+    },
+    {
+      "name": "pasteboard_reason",
+      "value": "To copy and paste text in terminal"
+    },
+    {
+      "name": "pm_status_shutdown",
+      "value": "Shutdown"
+    },
+    {
+      "name": "pm_status_paused",
+      "value": "Paused"
+    },
+    {
+      "name": "pm_status_connecting",
+      "value": "Connecting to Guest Agent..."
+    },
+    {
+      "name": "pm_status_retrying",
+      "value": "Retrying connection (%d/%d)..."
+    },
+    {
+      "name": "pm_status_connected",
+      "value": "Connected to Guest Agent"
+    },
+    {
+      "name": "pm_status_connect_failed_attempt",
+      "value": "Agent connection attempt %d failed"
+    },
+    {
+      "name": "pm_status_connect_error",
+      "value": "Failed to connect to QGA: %s"
+    },
+    {
+      "name": "pm_status_connect_failed_final",
+      "value": "Agent connection failed, click to retry"
+    },
+    {
+      "name": "pm_status_connecting_short",
+      "value": "Connecting to Agent..."
+    },
+    {
+      "name": "pm_status_not_connected",
+      "value": "Not connected to Guest Agent"
+    },
+    {
+      "name": "pm_status_executing",
+      "value": "Executing %s..."
+    },
+    {
+      "name": "pm_status_command_sent",
+      "value": "%s command sent"
+    },
+    {
+      "name": "pm_status_action_failed",
+      "value": "%s failed"
+    },
+    {
+      "name": "pm_status_action_failed_detail",
+      "value": "%s failed: %s"
+    },
+    {
+      "name": "pm_status_qmp_failed",
+      "value": "QMP connection failed (retried 3 times)"
+    },
+    {
+      "name": "pm_status_resuming",
+      "value": "Resuming VM..."
+    },
+    {
+      "name": "pm_status_sending_resume",
+      "value": "Sending resume command..."
+    },
+    {
+      "name": "pm_status_resumed",
+      "value": "Resumed"
+    },
+    {
+      "name": "pm_status_resume_failed_cmd",
+      "value": "Resume failed: QMP command error"
+    },
+    {
+      "name": "pm_status_qmp_connect_failed",
+      "value": "Failed to connect to QMP (please restart app)"
+    },
+    {
+      "name": "pm_status_pausing",
+      "value": "Pausing VM..."
+    },
+    {
+      "name": "pm_status_pause_failed",
+      "value": "Pause failed"
+    },
+    {
+      "name": "pm_status_shutting_down",
+      "value": "System shutting down..."
+    },
+    {
+      "name": "pm_status_exec_poweroff",
+      "value": "Executing poweroff command..."
+    },
+    {
+      "name": "pm_status_poweroff_failed",
+      "value": "poweroff command failed: %s"
+    },
+    {
+      "name": "pm_status_try_guest_shutdown",
+      "value": "Trying guest-shutdown..."
+    },
+    {
+      "name": "pm_status_guest_shutdown_failed",
+      "value": "guest-shutdown failed: %s"
+    },
+    {
+      "name": "pm_status_agent_shutdown_failed",
+      "value": "Agent shutdown failed: %s"
+    },
+    {
+      "name": "pm_status_try_acpi",
+      "value": "Trying ACPI shutdown..."
+    },
+    {
+      "name": "pm_status_shutdown_failed_qmp",
+      "value": "Shutdown failed: Cannot connect to QMP"
+    },
+    {
+      "name": "pm_status_acpi_failed",
+      "value": "ACPI shutdown failed: %s"
+    },
+    {
+      "name": "pm_status_shutdown_failed",
+      "value": "Shutdown failed: %s"
+    },
+    {
+      "name": "pm_status_rebooting",
+      "value": "Rebooting..."
+    },
+    {
+      "name": "pm_status_exec_reboot",
+      "value": "Executing reboot command..."
+    },
+    {
+      "name": "pm_status_reboot_failed_cmd",
+      "value": "reboot command failed: %s"
+    },
+    {
+      "name": "pm_status_guest_reboot_failed",
+      "value": "guest-shutdown reboot failed: %s"
+    },
+    {
+      "name": "pm_status_reboot_sent",
+      "value": "Reboot command sent, reconnecting..."
+    },
+    {
+      "name": "pm_status_reboot_failed",
+      "value": "Reboot failed"
+    },
+    {
+      "name": "pm_status_reboot_failed_detail",
+      "value": "Reboot failed: %s"
+    },
+    {
+      "name": "pm_status_verifying",
+      "value": "Verifying VM status..."
+    },
+    {
+      "name": "pm_status_verified_running",
+      "value": "Verified success, status updated to RUNNING"
+    },
+    {
+      "name": "pm_status_verified_abnormal",
+      "value": "Verified failed, status updated to ABNORMAL"
+    },
+    {
+      "name": "pm_status_verify_failed",
+      "value": "Failed to verify VM status: %s"
+    },
+    {
+      "name": "pm_status_resetting",
+      "value": "Resetting..."
+    },
+    {
+      "name": "pm_status_powering_off",
+      "value": "Powering off..."
+    },
+    {
+      "name": "pm_status_powering_on",
+      "value": "Powering on..."
+    },
+    {
+      "name": "pm_status_reset_failed_no_config",
+      "value": "Reset failed: VM config not found"
+    },
+    {
+      "name": "pm_status_running",
+      "value": "Running"
+    },
+    {
+      "name": "pm_status_reset_failed",
+      "value": "Reset failed: %s"
+    },
+    {
+      "name": "pm_status_force_shutdown",
+      "value": "Executing force shutdown..."
+    },
+    {
+      "name": "pm_status_starting",
+      "value": "System starting..."
+    },
+    {
+      "name": "pm_status_poweron_failed_no_config",
+      "value": "Power on failed: VM config not found"
+    },
+    {
+      "name": "pm_status_poweron_failed",
+      "value": "Power on failed: %s"
+    },
+    {
+      "name": "pm_label_ga_status",
+      "value": "Guest Agent Status:"
+    },
+    {
+      "name": "pm_btn_force_reconnect",
+      "value": "Force Reconnect Agent"
+    },
+    {
+      "name": "pm_title",
+      "value": "Power Management"
+    },
+    {
+      "name": "pm_btn_force_shutdown",
+      "value": "Force Off"
+    },
+    {
+      "name": "pm_btn_reset",
+      "value": "Reset"
+    },
+    {
+      "name": "pm_btn_shutdown",
+      "value": "Shutdown"
+    },
+    {
+      "name": "pm_btn_reboot",
+      "value": "Reboot"
+    },
+    {
+      "name": "pm_btn_pause",
+      "value": "Pause"
+    },
+    {
+      "name": "pm_btn_resume",
+      "value": "Resume"
+    },
+    {
+      "name": "pm_btn_poweron",
+      "value": "Power On"
+    },
+    {
+      "name": "pm_note_qga",
+      "value": "Note: qemu-guest-agent service is required in VM for power management."
+    },
+    {
+      "name": "emulator_management_title",
+      "value": "Emulator Management"
+    },
+    {
+      "name": "image_management_title",
+      "value": "Image Management"
+    },
+    {
+      "name": "user_guide_title",
+      "value": "User Guide"
+    },
+    {
+      "name": "power_management_title",
+      "value": "Power Management"
+    },
+    {
+      "name": "vnc_service_not_started",
+      "value": "VNC service not started"
+    },
+    {
+      "name": "btn_add",
+      "value": "Add"
+    },
+    {
+      "name": "edit_emulator_title",
+      "value": "Edit Emulator"
+    },
+    {
+      "name": "vnc_console_title",
+      "value": "noVNC Console"
+    },
+    {
+      "name": "guide_basic_title",
+      "value": "Basic Features"
+    },
+    {
+      "name": "guide_linux_shell_title",
+      "value": "Linux Shell"
+    },
+    {
+      "name": "guide_linux_shell_desc",
+      "value": "Introduction to Linux Shell basic features"
+    },
+    {
+      "name": "guide_pkg_manager_title",
+      "value": "Package Manager"
+    },
+    {
+      "name": "guide_pkg_manager_desc",
+      "value": "Basic usage of Alpine Linux package manager"
+    },
+    {
+      "name": "guide_openrc_title",
+      "value": "OpenRC"
+    },
+    {
+      "name": "guide_openrc_desc",
+      "value": "Service management using OpenRC"
+    },
+    {
+      "name": "guide_management_title",
+      "value": "Management Features"
+    },
+    {
+      "name": "guide_emulator_mgmt_desc",
+      "value": "Manage emulator instances and configurations"
+    },
+    {
+      "name": "guide_image_mgmt_desc",
+      "value": "Add and export system images"
+    },
+    {
+      "name": "guide_shared_folder_title",
+      "value": "Shared Folder"
+    },
+    {
+      "name": "guide_shared_folder_desc",
+      "value": "Transfer files between Linux and device"
+    },
+    {
+      "name": "guide_examples_title",
+      "value": "Examples"
+    },
+    {
+      "name": "guide_c_cpp_title",
+      "value": "C/C++"
+    },
+    {
+      "name": "guide_c_cpp_desc",
+      "value": "C programming using gcc in emulator"
+    },
+    {
+      "name": "guide_docker_title",
+      "value": "Docker"
+    },
+    {
+      "name": "guide_docker_desc",
+      "value": "Run containers using Docker in emulator"
+    },
+    {
+      "name": "setting_font_size",
+      "value": "Font Size"
+    },
+    {
+      "name": "setting_font_size_desc",
+      "value": "Set terminal font size"
+    },
+    {
+      "name": "setting_cursor_style",
+      "value": "Cursor Style"
+    },
+    {
+      "name": "setting_cursor_style_desc",
+      "value": "Set terminal cursor style"
+    },
+    {
+      "name": "setting_cursor_blink",
+      "value": "Cursor Blink"
+    },
+    {
+      "name": "setting_cursor_blink_desc",
+      "value": "Set terminal cursor blink"
+    },
+    {
+      "name": "emulator_name",
+      "value": "Name"
+    },
+    {
+      "name": "emulator_name_placeholder",
+      "value": "Name"
+    },
+    {
+      "name": "setting_block_image",
+      "value": "Image"
+    },
+    {
+      "name": "setting_image_desc",
+      "value": "Select emulator image"
+    },
+    {
+      "name": "setting_shared_readonly",
+      "value": "Shared Folder Read-only"
+    },
+    {
+      "name": "setting_shared_readonly_desc",
+      "value": "Disable write access to shared folder"
+    },
+    {
+      "name": "setting_advanced",
+      "value": "Advanced Settings"
+    },
+    {
+      "name": "setting_init_script",
+      "value": "init"
+    },
+    {
+      "name": "setting_init_desc",
+      "value": "Emulator Linux startup script"
+    },
+    {
+      "name": "setting_root_device",
+      "value": "root"
+    },
+    {
+      "name": "setting_root_desc",
+      "value": "Root filesystem device path"
+    },
+    {
+      "name": "btn_finish",
+      "value": "Finish"
+    },
+    {
+      "name": "err_input_name",
+      "value": "Please enter emulator name"
+    },
+    {
+      "name": "err_name_duplicate",
+      "value": "Emulator name exists, please choose another"
+    },
+    {
+      "name": "err_need_init",
+      "value": "Init script required"
+    },
+    {
+      "name": "dialog_rootfs_name",
+      "value": "Image Name"
+    },
+    {
+      "name": "placeholder_rootfs_name",
+      "value": "Enter image name"
+    },
+    {
+      "name": "btn_import",
+      "value": "Import"
+    },
+    {
+      "name": "label_file_format",
+      "value": "File Format"
+    },
+    {
+      "name": "label_cluster_size",
+      "value": "Cluster Size"
+    },
+    {
+      "name": "label_compat",
+      "value": "Compat Version"
+    },
+    {
+      "name": "label_lazy_refcounts",
+      "value": "Lazy Refcounts"
+    },
+    {
+      "name": "label_extended_l2",
+      "value": "Extended L2"
+    },
+    {
+      "name": "label_refcount_bits",
+      "value": "Refcount Bits"
+    },
+    {
+      "name": "label_image_status",
+      "value": "Image Status"
+    },
+    {
+      "name": "status_corrupt",
+      "value": "Corrupt"
+    },
+    {
+      "name": "status_normal",
+      "value": "Normal"
+    },
+    {
+      "name": "btn_rename",
+      "value": "Rename"
+    },
+    {
+      "name": "btn_details",
+      "value": "Details"
+    },
+    {
+      "name": "btn_export",
+      "value": "Export"
+    },
+    {
+      "name": "msg_get_disk_info_fail",
+      "value": "Failed to get disk info"
+    },
+    {
+      "name": "msg_default_rootfs_edit",
+      "value": "Cannot edit default image"
+    },
+    {
+      "name": "msg_default_rootfs_delete",
+      "value": "Cannot delete default image"
+    },
+    {
+      "name": "dialog_delete_rootfs_msg",
+      "value": "Deleting image cannot be undone. Confirm?"
+    },
+    {
+      "name": "dialog_import_shared",
+      "value": "Importing to Shared Folder"
+    },
+    {
+      "name": "dialog_export_shared",
+      "value": "Exporting from Shared Folder"
+    },
+    {
+      "name": "dialog_deleting",
+      "value": "Deleting"
+    },
+    {
+      "name": "placeholder_folder_name",
+      "value": "Input folder name"
+    },
+    {
+      "name": "menu_export_file",
+      "value": "Export File"
+    },
+    {
+      "name": "dialog_delete_file_msg",
+      "value": "Deleting file cannot be undone. Confirm?"
+    },
+    {
+      "name": "menu_import_file",
+      "value": "Import File"
+    },
+    {
+      "name": "menu_open_file_manager",
+      "value": "Open File Manager"
+    },
+    {
+      "name": "msg_shared_folder_guide",
+      "value": "Click top right to add files.\\nAccess at /mnt/share in HiSH.\\nSee \""
+    },
+    {
+      "name": "msg_shared_folder_guide_link",
+      "value": "User Guide -> Shared Folder"
+    },
+    {
+      "name": "msg_shared_folder_guide_suffix",
+      "value": "\""
+    },
+    {
+      "name": "msg_paste_same_location",
+      "value": "Cannot paste to same location"
+    },
+    {
+      "name": "msg_target_exists",
+      "value": "Target file exists"
+    },
+    {
+      "name": "dialog_moving",
+      "value": "Moving"
+    },
+    {
+      "name": "dialog_copying",
+      "value": "Copying"
+    },
+    {
+      "name": "guide_jit_title",
+      "value": "JIT Acceleration"
+    },
+    {
+      "name": "dialog_executing",
+      "value": "Executing..."
+    },
+    {
+      "name": "btn_close",
+      "value": "Close"
+    },
+    {
+      "name": "btn_create",
+      "value": "Create"
+    },
+    {
+      "name": "dialog_optimize_mode",
+      "value": "Select Optimization Mode"
+    },
+    {
+      "name": "msg_pc_only",
+      "value": "This feature is only available on PC/2in1 devices"
+    },
+    {
+      "name": "msg_read_image_info_fail",
+      "value": "Failed to read image info"
+    },
+    {
+      "name": "msg_get_detail_fail",
+      "value": "Failed to get details: "
+    },
+    {
+      "name": "msg_path_copied",
+      "value": "File path copied to clipboard"
+    },
+    {
+      "name": "msg_bg_task_running",
+      "value": "Background task running: "
+    },
+    {
+      "name": "msg_snapshot_created",
+      "value": "Snapshot created successfully"
+    },
+    {
+      "name": "msg_snapshot_create_fail",
+      "value": "Failed to create snapshot: "
+    },
+    {
+      "name": "dialog_confirm_restore",
+      "value": "Confirm Restore"
+    },
+    {
+      "name": "msg_confirm_restore",
+      "value": "Are you sure to restore snapshot"
+    },
+    {
+      "name": "msg_confirm_restore_suffix",
+      "value": "? Current state will be lost."
+    },
+    {
+      "name": "btn_restore",
+      "value": "Restore"
+    },
+    {
+      "name": "msg_snapshot_restored",
+      "value": "Snapshot restored successfully"
+    },
+    {
+      "name": "msg_snapshot_restore_fail",
+      "value": "Failed to restore snapshot: "
+    },
+    {
+      "name": "dialog_confirm_delete",
+      "value": "Confirm Delete"
+    },
+    {
+      "name": "msg_confirm_delete_snapshot",
+      "value": "Are you sure to delete snapshot"
+    },
+    {
+      "name": "msg_snapshot_deleted",
+      "value": "Snapshot deleted successfully"
+    },
+    {
+      "name": "msg_snapshot_delete_fail",
+      "value": "Failed to delete snapshot: "
+    },
+    {
+      "name": "dialog_confirm_batch_delete",
+      "value": "Confirm Batch Delete"
+    },
+    {
+      "name": "msg_confirm_batch_delete",
+      "value": "Are you sure to delete selected"
+    },
+    {
+      "name": "msg_confirm_batch_delete_suffix",
+      "value": "snapshots?"
+    },
+    {
+      "name": "msg_batch_delete_result",
+      "value": "Batch delete completed: Success"
+    },
+    {
+      "name": "msg_failed",
+      "value": "Failed"
+    },
+    {
+      "name": "msg_batch_delete_fail",
+      "value": "Batch delete failed: "
+    },
+    {
+      "name": "optimize_mode_sparse",
+      "value": "Defragment"
+    },
+    {
+      "name": "optimize_mode_prealloc",
+      "value": "Preallocate"
+    },
+    {
+      "name": "optimize_mode_optimize",
+      "value": "Optimize Format"
+    },
+    {
+      "name": "dialog_task_running",
+      "value": "Task Running"
+    },
+    {
+      "name": "msg_task_running_prefix",
+      "value": "Currently executing: "
+    },
+    {
+      "name": "msg_task_running_desc",
+      "value": "Please wait for the task to complete.\n\nIf the task was interrupted abnormally, you can force cleanup."
+    },
+    {
+      "name": "btn_wait",
+      "value": "Wait"
+    },
+    {
+      "name": "btn_force_cleanup",
+      "value": "Force Cleanup"
+    },
+    {
+      "name": "msg_task_cleaned",
+      "value": "Task state cleaned, please retry"
+    },
+    {
+      "name": "msg_op_in_progress",
+      "value": "Operation in progress, please wait"
+    },
+    {
+      "name": "dialog_temp_file_found",
+      "value": "Temporary File Found"
+    },
+    {
+      "name": "msg_temp_file_found",
+      "value": "Temporary file exists"
+    },
+    {
+      "name": "msg_temp_file_time",
+      "value": "Last modified"
+    },
+    {
+      "name": "msg_temp_file_desc",
+      "value": "minutes ago.\n\nIf task is running, file will update.\nIf not updating, task may be interrupted.\n\nSelect 'Force Cleanup' to delete it."
+    },
+    {
+      "name": "msg_temp_file_cleaned",
+      "value": "Temporary file cleaned, please retry"
+    },
+    {
+      "name": "msg_temp_file_clean_fail",
+      "value": "Failed to clean temporary file: "
+    },
+    {
+      "name": "msg_executing_prefix",
+      "value": "Executing"
+    },
+    {
+      "name": "msg_executing_suffix",
+      "value": "...\nThis may take a few minutes, do not close app"
+    },
+    {
+      "name": "msg_replace_file_fail",
+      "value": "Failed to replace file: "
+    },
+    {
+      "name": "msg_saved_space",
+      "value": "Saved"
+    },
+    {
+      "name": "msg_increased_space",
+      "value": "Increased"
+    },
+    {
+      "name": "msg_optimize_finished",
+      "value": "Optimization finished,"
+    },
+    {
+      "name": "msg_optimize_fail",
+      "value": "Optimization failed: "
+    },
+    {
+      "name": "dialog_confirm_force_cleanup",
+      "value": "Confirm Force Cleanup"
+    },
+    {
+      "name": "msg_confirm_force_cleanup",
+      "value": "This will clean task state and temp file.\n\nUse only if task interrupted abnormally, data loss may occur."
+    },
+    {
+      "name": "msg_task_state_cleaned",
+      "value": "Task state cleaned"
+    },
+    {
+      "name": "desc_optimize",
+      "value": "Enable lazy_refcounts and extended_l2"
+    },
+    {
+      "name": "msg_optimize_confirm",
+      "value": "This will enable lazy_refcounts and extended_l2 to improve performance and space efficiency. It rewrites the entire image."
+    },
+    {
+      "name": "desc_sparse",
+      "value": "Release unused space, convert to sparse"
+    },
+    {
+      "name": "title_prealloc",
+      "value": "Preallocate Format"
+    },
+    {
+      "name": "desc_prealloc",
+      "value": "Max performance, takes full virtual space"
+    },
+    {
+      "name": "msg_prealloc_confirm",
+      "value": "Preallocate format takes full virtual disk space. Continue?"
+    },
+    {
+      "name": "btn_start",
+      "value": "Start"
+    },
+    {
+      "name": "title_basic_info",
+      "value": "Basic Info"
+    },
+    {
+      "name": "label_system_path",
+      "value": "System Path"
+    },
+    {
+      "name": "label_file_path",
+      "value": "File Path"
+    },
+    {
+      "name": "msg_vm_running_optimize",
+      "value": "VM is running, shutdown required for optimization"
+    },
+    {
+      "name": "msg_image_modified",
+      "value": "Image modified, restart app required"
+    },
+    {
+      "name": "label_bg_task",
+      "value": "Background Task: "
+    },
+    {
+      "name": "msg_getting_details",
+      "value": "Getting details..."
+    },
+    {
+      "name": "msg_loading_image_info",
+      "value": "Loading image info..."
+    },
+    {
+      "name": "msg_image_size_hint",
+      "value": "Hint: Virtual size is max capacity, Disk size is actual usage. QCOW2 supports dynamic allocation."
+    },
+    {
+      "name": "msg_loading_snapshots",
+      "value": "Loading snapshots..."
+    },
+    {
+      "name": "msg_no_snapshots",
+      "value": "No snapshots"
+    },
+    {
+      "name": "btn_select_all",
+      "value": "Select All"
+    },
+    {
+      "name": "btn_batch_delete",
+      "value": "Batch Delete"
+    },
+    {
+      "name": "msg_vm_running_snapshot",
+      "value": "VM is running, shutdown required for snapshot"
+    },
+    {
+      "name": "status_enabled",
+      "value": "Enabled"
+    },
+    {
+      "name": "status_disabled",
+      "value": "Disabled"
+    },
+    {
+      "name": "msg_no_details",
+      "value": "No details"
+    },
+    {
+      "name": "placeholder_snapshot_name",
+      "value": "Enter snapshot name"
+    },
+    {
+      "name": "msg_snapshot_name_duplicate",
+      "value": "Snapshot name exists"
+    },
+    {
+      "name": "label_file_size",
+      "value": "File Size"
+    },
+    {
+      "name": "btn_power_management",
+      "value": "Power"
+    },
+    {
+      "name": "btn_image_management",
+      "value": "Image"
+    },
+    {
+      "name": "btn_run",
+      "value": "Run"
+    },
+    {
+      "name": "label_memory",
+      "value": "Memory"
+    },
+    {
+      "name": "label_virtual_disk",
+      "value": "Disk"
+    },
+    {
+      "name": "label_port_mapping",
+      "value": "Ports"
+    },
+    {
+      "name": "label_set_default",
+      "value": "Set as Default"
+    },
+    {
+      "name": "btn_delete",
+      "value": "Delete"
+    },
+    {
+      "name": "btn_copy",
+      "value": "Copy"
+    },
+    {
+      "name": "btn_modify",
+      "value": "Edit"
+    },
+    {
+      "name": "placeholder_emulator_name",
+      "value": "Enter new emulator name"
+    },
+    {
+      "name": "placeholder_export_name",
+      "value": "Enter export image name"
+    },
+    {
+      "name": "btn_done",
+      "value": "Done"
+    },
+    {
+      "name": "msg_export_complete",
+      "value": "Export complete. View in Image Management."
+    },
+    {
+      "name": "msg_cannot_delete_running",
+      "value": "Cannot delete running emulator"
+    },
+    {
+      "name": "msg_cannot_delete_default",
+      "value": "Cannot delete default emulator"
+    },
+    {
+      "name": "dialog_cannot_export",
+      "value": "Cannot Export"
+    },
+    {
+      "name": "msg_restart_confirm",
+      "value": "This will restart HiSH and launch"
+    },
+    {
+      "name": "msg_restart_confirm_suffix",
+      "value": ". Save your data first. Continue?"
+    },
+    {
+      "name": "msg_start_vm_confirm",
+      "value": "Confirm to start the virtual machine?"
+    },
+    {
+      "name": "msg_delete_emulator_confirm",
+      "value": "This action cannot be undone. Confirm delete?"
+    },
+    {
+      "name": "label_enable_monitor",
+      "value": "Enable Monitor Display"
+    },
+    {
+      "name": "msg_enable_monitor_hint",
+      "value": "Tip: Enable Monitor Display for more details"
+    },
+    {
+      "name": "label_refresh_settings",
+      "value": "Refresh Settings"
+    },
+    {
+      "name": "label_refresh_interval",
+      "value": "Refresh Interval:"
+    },
+    {
+      "name": "option_15s",
+      "value": "15s"
+    },
+    {
+      "name": "option_30s",
+      "value": "30s"
+    },
+    {
+      "name": "option_45s",
+      "value": "45s"
+    },
+    {
+      "name": "option_60s",
+      "value": "60s"
+    },
+    {
+      "name": "menu_emulator_management",
+      "value": "Emulator Management"
+    },
+    {
+      "name": "menu_shared_folder",
+      "value": "Shared Folder"
+    },
+    {
+      "name": "menu_settings",
+      "value": "Settings"
+    },
+    {
+      "name": "status_paused",
+      "value": "Paused"
+    },
+    {
+      "name": "status_shutdown_exit",
+      "value": "Shutdown. You can now exit the app."
+    },
+    {
+      "name": "menu_custom_port",
+      "value": "Custom Port"
+    },
+    {
+      "name": "msg_copied_to_clipboard",
+      "value": "Copied to clipboard"
+    },
+    {
+      "name": "placeholder_guest_port",
+      "value": "Guest"
+    },
+    {
+      "name": "placeholder_host_port",
+      "value": "Host"
+    },
+    {
+      "name": "status_paused2",
+      "value": "Paused"
+    },
+    {
+      "name": "status_rebooting",
+      "value": "Rebooting"
+    },
+    {
+      "name": "status_shutdown2",
+      "value": "Shutdown"
+    },
+    {
+      "name": "status_abnormal",
+      "value": "Abnormal"
+    },
+    {
+      "name": "status_running",
+      "value": "Running"
+    },
+    {
+      "name": "dialog_copy",
+      "value": "Copy"
+    },
+    {
+      "name": "dialog_copy_subtitle",
+      "value": "Enter a new emulator name (must be unique)"
+    },
+    {
+      "name": "dialog_export_rootfs",
+      "value": "Export as Image"
+    },
+    {
+      "name": "dialog_export_subtitle",
+      "value": "Enter a new image name (must be unique)"
+    },
+    {
+      "name": "progress_copying",
+      "value": "Copying..."
+    },
+    {
+      "name": "progress_exporting",
+      "value": "Exporting..."
+    },
+    {
+      "name": "dialog_power_management",
+      "value": "Power Management"
+    },
+    {
+      "name": "dialog_image_management",
+      "value": "Image Management"
+    },
+    {
+      "name": "msg_export_has_snapshots",
+      "value": "This image has snapshots. Please delete all snapshots before export."
+    },
+    {
+      "name": "btn_got_it",
+      "value": "Got it"
+    },
+    {
+      "name": "label_hostname",
+      "value": "Hostname"
+    },
+    {
+      "name": "label_cpu",
+      "value": "CPU"
+    },
+    {
+      "name": "label_memory2",
+      "value": "Memory"
+    },
+    {
+      "name": "label_disk",
+      "value": "Disk"
+    },
+    {
+      "name": "label_swap",
+      "value": "SWAP"
+    },
+    {
+      "name": "label_ssh",
+      "value": "SSH"
+    },
+    {
+      "name": "label_cores",
+      "value": "cores"
+    },
+    {
+      "name": "label_usage",
+      "value": "usage"
+    },
+    {
+      "name": "label_used",
+      "value": "Used"
+    },
+    {
+      "name": "label_total",
+      "value": "Total"
+    },
+    {
+      "name": "label_agent",
+      "value": "Agent"
+    },
+    {
+      "name": "status_connected",
+      "value": "Connected"
+    },
+    {
+      "name": "status_disconnected",
+      "value": "Disconnected"
+    },
+    {
+      "name": "btn_retry",
+      "value": "Retry"
+    },
+    {
+      "name": "status_reconnecting",
+      "value": "Reconnecting..."
+    },
+    {
+      "name": "status_ssh_on",
+      "value": "Running"
+    },
+    {
+      "name": "status_ssh_off",
+      "value": "Stopped"
+    },
+    {
+      "name": "default_emulator_name",
+      "value": "Default Emulator"
+    },
+    {
+      "name": "label_cores2",
+      "value": "cores, usage"
+    },
+    {
+      "name": "label_usage2",
+      "value": ", usage"
+    },
+    {
+      "name": "label_used2",
+      "value": "Used"
+    },
+    {
+      "name": "label_total2",
+      "value": "/ Total"
+    },
+    {
+      "name": "label_total3",
+      "value": "Total"
+    },
+    {
+      "name": "dialog_vm_status",
+      "value": "VM Status"
+    },
+    {
+      "name": "pm_status_resume_failed",
+      "value": "Resume failed: "
+    },
+    {
+      "name": "msg_load_snapshot_failed",
+      "value": "Load snapshot failed"
+    },
+    {
+      "name": "task_creating_snapshot",
+      "value": "Creating snapshot..."
+    },
+    {
+      "name": "task_restoring_snapshot",
+      "value": "Restoring snapshot..."
+    },
+    {
+      "name": "task_deleting_snapshot",
+      "value": "Deleting snapshot..."
+    },
+    {
+      "name": "task_batch_deleting_snapshots",
+      "value": "Batch deleting snapshots..."
+    },
+    {
+      "name": "error_copy_file_failed",
+      "value": "Copy file failed: "
     }
   ]
 }

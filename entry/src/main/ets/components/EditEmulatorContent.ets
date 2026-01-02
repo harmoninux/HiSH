@@ -93,11 +93,11 @@ export default struct EditEmulatorContent {
   buildEmulatorEdit() {
     Column() {
       Column() {
-        Text('名称')
+        Text($r('app.string.emulator_name'))
           .fontSize($r('sys.float.Body_L'))
           .fontColor($r('sys.color.font_primary'))
           .margin({ bottom: 10 })
-        TextInput({ placeholder: '名称', text: this.emulator.name })
+        TextInput({ placeholder: $r('app.string.emulator_name_placeholder'), text: this.emulator.name })
           .maxLength(64)
           .onChange((value) => {
             this.emulator.name = value.trim()
@@ -128,11 +128,11 @@ export default struct EditEmulatorContent {
       .attributeModifier(this.blockStyle)
 
       if (this.isCreate) {
-        BlockTitle({ content: '镜像' })
+        BlockTitle({ content: $r('app.string.setting_block_image') })
         Column() {
           SettingItem({
-            title: '镜像',
-            subTitle: '选择模拟器使用的镜像',
+            title: $r('app.string.setting_block_image'),
+            subTitle: $r('app.string.setting_image_desc'),
             content: () => {
               this.rootFilesystemSetting()
             }
@@ -145,8 +145,8 @@ export default struct EditEmulatorContent {
       Column() {
         Column() {
           SettingItem({
-            title: '端口映射',
-            subTitle: '将对主机的端口访问转发到模拟器'
+            title: $r('app.string.setting_port_mapping'),
+            subTitle: $r('app.string.setting_port_mapping_desc')
           })
           PortMappingEdit({
             items: this.portMappingItems,
@@ -164,8 +164,8 @@ export default struct EditEmulatorContent {
       BlockTitle({ content: $r("app.string.setting_shared_folder") })
       Column() {
         SettingItem({
-          title: '共享文件夹只读',
-          subTitle: '禁止模拟器对共享文件夹进行写操作',
+          title: $r('app.string.setting_shared_readonly'),
+          subTitle: $r('app.string.setting_shared_readonly_desc'),
           content: () => {
             this.sharedFolderReadonly()
           }
@@ -173,18 +173,18 @@ export default struct EditEmulatorContent {
       }
       .attributeModifier(this.blockStyle)
 
-      BlockTitle({ content: '高级设置' })
+      BlockTitle({ content: $r('app.string.setting_advanced') })
       Column() {
         SettingItem({
-          title: 'init',
-          subTitle: '模拟器Linux启动脚本',
+          title: $r('app.string.setting_init_script'),
+          subTitle: $r('app.string.setting_init_desc'),
           content: () => {
             this.initSetting()
           }
         })
         SettingItem({
-          title: 'root',
-          subTitle: '根文件系统设备路径',
+          title: $r('app.string.setting_root_device'),
+          subTitle: $r('app.string.setting_root_desc'),
           content: () => {
             this.vdaSetting()
           }
@@ -212,13 +212,13 @@ export default struct EditEmulatorContent {
           BackButton()
             .padding({ left: 15 })
 
-          Text(this.editing ? '编辑模拟器' : this.emulator.name)
+          Text(this.editing ? $r('app.string.edit_emulator_title') : this.emulator.name)
             .fontSize(18)
 
           Blank().layoutWeight(1)
 
           if (this.editing) {
-            Button('完成', { buttonStyle: ButtonStyleMode.TEXTUAL })
+            Button($r('app.string.btn_finish'), { buttonStyle: ButtonStyleMode.TEXTUAL })
               .onClick(() => this.onEditFinished())
           }
         }
@@ -240,7 +240,7 @@ export default struct EditEmulatorContent {
       .align(Alignment.Top)
 
       if (!this.titleBar && this.editing) {
-        Button('完成')
+        Button($r('app.string.btn_finish'))
           .width('100%')
           .onClick(() => this.onEditFinished())
       }
@@ -256,13 +256,13 @@ export default struct EditEmulatorContent {
     const emulators = AppStorage.get(appOption.emulators) as Emulator[]
 
     if (this.emulator.name.length === 0) {
-      return '请输入模拟器名称'
+      return this.getResourceString('err_input_name')
     }
 
     const nameUsed = emulators
       .findIndex(it => it.id !== this.emulator.id && it.name === this.emulator.name) >= 0
     if (nameUsed) {
-      return '模拟器名称重复，请换一个'
+      return this.getResourceString('err_name_duplicate')
     }
 
     const mappingError = this.portMappingError()
@@ -271,7 +271,7 @@ export default struct EditEmulatorContent {
     }
 
     if (this.emulator.init.length === 0) {
-      return '需要指定init'
+      return this.getResourceString('err_need_init')
     }
 
     return undefined

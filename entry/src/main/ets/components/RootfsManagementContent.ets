@@ -29,7 +29,7 @@ export default struct RootfsManagementContent {
   actionAfterNameInput: () => Promise<void> = (): Promise<void> => this.createNewRootfs()
   rootfsNameController = new CustomDialogController({
     builder: CustomContentDialog({
-      primaryTitle: '镜像名称',
+      primaryTitle: $r('app.string.dialog_rootfs_name'),
       contentBuilder: () => {
         this.buildInputRootfsName()
       }
@@ -37,13 +37,13 @@ export default struct RootfsManagementContent {
   })
   importProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: '正在导入文件',
+      content: $r('app.string.dialog_import_shared'),
     }),
     autoCancel: false
   })
   exportProgress: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: '正在导出文件',
+      content: $r('app.string.dialog_export_shared'),
     }),
     autoCancel: false
   })
@@ -76,12 +76,12 @@ export default struct RootfsManagementContent {
           BackButton()
             .padding({ left: 15 })
 
-          Text('镜像管理')
+          Text($r('app.string.image_management_title'))
             .fontSize(18)
 
           Blank().layoutWeight(1)
 
-          Button('导入', { buttonStyle: ButtonStyleMode.TEXTUAL })
+          Button($r('app.string.btn_import'), { buttonStyle: ButtonStyleMode.TEXTUAL })
             .onClick(() => {
               this.importRootFilesystem()
             })
@@ -106,7 +106,7 @@ export default struct RootfsManagementContent {
       .align(Alignment.Top)
 
       if (!this.toolBar) {
-        Button('导入')
+        Button($r('app.string.btn_import'))
           .width('100%')
           .onClick(() => {
             this.importRootFilesystem()
@@ -120,12 +120,12 @@ export default struct RootfsManagementContent {
     Column() {
       TextInput({
         text: this.tempRootfsName,
-        placeholder: '输入镜像名称'
+        placeholder: $r('app.string.placeholder_rootfs_name')
       })
         .onChange((value) => {
           this.tempRootfsName = value;
         })
-      Button('完成')
+      Button($r('app.string.btn_finish'))
         .margin({ top: 10 })
         .width('100%')
         .enabled(this.validateRootfsName())
@@ -152,7 +152,7 @@ export default struct RootfsManagementContent {
   private editRootfsName(item: RootFilesystem) {
     if (item.id === defaultRootfs.id) {
       this.promptAction.showToast({
-        message: '不支持修改默认镜像',
+        message: $r('app.string.msg_default_rootfs_edit'),
         duration: 3000
       });
     } else {
@@ -165,13 +165,13 @@ export default struct RootfsManagementContent {
   deleteRootFilesystem(item: RootFilesystem) {
     if (item.id === defaultRootfs.id) {
       this.promptAction.showToast({
-        message: '不支持删除默认镜像',
+        message: $r('app.string.msg_default_rootfs_delete'),
         duration: 3000
       });
     } else {
       this.getUIContext().showAlertDialog({
-        title: '确定删除',
-        message: '您正在操作删除镜像，删除后不可恢复，确定操作？',
+        title: $r('app.string.dialog_confirm_delete'),
+        message: $r('app.string.dialog_delete_rootfs_msg'),
         autoCancel: true,
         alignment: DialogAlignment.Center,
         buttons: [
@@ -358,7 +358,7 @@ struct RootFilesystemItem {
           Text(this.value.fileSize)
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
-          Text('文件大小').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.label_file_size')).fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -367,7 +367,7 @@ struct RootFilesystemItem {
           Text(this.value.virtualSize)
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_primary'))
-          Text('虚拟大小').fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
+          Text($r('app.string.virtual_size')).fontSize($r('sys.float.Body_S')).fontColor($r('sys.color.font_tertiary'))
             .margin({ top: 5 })
         }
         .layoutWeight(1)
@@ -379,15 +379,15 @@ struct RootFilesystemItem {
 
       Row() {
         Blank().layoutWeight(1)
-        Button('删除', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.delete_this'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onDelete(this.value.model))
-        Button('重命名', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_rename'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.value.model))
-        Button('导出', { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+        Button($r('app.string.btn_export'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onExport(this.value.model))

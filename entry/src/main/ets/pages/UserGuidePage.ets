@@ -10,7 +10,7 @@ struct UserGuidePage {
         title: $r('app.string.user_guide')
       })
       UserGuide({
-        openPage: (title: string, url: string) => {
+        openPage: (title: string | Resource, url: string) => {
           this.getUIContext().getRouter().pushUrl({
             url: 'pages/GuideWebPage',
             params: { page: url, title: title }

@@ -148,24 +148,24 @@ export default struct SettingsContent {
           BlockTitle({ content: $r("app.string.setting_terminal") })
           Column() {
             SettingItem({
-              title: '字体大小',
-              subTitle: '设置终端字体大小',
+              title: $r('app.string.setting_font_size'),
+              subTitle: $r('app.string.setting_font_size_desc'),
               content: () => {
                 this.buildTerminalFontSize()
               }
             })
 
             SettingItem({
-              title: '光标样式',
-              subTitle: '设置终端光标样式',
+              title: $r('app.string.setting_cursor_style'),
+              subTitle: $r('app.string.setting_cursor_style_desc'),
               content: () => {
                 this.buildTerminalCursorShape()
               }
             })
 
             SettingItem({
-              title: '光标闪烁',
-              subTitle: '设置终端光标闪烁',
+              title: $r('app.string.setting_cursor_blink'),
+              subTitle: $r('app.string.setting_cursor_blink_desc'),
               content: () => {
                 this.buildTerminalCursorBlink()
               }
@@ -195,7 +195,7 @@ export default struct SettingsContent {
             if (deviceInfo.deviceType !== '2in1') {
               LinkItem({
                 icon: $r('sys.symbol.book_pages'),
-                title: '使用指南',
+                title: $r('app.string.user_guide_title'),
                 click: () => {
                   this.getUIContext().getRouter().pushUrl({
                     url: 'pages/UserGuidePage'
@@ -222,7 +222,7 @@ export default struct SettingsContent {
                 click: () => {
                   this.getUIContext().getRouter().pushUrl({
                     url: 'pages/GuideWebPage',
-                    params: { page: 'guide/Z1_Jit.html', title: '运行加速' }
+                    params: { page: 'guide/Z1_Jit.html', title: $r('app.string.guide_jit_title') }
                   })
                 }
               })

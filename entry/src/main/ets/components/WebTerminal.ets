@@ -107,15 +107,15 @@ export default struct WebTerminal {
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .bindMenu([{
-      value: '模拟器管理',
+      value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
     }, {
-      value: '共享文件夹',
+      value: $r('app.string.menu_shared_folder'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SharedFolderPage' })
     }, {
-      value: '设置',
+      value: $r('app.string.menu_settings'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
     }])

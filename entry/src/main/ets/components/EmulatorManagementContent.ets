@@ -5,6 +5,11 @@ import EmulatorListGrid from './EmulatorListGrid';
 import { CustomContentDialog } from '@kit.ArkUI';
 import { BackButton } from './BackButton';
 
+class MenuOption {
+  value: string | Resource = '';
+  action: () => void = () => {};
+}
+
 @Component
 export default struct EmulatorManagementContent {
   build() {
@@ -13,12 +18,12 @@ export default struct EmulatorManagementContent {
         BackButton()
           .padding({ left: 15 })
 
-        Text('模拟器管理')
+        Text($r('app.string.emulator_management_title'))
           .fontSize(18)
 
         Blank().layoutWeight(1)
 
-        Button('添加', { buttonStyle: ButtonStyleMode.TEXTUAL })
+        Button($r('app.string.btn_add'), { buttonStyle: ButtonStyleMode.TEXTUAL })
           .onClick(() => {
             const id = util.generateRandomUUID()
             this.getUIContext().getRouter().pushUrl({
@@ -35,14 +40,7 @@ export default struct EmulatorManagementContent {
           .hoverEffect(HoverEffect.Highlight)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.8 })
           .margin({ right: 5 })
-          .bindMenu([{
-            value: '镜像管理',
-            action: () => {
-              this.getUIContext().getRouter().pushUrl({
-                url: 'pages/RootfsManagement'
-              })
-            }
-          }])
+          .bindMenu(this.getMenuOptions())
       }
       .height(56)
 
@@ -93,5 +91,19 @@ export default struct EmulatorManagementContent {
       titleBar: false,
       editing: false
     })
+  }
+
+  getMenuOptions(): Array<MenuOption> {
+    const options: Array<MenuOption> = [
+      {
+        value: $r('app.string.image_management_title'),
+        action: () => {
+          this.getUIContext().getRouter().pushUrl({
+            url: 'pages/RootfsManagement'
+          })
+        }
+      }
+    ];
+    return options;
   }
 }
