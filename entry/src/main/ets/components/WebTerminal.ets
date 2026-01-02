@@ -215,8 +215,6 @@ export default struct WebTerminal {
               const shiftPressed = event.getModifierKeyState ? event.getModifierKeyState(['Shift']) : false;
               const altPressed = event.getModifierKeyState ? event.getModifierKeyState(['Alt']) : false;
 
-
-
               if (ctrlPressed && !shiftPressed && !altPressed) {
                 // Ctrl+Insert: 复制
                 hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: Ctrl+Insert copy');
@@ -335,12 +333,10 @@ export default struct WebTerminal {
 
   private toggleCtrl(): void {
     this.ctrlPressed = !this.ctrlPressed;
-    this.webviewController.runJavaScript('exports.setCtrlPressed(' + this.ctrlPressed + ')')
   }
 
   private toggleShift(): void {
     this.shiftPressed = !this.shiftPressed;
-    this.webviewController.runJavaScript('exports.setShiftPressed(' + this.shiftPressed + ')')
   }
 
   // 由 JavaScript 调用，用于自动重置 Shift 状态
@@ -355,7 +351,7 @@ export default struct WebTerminal {
 
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
-    
+
     // 处理 Ctrl 状态：将小写字母转换为控制字符
     if (this.ctrlPressed && data.length === 1) {
       const char = data.charAt(0);
@@ -364,7 +360,7 @@ export default struct WebTerminal {
         hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
       }
     }
-    
+
     // 处理 Shift 状态：将小写字母转换为大写
     if (this.shiftPressed && data.length === 1) {
       const char = data.charAt(0);
@@ -373,7 +369,7 @@ export default struct WebTerminal {
         hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
       }
     }
-    
+
     let buffer = stringToArrayBuffer(data, 'utf-8');
     napi.sendInput(buffer)
     
