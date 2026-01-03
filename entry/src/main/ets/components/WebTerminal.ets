@@ -12,14 +12,11 @@ const DOMAIN = 0x0000;
 
 // 根据设备类型调整虚拟按键尺寸
 const isPhone = deviceInfo.deviceType === 'phone';
-const isTablet = deviceInfo.deviceType === 'tablet';
-// 手机：最紧凑 | 平板：中等 | PC/2in1：最大
 const VKeyMargin = isPhone ? 1 : 2;
-const VKeyPadding = isPhone ? 2 : (isTablet ? 4 : 8);
-const VKeyHeight = isPhone ? 24 : 28;
-const VKeyWidth = isPhone ? 36 : 50; // 平板和PC用同样大小
-const VKeyModWidth = isPhone ? 48 : 60; // CTRL/SHIFT 更宽
-const VKeyFontSize = isPhone ? 10 : 14; // 平板和PC用同样大小
+const VKeyPadding = isPhone ? 2 : 4;
+const VKeyHeight = 28;
+const VKeyWidth = isPhone ? 48 : 60;
+const VKeyFontSize = isPhone ? 11 : 14;
 const VKeyRadius = 5;
 
 function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
@@ -37,6 +34,7 @@ export default struct WebTerminal {
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
+  @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
@@ -98,7 +96,7 @@ export default struct WebTerminal {
       Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyModWidth)
+    .width(VKeyWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .backgroundColor($r('sys.color.black'))
@@ -112,7 +110,7 @@ export default struct WebTerminal {
       Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyModWidth)
+    .width(VKeyWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .backgroundColor($r('sys.color.black'))
@@ -129,7 +127,11 @@ export default struct WebTerminal {
     .width(VKeyHeight)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
-    .bindMenu([{
+    .bindMenu(this.settingsButtonOptions())
+  }
+
+  private settingsButtonOptions(): MenuElement[] {
+    const vncOptions: MenuElement[] = this.vncEnabled ? [{
       value: $r('app.string.vnc_console_title'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.display')).fontSize($r('sys.float.Title_S')),
       action: () => {
@@ -143,7 +145,8 @@ export default struct WebTerminal {
           this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
         }
       }
-    }, {
+    }] : []
+    const regularOptions: MenuElement[] = [{
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
@@ -155,7 +158,8 @@ export default struct WebTerminal {
       value: $r('app.string.menu_settings'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
-    }])
+    }]
+    return [...vncOptions, ...regularOptions];
   }
 
   @Builder
@@ -285,6 +289,7 @@ export default struct WebTerminal {
   buildVirtualKeys() {
     Column() {
       Row() {
+        this.buildVKey('TAB', '\t');
         this.buildVKey('ESC', '\x1b');
 
         Row().layoutWeight(1);
@@ -299,7 +304,6 @@ export default struct WebTerminal {
       .margin({ left: 5, right: 5 })
 
       Row() {
-        this.buildVKey('TAB', '\t');
         this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
         this.toggleShiftKey('SHIFT', () => this.toggleShift());
 
@@ -354,7 +358,7 @@ export default struct WebTerminal {
         hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
       }
       // 一次性发送后自动重置 Ctrl 状态
-      this.ctrlPressed = false;
+      this.toggleCtrl()
     }
 
     // 处理 Shift 状态：将小写字母转换为大写
@@ -368,7 +372,7 @@ export default struct WebTerminal {
 
     let buffer = stringToArrayBuffer(data, 'utf-8');
     napi.sendInput(buffer)
-    
+
     // Ctrl: 一次性模式，发送后自动重置 | Shift: 状态保持，需要用户手动点击取消
   }
 
@@ -431,7 +435,7 @@ export default struct WebTerminal {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
     if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript('exports.clear()');
+      this.webviewController.runJavaScript('exports.clearScrollback()');
     }
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }

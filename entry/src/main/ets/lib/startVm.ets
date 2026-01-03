@@ -51,7 +51,7 @@ function startVm(options: VmOptions) {
     ",virtqueue_size=256,iothread=iothread0",
     "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1"]
   const kernelParam = ["-append",
-    "root=" + root + " rw rootfstype=ext4 rootwait console=ttyAMA0 console=tty0 consoleblank=0 " +
+    "root=" + root + " rw rootfstype=ext4 rootwait console=tty0 console=ttyAMA0 consoleblank=0 " +
     "elevator=noop skew_tick=1 acpi=off " +
     "mitigations=off audit=0 nmi_watchdog=0 hardened_usercopy=off random.trust_cpu=on virtio_balloon.config_impl=0 " +
     "security=none selinux=0 apparmor=0 psi=0 page_alloc.shuffle=0 swiotlb=noforce idle=halt " +

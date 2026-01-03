@@ -135,7 +135,7 @@ export default class EntryAbility extends UIAbility {
       this.registerWindowSizeChangeListener(mainWindow);
 
       await this.prepareForSharedFolder(appContext)
-      const result = await this.startDefaultEmulator(appContext)
+      const result = this.startDefaultEmulator()
 
       this.promptRootVdaMessage(uiContext)
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
@@ -159,7 +159,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
 
-  private async startDefaultEmulator(appContext: common.ApplicationContext): Promise<StartResult> {
+  private startDefaultEmulator(): StartResult {
 
     const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
@@ -196,9 +196,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
 
     // 读取 VNC 启用配置
-    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
-    const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
-    const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+    const vncEnabled =  AppStorage.get<boolean>(appOption.vncEnabled)
 
     // 获取随机 VNC 端口 (60000-65000)
     const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
@@ -515,7 +513,7 @@ export default class EntryAbility extends UIAbility {
     const lastResourceVersion = await appPref.get(appOption.lastResourceVersion, undefined) as number | undefined
     const bundleInfo = AppStorage.get('bundleInfo') as bundleManager.BundleInfo
     const forceOverride = lastResourceVersion === undefined
-      || lastResourceVersion < bundleInfo.versionCode
+      || lastResourceVersion !== bundleInfo.versionCode
       || bundleInfo.name.startsWith('dev.hackeris')
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
     // 使用根据架构版本选择的内核
