@@ -85,7 +85,7 @@ export default class EntryAbility extends UIAbility {
       }
 
       await this.prepareForSharedFolder(appContext)
-      const result = await this.startDefaultEmulator(appContext)
+      const result = this.startDefaultEmulator()
 
       this.promptRootVdaMessage(uiContext)
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
@@ -109,7 +109,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.sharedGuest, sharedGuest)
   }
 
-  private async startDefaultEmulator(appContext: common.ApplicationContext): Promise<StartResult> {
+  private startDefaultEmulator(): StartResult {
 
     const appTempDir = AppStorage.get(appOption.appTempDir)!!
 
@@ -143,9 +143,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
     // 读取 VNC 启用配置
-    const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
-    const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
-    const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+    const vncEnabled =  AppStorage.get<boolean>(appOption.vncEnabled)
 
     // 获取随机 VNC 端口 (60000-65000)
     const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
