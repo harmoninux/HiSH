@@ -248,19 +248,26 @@ export default struct WebTerminal {
 
   private toggleCtrl(): void {
     this.ctrlPressed = !this.ctrlPressed;
-    this.webviewController.runJavaScript('exports.setCtrlPressed(' + this.ctrlPressed + ')')
   }
 
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
-    let buffer = stringToArrayBuffer(data, 'utf-8');
-    napi.sendInput(buffer)
 
-    if (this.ctrlPressed) {
+    // 处理 Ctrl 状态：将小写字母转换为控制字符（一次性，发送后自动重置）
+    if (this.ctrlPressed && data.length === 1) {
+      const char = data.charAt(0);
+      if (char >= 'a' && char <= 'z') {
+        data = String.fromCharCode(char.charCodeAt(0) - 'a'.charCodeAt(0) + 1);
+        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
+      }
+      // 一次性发送后自动重置 Ctrl 状态
       this.toggleCtrl()
     }
+
+    let buffer = stringToArrayBuffer(data, 'utf-8');
+    napi.sendInput(buffer)
   }
 
   async load(): Promise<void> {
@@ -281,6 +288,9 @@ export default struct WebTerminal {
   private onData(ab: ArrayBuffer) {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
+    if (s.startsWith('\\x1b[H\\x1b[J')) {
+      this.webviewController.runJavaScript('exports.clearScrollback()');
+    }
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }
 
