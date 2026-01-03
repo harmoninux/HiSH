@@ -50,9 +50,9 @@
 * 克隆代码到本地
 * 复制`build-profile.template.json5`到`build-profile.json5`
 * 下载以下文件到指定位置：
-  - [entry/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20251218/libs.zip)（解压到`entry/libs`）
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20251208/kernel_aarch64)
-  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/alpine-20251205/rootfs_aarch64.qcow2)
+  - [entry/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260103/libs.zip)（解压到`entry/libs`）
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20260103/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/kernel-20260103/rootfs_aarch64.qcow2)
 * 在DevEco Studio中构建项目
 * 签名后在设备或模拟器上运行
 

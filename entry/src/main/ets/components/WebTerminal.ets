@@ -354,7 +354,7 @@ export default struct WebTerminal {
         hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
       }
       // 一次性发送后自动重置 Ctrl 状态
-      this.ctrlPressed = false;
+      this.toggleCtrl()
     }
 
     // 处理 Shift 状态：将小写字母转换为大写
@@ -368,7 +368,7 @@ export default struct WebTerminal {
 
     let buffer = stringToArrayBuffer(data, 'utf-8');
     napi.sendInput(buffer)
-    
+
     // Ctrl: 一次性模式，发送后自动重置 | Shift: 状态保持，需要用户手动点击取消
   }
 

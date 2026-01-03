@@ -67,11 +67,11 @@ function onTerminalReady() {
     exports.paste = (data) => {
         term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data), { stream: true }));
     };
-    exports.clear = () => {
-        term.wipeContents()
+    exports.clearScrollback = () => {
+        term.clearScrollback()
         //  真机上运行会黑屏，加上这个就好了
         term.setHeight(term.screenSize.height)
-        setTimeout(() => term.setHeight(null), 20)
+        setTimeout(() => term.setHeight(null), 50)
     }
 
     // hterm size updates native size
@@ -93,8 +93,6 @@ function onTerminalReady() {
     exports.getCharacterSize = () => {
         return [term.scrollPort_.characterSize.width, term.scrollPort_.characterSize.height];
     };
-
-    exports.clearScrollback = () => term.clearScrollback();
 
     exports.setFontSize = (fontSize) => term.getPrefs().set('font-size', fontSize);
     exports.setCursorShape = (shape) => term.getPrefs().set('cursor-shape', shape);
