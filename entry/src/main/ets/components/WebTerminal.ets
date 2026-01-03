@@ -3,17 +3,20 @@ import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
-import { pasteboard } from '@kit.BasicServicesKit'
+import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 
 const DOMAIN = 0x0000;
 
-const VKeyMargin = 2;
-const VKeyPadding = 8;
+// 根据设备类型调整虚拟按键尺寸
+const isPhone = deviceInfo.deviceType === 'phone';
+const VKeyMargin = isPhone ? 1 : 2;
+const VKeyPadding = isPhone ? 2 : 4;
 const VKeyHeight = 28;
-const VKeyWidth = 50;
+const VKeyWidth = isPhone ? 48 : 60;
+const VKeyFontSize = isPhone ? 11 : 14;
 const VKeyRadius = 5;
 
 function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
@@ -25,6 +28,7 @@ function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf
 export default struct WebTerminal {
   @Require virtKeyEnabled: boolean
   @State ctrlPressed: boolean = false
+  @State shiftPressed: boolean = false
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
@@ -76,6 +80,7 @@ export default struct WebTerminal {
       .height(VKeyHeight)
       .width(VKeyWidth)
       .borderRadius(VKeyRadius)
+      .fontSize(VKeyFontSize)
       .fontColor($r('sys.color.white'))
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
@@ -85,9 +90,23 @@ export default struct WebTerminal {
   }
 
   @Builder
-  toggleVKey(name: string, action: () => void) {
+  toggleCtrlKey(name: string, action: () => void) {
     Toggle({ type: ToggleType.Button, isOn: this.ctrlPressed }) {
-      Text(name).height(28).fontWeight(FontWeight.Medium)
+      Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
+    }
+    .height(VKeyHeight)
+    .width(VKeyWidth)
+    .borderRadius(VKeyRadius)
+    .margin(VKeyMargin)
+    .backgroundColor($r('sys.color.black'))
+    .selectedColor($r('sys.color.interactive_active'))
+    .onClick(() => action())
+  }
+
+  @Builder
+  toggleShiftKey(name: string, action: () => void) {
+    Toggle({ type: ToggleType.Button, isOn: this.shiftPressed }) {
+      Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
     .width(VKeyWidth)
@@ -215,32 +234,36 @@ export default struct WebTerminal {
 
   @Builder
   buildVirtualKeys() {
-    Row() {
-      this.buildVKey('ESC', '\x1b');
+    Column() {
+      Row() {
+        this.buildVKey('TAB', '\t');
+        this.buildVKey('ESC', '\x1b');
 
-      Row().layoutWeight(1);
+        Row().layoutWeight(1);
 
-      this.buildVKey('PGUP', '\x1b[5~');
-      this.buildVKey('HOME', '\x1b[H');
-      this.buildVKey('↑', '\x1b[A');
-      this.buildVKey('END', '\x1b[F');
-      this.settingsButton();
+        this.buildVKey('PGUP', '\x1b[5~');
+        this.buildVKey('HOME', '\x1b[H');
+        this.buildVKey('↑', '\x1b[A');
+        this.buildVKey('END', '\x1b[F');
+
+        this.settingsButton();
+      }
+      .margin({ left: 5, right: 5 })
+
+      Row() {
+        this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
+        this.toggleShiftKey('SHIFT', () => this.toggleShift());
+
+        Row().layoutWeight(1);
+
+        this.buildVKey('PGDN', '\x1b[6~');
+        this.buildVKey('←', '\x1b[D');
+        this.buildVKey('↓', '\x1b[B');
+        this.buildVKey('→', '\x1b[C');
+        this.hideVKeyButton();
+      }
+      .margin({ left: 5, right: 5 })
     }
-    .margin({ left: 5, right: 5 })
-
-    Row() {
-      this.buildVKey('TAB', '\t');
-      this.toggleVKey('CTRL', () => this.toggleCtrl());
-
-      Row().layoutWeight(1);
-
-      this.buildVKey('PGDN', '\x1b[6~');
-      this.buildVKey('←', '\x1b[D');
-      this.buildVKey('↓', '\x1b[B');
-      this.buildVKey('→', '\x1b[C');
-      this.hideVKeyButton();
-    }
-    .margin({ left: 5, right: 5 })
   }
 
   async saveShowVirtKey() {
@@ -257,6 +280,9 @@ export default struct WebTerminal {
     this.ctrlPressed = !this.ctrlPressed;
   }
 
+  private toggleShift(): void {
+    this.shiftPressed = !this.shiftPressed;
+  }
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
@@ -273,8 +299,19 @@ export default struct WebTerminal {
       this.toggleCtrl()
     }
 
+    // 处理 Shift 状态：将小写字母转换为大写
+    if (this.shiftPressed && data.length === 1) {
+      const char = data.charAt(0);
+      if (char >= 'a' && char <= 'z') {
+        data = char.toUpperCase();
+        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
+      }
+    }
+
     let buffer = stringToArrayBuffer(data, 'utf-8');
     napi.sendInput(buffer)
+
+    // Ctrl: 一次性模式，发送后自动重置 | Shift: 状态保持，需要用户手动点击取消
   }
 
   async load(): Promise<void> {
