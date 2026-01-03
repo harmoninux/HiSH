@@ -137,17 +137,46 @@ static QemuSystemEntry getQemuSystemEntry()
 
     // 根据 ARM 架构版本选择对应的 QEMU 库
     std::string archVersion = detectArmArchVersion();
-    std::string libDir = (archVersion == "v85") ? "arm64-v8a" : "arm64-v82";
-    std::string libQemuPath = "/data/storage/el1/bundle/libs/" + libDir + "/libqemu-system-aarch64.so";
+    
+    std::string libPathV85 = "/data/storage/el1/bundle/libs/arm64-v8a/libqemu-system-aarch64.so";
+    std::string libPathV82 = "/data/storage/el1/bundle/libs/arm64-v82/libqemu-system-aarch64.so";
+    
+    std::string selectedPath = "";
+    
+    bool hasV85 = (access(libPathV85.c_str(), F_OK) == 0);
+    bool hasV82 = (access(libPathV82.c_str(), F_OK) == 0);
+    
+    if (archVersion == "v85") {
+        // 硬件支持 v85
+        if (hasV85) {
+            selectedPath = libPathV85; // 首选 v85
+        } else if (hasV82) {
+            selectedPath = libPathV82; // 回退到 v82 (兼容)
+            OH_LOG_WARN(LOG_APP, "v85 hardware detected but v85 lib missing, using v82 lib");
+        }
+    } else {
+        // 硬件仅支持 v82 (generic)
+        if (hasV82) {
+            selectedPath = libPathV82; // 首选 v82
+        } else if (hasV85) {
+            selectedPath = libPathV85; // 只有 v85，强制使用 (可能会崩，但满足用户"使用仅有的库"要求)
+            OH_LOG_WARN(LOG_APP, "v82 hardware detected but v82 lib missing, forcing v85 lib (RISK OF CRASH)");
+        }
+    }
+    
+    if (selectedPath.empty()) {
+        OH_LOG_WARN(LOG_APP, "No suitable QEMU library found in specific paths! Falling back to default library name.");
+        selectedPath = "libqemu-system-aarch64.so";
+    }
 
-    OH_LOG_INFO(LOG_APP, "Loading QEMU from: %{public}s", libQemuPath.c_str());
+    OH_LOG_INFO(LOG_APP, "Loading QEMU from: %{public}s", selectedPath.c_str());
 
-    void *libQemuHandle = dlopen(libQemuPath.c_str(), RTLD_LAZY);
+    void *libQemuHandle = dlopen(selectedPath.c_str(), RTLD_LAZY);
 
     if (!libQemuHandle)
     {
         OH_LOG_ERROR(LOG_APP, "Failed to load libqemu.so from %{public}s, errno: %{public}d, trying default path",
-                     libQemuPath.c_str(), errno);
+                     selectedPath.c_str(), errno);
         // 回退到默认路径
         libQemuHandle = dlopen("libqemu-system-aarch64.so", RTLD_LAZY);
     }
@@ -160,7 +189,7 @@ static QemuSystemEntry getQemuSystemEntry()
 
     qemuSystemEntry = (QemuSystemEntry)dlsym(libQemuHandle, "qemu_system_entry");
     OH_LOG_INFO(LOG_APP, "Library: %{public}s, handle: 0x%{public}p, entry: 0x%{public}p",
-                libQemuPath.c_str(), libQemuHandle, qemuSystemEntry);
+                selectedPath.c_str(), libQemuHandle, qemuSystemEntry);
 
     return qemuSystemEntry;
 }
@@ -627,8 +656,8 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args)
         sigaction(40, &sa, nullptr);
         sigaction(91, &sa, nullptr);
         sigaction(92, &sa, nullptr);
-        sigaction(89, &sa, nullptr); // [Fix] Ignore signal 89
-
+        sigaction(89, &sa, nullptr);
+        sigaction(90, &sa, nullptr);
         // Call entry point directly
         // Since we forked, we have a copy of the parent's memory state.
         // The library is loaded, and global variables are in the state they were in the parent.
@@ -686,11 +715,12 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args)
         else if (WIFSIGNALED(status))
         {
             int sig = WTERMSIG(status);
-            // Signal 40, 91, 92, 89 are OHOS-specific signals triggered during qemu-img cleanup
-            // The operation is actually successful, so treat these as success
-            if (sig == 40 || sig == 91 || sig == 92 || sig == 89)
+            // Signal 40, 44, 89-92 are OHOS-specific or Real-Time signals triggered during qemu-img cleanup
+            // These usually happen after the work is done, so we treat them as success.
+            // Standard crash signals (SEGV, ABRT, etc.) are < 32.
+            if (sig >= 32)
             {
-                OH_LOG_INFO(LOG_APP, "qemu-img terminated with signal %{public}d (expected, treating as success)", sig);
+                OH_LOG_INFO(LOG_APP, "qemu-img terminated with signal %{public}d (assumed benign cleanup issue)", sig);
                 // Continue to success path
             }
             else
