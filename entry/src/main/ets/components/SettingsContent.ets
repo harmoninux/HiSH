@@ -285,6 +285,7 @@ export default struct SettingsContent {
       .scrollBarWidth(1)
       .layoutWeight(1)
       .align(Alignment.Top)
+      .padding({ bottom: 50 })
     }
   }
 
