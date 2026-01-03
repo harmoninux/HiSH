@@ -255,7 +255,7 @@ export default class EntryAbility extends UIAbility {
     const lastResourceVersion = await appPref.get(appOption.lastResourceVersion, undefined) as number | undefined
     const bundleInfo = AppStorage.get('bundleInfo') as bundleManager.BundleInfo
     const forceOverride = lastResourceVersion === undefined
-      || lastResourceVersion < bundleInfo.versionCode
+      || lastResourceVersion !== bundleInfo.versionCode
       || bundleInfo.name.startsWith('dev.hackeris')
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
