@@ -498,7 +498,7 @@ export default class EntryAbility extends UIAbility {
       fs.mkdirSync(rootfsBaseDir);
     }
 
-    // ARM 架构检测
+    // ARM 架构检测和内核选择
     const cpuArchVersion = napi.getCpuArchVersion();
     AppStorage.setOrCreate(appOption.cpuArchVersion, cpuArchVersion);
     hilog.info(DOMAIN, 'HiSH', '=== ARM CPU Feature Detection ===');
