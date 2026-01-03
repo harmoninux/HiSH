@@ -12,14 +12,11 @@ const DOMAIN = 0x0000;
 
 // 根据设备类型调整虚拟按键尺寸
 const isPhone = deviceInfo.deviceType === 'phone';
-const isTablet = deviceInfo.deviceType === 'tablet';
-// 手机：最紧凑 | 平板：中等 | PC/2in1：最大
 const VKeyMargin = isPhone ? 1 : 2;
-const VKeyPadding = isPhone ? 2 : (isTablet ? 4 : 8);
-const VKeyHeight = isPhone ? 24 : 28;
-const VKeyWidth = isPhone ? 36 : 50; // 平板和PC用同样大小
-const VKeyModWidth = isPhone ? 48 : 60; // CTRL/SHIFT 更宽
-const VKeyFontSize = isPhone ? 10 : 14; // 平板和PC用同样大小
+const VKeyPadding = isPhone ? 2 : 4;
+const VKeyHeight = 28;
+const VKeyWidth = isPhone ? 48 : 60;
+const VKeyFontSize = isPhone ? 11 : 14;
 const VKeyRadius = 5;
 
 function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
@@ -99,7 +96,7 @@ export default struct WebTerminal {
       Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyModWidth)
+    .width(VKeyWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .backgroundColor($r('sys.color.black'))
@@ -113,7 +110,7 @@ export default struct WebTerminal {
       Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyModWidth)
+    .width(VKeyWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
     .backgroundColor($r('sys.color.black'))
@@ -292,6 +289,7 @@ export default struct WebTerminal {
   buildVirtualKeys() {
     Column() {
       Row() {
+        this.buildVKey('TAB', '\t');
         this.buildVKey('ESC', '\x1b');
 
         Row().layoutWeight(1);
@@ -306,7 +304,6 @@ export default struct WebTerminal {
       .margin({ left: 5, right: 5 })
 
       Row() {
-        this.buildVKey('TAB', '\t');
         this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
         this.toggleShiftKey('SHIFT', () => this.toggleShift());
 
@@ -438,7 +435,7 @@ export default struct WebTerminal {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
     if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript('exports.clear()');
+      this.webviewController.runJavaScript('exports.clearScrollback()');
     }
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }
