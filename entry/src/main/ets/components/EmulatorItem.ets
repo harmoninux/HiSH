@@ -1,5 +1,7 @@
 import { Emulator } from '../model/Emulator';
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
+import appOption from '../model/appOption';
+import { util } from '@kit.ArkTS';
 
 @Component
 export default struct EmulatorItem {
@@ -12,6 +14,8 @@ export default struct EmulatorItem {
   @Require onCopy: (item: Emulator) => void
   @Require onSetDefault: (item: Emulator) => void
   @Require onStart: (item: Emulator) => void
+  @Require onShutdown: (item: Emulator) => void
+  @Require onImageManage: (item: Emulator) => void
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
 
@@ -39,10 +43,22 @@ export default struct EmulatorItem {
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onStart(this.emulator))
             .height(20)
+          Button($r('app.string.pm_btn_shutdown'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => this.onShutdown(this.emulator))
+            .height(20)
+          Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => this.onImageManage(this.emulator))
+            .height(20)
         } else {
           Button($r('app.string.btn_run'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onStart(this.emulator))
+            .height(20)
+          Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => this.onImageManage(this.emulator))
             .height(20)
         }
       }

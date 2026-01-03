@@ -10,11 +10,25 @@ import copyFile from "../lib/copyFile";
 import { fileIo as fs } from '@kit.CoreFileKit'
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
 import { BackButton } from './BackButton';
+import napi from 'libentry.so';
 
 interface RootfsItem {
   model: RootFilesystem
   fileSize: string
   virtualSize: string
+}
+
+interface DetailInfo {
+  fileFormat: string
+  virtualSize: number
+  diskSize: number
+  clusterSize?: number
+  lazyRefcounts?: boolean
+  extendedL2?: boolean
+  compressionType?: string
+  compat?: string
+  refcountBits?: number
+  corrupt?: boolean
 }
 
 @Component
@@ -25,6 +39,7 @@ export default struct RootfsManagementContent {
   @State tempSrcUri?: string = undefined
   @Prop specifiedBreak?: string = undefined
   @Prop toolBar: boolean = true
+  @State detailInfo?: DetailInfo = undefined
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   actionAfterNameInput: () => Promise<void> = (): Promise<void> => this.createNewRootfs()
   rootfsNameController = new CustomDialogController({
@@ -47,6 +62,22 @@ export default struct RootfsManagementContent {
     }),
     autoCancel: false
   })
+  detailDialogController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.image_details'),
+      contentBuilder: () => {
+        this.buildDetailContent()
+      },
+      buttons: [{
+        value: $r('app.string.btn_close'),
+        action: () => {
+          this.detailDialogController.close()
+        }
+      }]
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center
+  })
   promptAction = this.getUIContext().getPromptAction()
 
   aboutToAppear(): void {
@@ -65,6 +96,9 @@ export default struct RootfsManagementContent {
       },
       onExport: (item) => {
         this.exportRootFilesystem(item)
+      },
+      onShowInfo: (item) => {
+        this.showDiskInfo(item)
       }
     })
   }
@@ -133,6 +167,87 @@ export default struct RootfsManagementContent {
           await this.actionAfterNameInput()
         })
     }
+  }
+
+  @Builder
+  buildDetailContent() {
+    if (this.detailInfo) {
+      Scroll() {
+        Column() {
+          // 文件格式
+          this.buildDetailRow($r('app.string.label_file_format'), this.detailInfo.fileFormat)
+          Divider().color($r('sys.color.ohos_id_color_list_separator'))
+
+          // 虚拟大小
+          this.buildDetailRow($r('app.string.virtual_size'), this.formatSize(this.detailInfo.virtualSize))
+          Divider().color($r('sys.color.ohos_id_color_list_separator'))
+
+          // 实际占用
+          this.buildDetailRow($r('app.string.disk_size'), this.formatSize(this.detailInfo.diskSize))
+          Divider().color($r('sys.color.ohos_id_color_list_separator'))
+
+          // 簇大小
+          if (this.detailInfo.clusterSize) {
+            this.buildDetailRow($r('app.string.label_cluster_size'), this.formatSize(this.detailInfo.clusterSize))
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // 兼容版本
+          if (this.detailInfo.compat) {
+            this.buildDetailRow($r('app.string.label_compat'), this.detailInfo.compat)
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // Lazy Refcounts
+          if (this.detailInfo.lazyRefcounts !== undefined) {
+            this.buildDetailRow($r('app.string.label_lazy_refcounts'), this.detailInfo.lazyRefcounts ? getContext(this).resourceManager.getStringSync($r('app.string.status_enabled').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_disabled').id))
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // Extended L2
+          if (this.detailInfo.extendedL2 !== undefined) {
+            this.buildDetailRow($r('app.string.label_extended_l2'), this.detailInfo.extendedL2 ? getContext(this).resourceManager.getStringSync($r('app.string.status_enabled').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_disabled').id))
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // Refcount Bits
+          if (this.detailInfo.refcountBits) {
+            this.buildDetailRow($r('app.string.label_refcount_bits'), this.detailInfo.refcountBits.toString())
+            Divider().color($r('sys.color.ohos_id_color_list_separator'))
+          }
+
+          // 镜像状态
+          if (this.detailInfo.corrupt !== undefined) {
+            this.buildDetailRow($r('app.string.label_image_status'), this.detailInfo.corrupt ? getContext(this).resourceManager.getStringSync($r('app.string.status_corrupt').id) : getContext(this).resourceManager.getStringSync($r('app.string.status_normal').id))
+          }
+        }
+        .width('100%')
+        .padding(16)
+      }
+      .width('100%')
+      .constraintSize({ maxHeight: 400 })
+    } else {
+      Text($r('app.string.msg_no_details'))
+        .fontSize(12)
+        .fontColor($r('sys.color.ohos_id_color_text_secondary'))
+        .padding(16)
+    }
+  }
+
+  @Builder
+  buildDetailRow(label: Resource | string, value: string) {
+    Row() {
+      Text(label)
+        .fontSize(12)
+        .fontColor($r('sys.color.ohos_id_color_text_secondary'))
+        .width(100)
+      Text(value)
+        .fontSize(12)
+        .fontColor($r('sys.color.ohos_id_color_text_primary'))
+        .layoutWeight(1)
+    }
+    .width('100%')
+    .padding({ top: 8, bottom: 8 })
   }
 
   validateRootfsName(): boolean {
@@ -228,6 +343,59 @@ export default struct RootfsManagementContent {
     } finally {
       this.exportProgress.close()
     }
+  }
+
+  /**
+   * 显示磁盘信息
+   */
+  private showDiskInfo(item: RootFilesystem): void {
+    try {
+      const result: string = napi.getImageInfo(item.path)
+      const info: Record<string, ESObject> = JSON.parse(result) as Record<string, ESObject>
+
+      if (info['error']) {
+        this.promptAction.showDialog({
+          title: $r('app.string.msg_get_disk_info_fail'),
+          message: info['error'] as string,
+          buttons: [{ text: $r('app.string.setting_generic_confirm'), color: '#007DFF' }]
+        })
+        return
+      }
+
+      // 提取详细信息
+      const formatSpecific = info['format-specific'] as Record<string, Object> | undefined
+      const qcow2Data = formatSpecific?.['data'] as Record<string, Object> | undefined
+
+      this.detailInfo = {
+        fileFormat: info['format'] as string || 'unknown',
+        virtualSize: info['virtual-size'] as number || 0,
+        diskSize: info['actual-size'] as number || 0,
+        clusterSize: info['cluster-size'] as number,
+        lazyRefcounts: qcow2Data?.['lazy-refcounts'] as boolean,
+        extendedL2: qcow2Data?.['extended-l2'] as boolean,
+        compressionType: qcow2Data?.['compression-type'] as string,
+        compat: qcow2Data?.['compat'] as string,
+        refcountBits: qcow2Data?.['refcount-bits'] as number,
+        corrupt: qcow2Data?.['corrupt'] as boolean
+      }
+
+      // 打开详情对话框
+      this.detailDialogController.open()
+    } catch (e) {
+      this.promptAction.showToast({
+        message: $r('app.string.msg_get_disk_info_fail'),
+        duration: 2000
+      })
+    }
+  }
+
+  private formatSize(bytes: number): string {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    const size = bytes / Math.pow(k, i)
+    return `${size.toFixed(2)} ${units[i]}`
   }
 
   private async createNewRootfs() {
@@ -329,6 +497,7 @@ struct RootFilesystemItem {
   @Require onEdit: (item: RootFilesystem) => void
   @Require onDelete: (item: RootFilesystem) => void
   @Require onExport: (item: RootFilesystem) => void
+  @Require onShowInfo: (item: RootFilesystem) => void
   @State storageSize: number = 0
 
   aboutToAppear(): void {
@@ -387,6 +556,10 @@ struct RootFilesystemItem {
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.value.model))
+        Button($r('app.string.btn_details'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+          .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
+          .onClick(() => this.onShowInfo(this.value.model))
         Button($r('app.string.btn_export'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))

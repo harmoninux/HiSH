@@ -1,5 +1,4 @@
 import util from '@ohos.util';
-import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
@@ -7,6 +6,7 @@ import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
+import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 
 const DOMAIN = 0x0000;
 
@@ -18,11 +18,6 @@ const VKeyHeight = 28;
 const VKeyWidth = isPhone ? 48 : 60;
 const VKeyFontSize = isPhone ? 11 : 14;
 const VKeyRadius = 5;
-
-function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
-  const buf = buffer.from(str, encoding);
-  return buf.buffer;
-}
 
 @Component
 export default struct WebTerminal {

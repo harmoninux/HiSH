@@ -27,8 +27,10 @@ all: download/qemu
 	 --disable-vte --disable-xen-pci-passthrough --enable-tools --disable-libudev --disable-passt \
 	 --enable-pixman --enable-vnc --enable-slirp --enable-virtfs
 	cd temp/qemu && make libqemu-system-aarch64.so -j $(shell nproc)
+	cd temp/qemu && make libqemu-img.so -j $(shell nproc)
 	cp temp/qemu/pc-bios/efi-virtio.rom ./build
 	cp temp/qemu/build/libqemu-system-aarch64.so ./build
+	cp temp/qemu/build/libqemu-img.so ./build
 	cp temp/qemu/build/subprojects/slirp/libslirp.so.0.4.0 ./build/libslirp.so.0
 	cp temp/qemu/pc-bios/keymaps/en-us ./build/
 	mkdir -p ../output

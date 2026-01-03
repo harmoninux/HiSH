@@ -1,4 +1,7 @@
 import { pasteboard } from "@kit.BasicServicesKit";
+import { hilog } from '@kit.PerformanceAnalysisKit'
+
+const DOMAIN = 0x0000
 
 export default async function copyToClipboard(content: pasteboard.ValueType,
   uiContext?: UIContext) {
@@ -7,10 +10,10 @@ export default async function copyToClipboard(content: pasteboard.ValueType,
     const systemPasteboard = pasteboard.getSystemPasteboard();
     await systemPasteboard.setData(pasteboardData);
     uiContext?.getPromptAction().showToast({
-      message: '已复制到剪贴板',
+      message: $r('app.string.msg_copied_to_clipboard'),
       duration: 2000
     })
   } catch (e) {
-    console.log(e)
+    hilog.error(DOMAIN, 'copyToClipboard', '复制到剪贴板失败: %{public}s', JSON.stringify(e))
   }
 }

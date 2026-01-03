@@ -1,4 +1,7 @@
 import fs from '@ohos.file.fs';
+import { hilog } from '@kit.PerformanceAnalysisKit'
+
+const DOMAIN = 0x0000
 
 async function deleteDirectoryRecursive(dirPath: string) {
   try {
@@ -15,7 +18,8 @@ async function deleteDirectoryRecursive(dirPath: string) {
     }
     await fs.rmdir(dirPath);
   } catch (err) {
-    console.error(`failed to remove directory: ${JSON.stringify(err)}`);
+    hilog.error(DOMAIN, 'deleteDirectoryRecursive', '删除目录失败: %{public}s, 错误: %{public}s',
+      dirPath, JSON.stringify(err));
   }
 }
 

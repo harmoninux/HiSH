@@ -5,9 +5,16 @@ import { util } from '@kit.ArkTS';
 import appOption, { savePreference } from '../model/appOption';
 import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
+import napi from 'libentry.so';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { Want, bundleManager } from '@kit.AbilityKit';
 import EmulatorItem from './EmulatorItem';
+import ImageManagementContent from './ImageManagementContent';
+import deviceInfo from '@ohos.deviceInfo';
+import preference from '@ohos.data.preferences';
+import stringToArrayBuffer from '../lib/stringToArrayBuffer';
+
+const DOMAIN = 0x0000;
 
 @Component
 export default struct EmulatorListGrid {
@@ -52,6 +59,8 @@ export default struct EmulatorListGrid {
     }),
     autoCancel: false
   })
+  imageManagementController: CustomDialogController | null = null
+  @State selectedEmulatorForImage: Emulator | null = null
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   promptAction = this.getUIContext().getPromptAction()
 
@@ -184,9 +193,36 @@ export default struct EmulatorListGrid {
       onStart: (item) => {
         this.askForStartEmulator(item)
       },
-      onExport: (item) => {
+      onShutdown: (item) => {
+        this.gracefulShutdownAndWait()
+      },
+      onExport: async (item: Emulator): Promise<void> => {
+        // 检查是否有快照
+        try {
+          const result: string = napi.getSnapshots(item.rootFilesystem)
+          const response: Record<string, ESObject> = JSON.parse(result) as Record<string, ESObject>
+          const snapshots: Array<ESObject> = response['snapshots'] as Array<ESObject>
+
+          if (snapshots && snapshots.length > 0) {
+            this.promptAction.showDialog({
+              title: $r('app.string.dialog_cannot_export'),
+              message: $r('app.string.msg_export_has_snapshots'),
+              buttons: [
+                { text: $r('app.string.btn_got_it'), color: '#007DFF' }
+              ]
+            })
+            return
+          }
+        } catch (e) {
+          hilog.error(0x0000, 'EmulatorListGrid', '检查快照失败: %{public}s', JSON.stringify(e))
+          // 检查失败时仍允许导出，但给出警告
+        }
+
         this.selectedId = item.id
         this.rootfsNameController.open()
+      },
+      onImageManage: (item) => {
+        this.openImageManageDialog(item)
       }
     }).onClick(() => {
       this.onEditEmulator(emulator, false)
@@ -230,6 +266,17 @@ export default struct EmulatorListGrid {
       abilityName: 'EntryAbility'
     };
     applicationContext.restartApp(want);
+  }
+
+  async gracefulShutdownAndWait() :Promise<void> {
+    return new Promise((resolve)=> {
+      napi.onShutdown(() => {
+        AppStorage.set(appOption.currentRunningEmulator, undefined)
+        resolve()
+      })
+      const cmd = '\x1apoweroff\n'
+      napi.sendInput(stringToArrayBuffer(cmd))
+    })
   }
 
   private askForDeleteEmulator(item: Emulator) {
@@ -327,6 +374,29 @@ export default struct EmulatorListGrid {
     .scrollBarWidth(1)
     .layoutWeight(1)
     .align(Alignment.Top)
+  }
+
+  openImageManageDialog(emulator: Emulator) {
+    this.selectedEmulatorForImage = emulator
+    this.imageManagementController = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.dialog_image_management'),
+        contentBuilder: () => {
+          this.buildImageManagement()
+        }
+      })
+    })
+    this.imageManagementController.open()
+  }
+
+  @Builder
+  buildImageManagement() {
+    if (this.selectedEmulatorForImage) {
+      ImageManagementContent({
+        emulator: this.selectedEmulatorForImage,
+        isVmRunning: this.selectedEmulatorForImage.id === this.currentRunning
+      })
+    }
   }
 
   onEmulatorsChange() {
