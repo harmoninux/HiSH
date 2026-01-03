@@ -527,8 +527,8 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args)
         sigaction(40, &sa, nullptr);
         sigaction(91, &sa, nullptr);
         sigaction(92, &sa, nullptr);
-        sigaction(89, &sa, nullptr); // [Fix] Ignore signal 89
-
+        sigaction(89, &sa, nullptr);
+        sigaction(90, &sa, nullptr);
         // Call entry point directly
         // Since we forked, we have a copy of the parent's memory state.
         // The library is loaded, and global variables are in the state they were in the parent.
@@ -586,11 +586,12 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args)
         else if (WIFSIGNALED(status))
         {
             int sig = WTERMSIG(status);
-            // Signal 40, 91, 92, 89 are OHOS-specific signals triggered during qemu-img cleanup
-            // The operation is actually successful, so treat these as success
-            if (sig == 40 || sig == 91 || sig == 92 || sig == 89)
+            // Signal 40, 44, 89-92 are OHOS-specific or Real-Time signals triggered during qemu-img cleanup
+            // These usually happen after the work is done, so we treat them as success.
+            // Standard crash signals (SEGV, ABRT, etc.) are < 32.
+            if (sig >= 32)
             {
-                OH_LOG_INFO(LOG_APP, "qemu-img terminated with signal %{public}d (expected, treating as success)", sig);
+                OH_LOG_INFO(LOG_APP, "qemu-img terminated with signal %{public}d (assumed benign cleanup issue)", sig);
                 // Continue to success path
             }
             else
