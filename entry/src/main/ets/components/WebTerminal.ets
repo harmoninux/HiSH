@@ -281,9 +281,6 @@ export default struct WebTerminal {
   private onData(ab: ArrayBuffer) {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
-    if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript('exports.clear()');
-    }
     this.webviewController.runJavaScript('exports.write("' + s + '")');
   }
 
