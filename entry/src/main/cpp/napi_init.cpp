@@ -141,7 +141,7 @@ static QemuSystemEntry getQemuSystemEntry()
 
     if (!libQemuHandle)
     {
-        OH_LOG_INFO(LOG_APP, "Failed to load libqemu.so errno: %{public}d", errno);
+        OH_LOG_ERROR(LOG_APP, "Failed to load libqemu.so errno: %{public}d", errno);
     }
 
     qemuSystemEntry = (QemuSystemEntry)dlsym(libQemuHandle, "qemu_system_entry");

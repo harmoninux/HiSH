@@ -491,19 +491,19 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.vmBaseDir, vmBaseDir)
     AppStorage.setOrCreate(appOption.rootfsBaseDir, rootfsBaseDir)
 
-    // ARM 架构检测和内核选择
-    const cpuArchVersion = napi.getCpuArchVersion();
-    AppStorage.setOrCreate(appOption.cpuArchVersion, cpuArchVersion);
-    hilog.info(DOMAIN, 'HiSH', '=== ARM CPU Feature Detection ===');
-    hilog.info(DOMAIN, 'HiSH', 'CPU Arch Version: %{public}s', cpuArchVersion);
-    AppStorage.setOrCreate(appOption.kernel, vmBaseDir + '/kernel_aarch64')
-
     if (!fs.accessSync(vmBaseDir, fs.AccessModeType.EXIST)) {
       fs.mkdirSync(vmBaseDir);
     }
     if (!fs.accessSync(rootfsBaseDir, fs.AccessModeType.EXIST)) {
       fs.mkdirSync(rootfsBaseDir);
     }
+
+    // ARM 架构检测和内核选择
+    const cpuArchVersion = napi.getCpuArchVersion();
+    AppStorage.setOrCreate(appOption.cpuArchVersion, cpuArchVersion);
+    hilog.info(DOMAIN, 'HiSH', '=== ARM CPU Feature Detection ===');
+    hilog.info(DOMAIN, 'HiSH', 'CPU Arch Version: %{public}s', cpuArchVersion);
+    AppStorage.setOrCreate(appOption.kernel, vmBaseDir + '/kernel_aarch64')
 
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
     const lastResourceVersion = await appPref.get(appOption.lastResourceVersion, undefined) as number | undefined
