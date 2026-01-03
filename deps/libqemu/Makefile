@@ -25,7 +25,7 @@ all: download/qemu
 	 --disable-vnc-jpeg --disable-lzo --disable-curses --disable-libnfs --disable-numa --disable-opengl --disable-rbd --disable-vnc-sasl --disable-sdl \
 	 --disable-seccomp --disable-smartcard --disable-snappy --disable-spice --disable-libusb --disable-usb-redir --disable-vde --disable-vhost-net --disable-virglrenderer \
 	 --disable-vte --disable-xen-pci-passthrough --enable-tools --disable-libudev --disable-passt \
-	 --enable-pixman --enable-vnc --enable-slirp --enable-virtfs
+	 --enable-pixman --enable-vnc --enable-slirp --enable-virtfs --enable-virglrenderer
 	cd temp/qemu && make libqemu-system-aarch64.so -j $(shell nproc)
 	cp temp/qemu/pc-bios/efi-virtio.rom ./build
 	cp temp/qemu/build/libqemu-system-aarch64.so ./build
