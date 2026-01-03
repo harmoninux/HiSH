@@ -135,17 +135,61 @@ static QemuSystemEntry getQemuSystemEntry()
         return qemuSystemEntry;
     }
 
-    const char *libQemuPath = "libqemu-system-aarch64.so";
+    // 根据 ARM 架构版本选择对应的 QEMU 库
+    std::string archVersion = detectArmArchVersion();
+    
+    std::string libPathV85 = "/data/storage/el1/bundle/libs/arm64-v8a/libqemu-system-aarch64.so";
+    std::string libPathV82 = "/data/storage/el1/bundle/libs/arm64-v82/libqemu-system-aarch64.so";
+    
+    std::string selectedPath = "";
+    
+    bool hasV85 = (access(libPathV85.c_str(), F_OK) == 0);
+    bool hasV82 = (access(libPathV82.c_str(), F_OK) == 0);
+    
+    if (archVersion == "v85") {
+        // 硬件支持 v85
+        if (hasV85) {
+            selectedPath = libPathV85; // 首选 v85
+        } else if (hasV82) {
+            selectedPath = libPathV82; // 回退到 v82 (兼容)
+            OH_LOG_WARN(LOG_APP, "v85 hardware detected but v85 lib missing, using v82 lib");
+        }
+    } else {
+        // 硬件仅支持 v82 (generic)
+        if (hasV82) {
+            selectedPath = libPathV82; // 首选 v82
+        } else if (hasV85) {
+            selectedPath = libPathV85; // 只有 v85，强制使用 (可能会崩，但满足用户"使用仅有的库"要求)
+            OH_LOG_WARN(LOG_APP, "v82 hardware detected but v82 lib missing, forcing v85 lib (RISK OF CRASH)");
+        }
+    }
+    
+    if (selectedPath.empty()) {
+        OH_LOG_WARN(LOG_APP, "No suitable QEMU library found in specific paths! Falling back to default library name.");
+        selectedPath = "libqemu-system-aarch64.so";
+    }
 
-    void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
+    OH_LOG_INFO(LOG_APP, "Loading QEMU from: %{public}s", selectedPath.c_str());
+
+    void *libQemuHandle = dlopen(selectedPath.c_str(), RTLD_LAZY);
+
+    if (!libQemuHandle)
+    {
+        OH_LOG_ERROR(LOG_APP, "Failed to load libqemu.so from %{public}s, errno: %{public}d, trying default path",
+                     selectedPath.c_str(), errno);
+        // 回退到默认路径
+        libQemuHandle = dlopen("libqemu-system-aarch64.so", RTLD_LAZY);
+    }
 
     if (!libQemuHandle)
     {
         OH_LOG_ERROR(LOG_APP, "Failed to load libqemu.so errno: %{public}d", errno);
+        return nullptr;
     }
 
     qemuSystemEntry = (QemuSystemEntry)dlsym(libQemuHandle, "qemu_system_entry");
-    OH_LOG_INFO(LOG_APP, "libqemu.so, handle: 0x%{public}p, entry: 0x%{public}p", libQemuHandle, qemuSystemEntry);
+    OH_LOG_INFO(LOG_APP, "Library: %{public}s, handle: 0x%{public}p, entry: 0x%{public}p",
+                selectedPath.c_str(), libQemuHandle, qemuSystemEntry);
 
     return qemuSystemEntry;
 }

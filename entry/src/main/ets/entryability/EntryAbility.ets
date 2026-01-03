@@ -503,6 +503,43 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.cpuArchVersion, cpuArchVersion);
     hilog.info(DOMAIN, 'HiSH', '=== ARM CPU Feature Detection ===');
     hilog.info(DOMAIN, 'HiSH', 'CPU Arch Version: %{public}s', cpuArchVersion);
+
+    // 检查 RawFile 中存在的内核文件
+    let hasV85Kernel = false;
+    let hasV82Kernel = false;
+    try {
+      const vmFiles = appContext.resourceManager.getRawFileListSync('vm');
+      hasV85Kernel = vmFiles.includes('kernel_aarch64');
+      hasV82Kernel = vmFiles.includes('kernel_aarch64_v82');
+    } catch (e) {
+      hilog.warn(DOMAIN, 'HiSH', 'Failed to list RawFile/vm: %{public}s', JSON.stringify(e));
+    }
+
+    let kernelResourcePath = '';
+    
+    if (cpuArchVersion === 'v85') {
+      if (hasV85Kernel) {
+        kernelResourcePath = 'vm/kernel_aarch64';
+      } else if (hasV82Kernel) {
+        kernelResourcePath = 'vm/kernel_aarch64_v82';
+        hilog.warn(DOMAIN, 'HiSH', 'v85 CPU but v85 kernel missing, using v82 kernel');
+      }
+    } else {
+      // generic / v82
+      if (hasV82Kernel) {
+        kernelResourcePath = 'vm/kernel_aarch64_v82';
+      } else if (hasV85Kernel) {
+        kernelResourcePath = 'vm/kernel_aarch64';
+        hilog.warn(DOMAIN, 'HiSH', 'v82 CPU but v82 kernel missing, using v85 kernel (RISK)');
+      }
+    }
+
+    if (!kernelResourcePath) {
+      hilog.error(DOMAIN, 'HiSH', 'No suitable kernel found!');
+      kernelResourcePath = 'vm/kernel_aarch64'; // Fallback
+    }
+
+    hilog.info(DOMAIN, 'HiSH', 'Selected Kernel: %{public}s', kernelResourcePath);
     AppStorage.setOrCreate(appOption.kernel, vmBaseDir + '/kernel_aarch64')
 
     const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
@@ -512,7 +549,8 @@ export default class EntryAbility extends UIAbility {
       || lastResourceVersion !== bundleInfo.versionCode
       || bundleInfo.name.startsWith('dev.hackeris')
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
-    this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
+    // 使用根据架构版本选择的内核
+    this.extractVmResourceFile(appContext, kernelResourcePath, 'vm/kernel_aarch64', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
     
     // 确保 keymaps 目录存在
