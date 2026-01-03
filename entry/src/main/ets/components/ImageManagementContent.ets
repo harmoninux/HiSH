@@ -468,6 +468,7 @@ export default struct ImageManagementContent {
       this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_snapshot_create_fail').id) + (e as Error).message
     } finally {
       this.isLoading = false
+      this.unlockTask()
     }
   }
 
