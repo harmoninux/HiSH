@@ -24,6 +24,7 @@
 #include <netinet/in.h>
 #include <setjmp.h>
 #include <libgen.h>
+#include <sys/auxv.h>
 
 #include "hilog/log.h"
 #undef LOG_DOMAIN
@@ -71,6 +72,56 @@ napi_threadsafe_function on_shutdown_callback = nullptr;
 
 std::mutex buffer_mtx;
 std::string temp_buffer = "";
+
+// ================== ARM 架构版本检测 ==================
+// HWCAP 常量定义（参考 Linux asm/hwcap.h）
+#ifndef HWCAP_ATOMICS
+#define HWCAP_ATOMICS (1 << 8) // LSE (Large System Extensions)
+#endif
+#ifndef HWCAP_SHA3
+#define HWCAP_SHA3 (1 << 17) // SHA3
+#endif
+#ifndef HWCAP_SM4
+#define HWCAP_SM4 (1 << 19) // SM4
+#endif
+#ifndef HWCAP_ASIMDDP
+#define HWCAP_ASIMDDP (1 << 20) // ASIMD dot product (DotProd)
+#endif
+#ifndef HWCAP_LRCPC
+#define HWCAP_LRCPC (1 << 15) // RCPC (Release Consistent processor consistent)
+#endif
+
+// 全局 ARM 架构版本缓存
+static std::string g_cpuArchVersion = "";
+
+// 检测 ARM 架构版本
+// 返回 "v85" 表示支持 ARMv8.5 所有特性，返回 "generic" 表示 ARMv8.2 兼容模式
+static std::string detectArmArchVersion()
+{
+    if (!g_cpuArchVersion.empty())
+    {
+        return g_cpuArchVersion;
+    }
+
+    unsigned long hwcap = getauxval(AT_HWCAP);
+
+    bool hasAtomics = (hwcap & HWCAP_ATOMICS) != 0;
+    bool hasSha3 = (hwcap & HWCAP_SHA3) != 0;
+    bool hasSm4 = (hwcap & HWCAP_SM4) != 0;
+    bool hasAsimddp = (hwcap & HWCAP_ASIMDDP) != 0;
+    bool hasLrcpc = (hwcap & HWCAP_LRCPC) != 0;
+
+    bool isV85 = hasAtomics && hasSha3 && hasSm4 && hasAsimddp && hasLrcpc;
+
+    OH_LOG_INFO(LOG_APP, "=== ARM CPU Feature Detection ===");
+    OH_LOG_INFO(LOG_APP, "HWCAP: 0x%{public}lx", hwcap);
+    OH_LOG_INFO(LOG_APP, "Features: Atomics=%{public}d, SHA3=%{public}d, SM4=%{public}d, DotProd=%{public}d, RCPC=%{public}d",
+                hasAtomics, hasSha3, hasSm4, hasAsimddp, hasLrcpc);
+    OH_LOG_INFO(LOG_APP, "Detected: %{public}s", isV85 ? "v85" : "generic");
+
+    g_cpuArchVersion = isV85 ? "v85" : "generic";
+    return g_cpuArchVersion;
+}
 
 typedef int (*QemuSystemEntry)(int, const char **);
 
@@ -1374,6 +1425,17 @@ static napi_value checkPortUsed(napi_env env, napi_callback_info info)
     }
 }
 
+// NAPI 函数：获取 CPU 架构版本
+// 返回 "v85" 或 "generic"
+static napi_value getCpuArchVersion(napi_env env, napi_callback_info info)
+{
+    std::string version = detectArmArchVersion();
+
+    napi_value result;
+    napi_create_string_utf8(env, version.c_str(), NAPI_AUTO_LENGTH, &result);
+    return result;
+}
+
 // 杀死 QEMU 子进程 (PC 模式下使用)
 // 接受一个参数: pidFilePath (PID 文件路径)
 static napi_value killQemuProcess(napi_env env, napi_callback_info info)
@@ -1593,7 +1655,9 @@ static napi_value Init(napi_env env, napi_value exports)
         {"optimizeImage", nullptr, optimizeImage, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"needRestart", nullptr, needRestart, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"killQemuProcess", nullptr, killQemuProcess, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"checkQemuAlive", nullptr, checkQemuAlive, nullptr, nullptr, nullptr, napi_default, nullptr}};
+        {"checkQemuAlive", nullptr, checkQemuAlive, nullptr, nullptr, nullptr, napi_default, nullptr},
+        // ARM 架构版本检测
+        {"getCpuArchVersion", nullptr, getCpuArchVersion, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
 }

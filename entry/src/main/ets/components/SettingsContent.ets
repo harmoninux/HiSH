@@ -41,6 +41,7 @@ export default struct SettingsContent {
   @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
+  @StorageProp(appOption.cpuArchVersion) cpuArchVersion: string = ''
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -308,6 +309,13 @@ export default struct SettingsContent {
         .fontSize(14)
         .fontColor('#ccc')
         .margin({ top: 5 })
+
+      Text(this.cpuArchVersion === 'v85'
+        ? 'Compatible ARMv8.5'
+        : 'Compatible ARMv8.2')
+        .fontSize(12)
+        .fontColor('#888888')
+        .margin({ top: 20 })
     }
     .width('100%')
   }
