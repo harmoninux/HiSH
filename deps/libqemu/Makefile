@@ -23,7 +23,7 @@ all: download/qemu
 	 --disable-bsd-user --disable-guest-agent --disable-gcrypt --disable-debug-info --disable-debug-tcg --enable-attr --disable-brlapi --disable-linux-aio \
 	 --disable-bzip2 --disable-cap-ng --disable-curl --disable-glusterfs --disable-gnutls --disable-nettle --disable-gtk --disable-rdma --disable-libiscsi \
 	 --disable-vnc-jpeg --disable-lzo --disable-curses --disable-libnfs --disable-numa --disable-rbd --disable-vnc-sasl --disable-sdl \
-	 --disable-seccomp --disable-smartcard --disable-snappy --disable-spice --disable-libusb --disable-usb-redir --disable-vde --disable-vhost-net --disable-virglrenderer \
+	 --disable-seccomp --disable-smartcard --disable-snappy --disable-spice --disable-libusb --disable-usb-redir --disable-vde --disable-vhost-net \
 	 --disable-vte --disable-xen-pci-passthrough --enable-tools --disable-libudev --disable-passt \
 	 --enable-pixman --enable-vnc --enable-slirp --enable-virtfs --enable-virglrenderer --enable-opengl
 	cd temp/qemu && make libqemu-system-aarch64.so -j $(shell nproc)
