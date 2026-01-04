@@ -1635,6 +1635,38 @@
     {
       "name": "msg_vm_in_pause",
       "value": "There is a paused VM. Please resume or shut it down first."
+    },
+    {
+      "name": "setting_terminal_effects",
+      "value": "Terminal Effects"
+    },
+    {
+      "name": "setting_terminal_effects_desc",
+      "value": "Enable terminal visual effects"
+    },
+    {
+      "name": "setting_terminal_transparency",
+      "value": "Transparency"
+    },
+    {
+      "name": "setting_terminal_transparency_desc",
+      "value": "0% transparent, 100% opaque"
+    },
+    {
+      "name": "setting_terminal_screensaver",
+      "value": "Screensaver Timeout"
+    },
+    {
+      "name": "setting_terminal_screensaver_desc",
+      "value": "Seconds to wait before enabling screensaver (0 to disable)"
+    },
+    {
+      "name": "setting_terminal_screensaver_unit",
+      "value": "s"
+    },
+    {
+      "name": "setting_terminal_screensaver_error",
+      "value": "Please enter an integer between 0 and 3600"
     }
   ]
 }

@@ -3,10 +3,11 @@
 var term = new Terminal({
     cursorBlink: true,
     allowProposedApi: true, // Needed for some addons
+    allowTransparency: true,
     fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
     fontSize: 14, // Default, will be overridden by native.getFontSize()
     theme: {
-        background: '#000000',
+        background: 'rgba(0, 0, 0, 1)',
         foreground: '#cccccc',
         cursor: '#cccccc'
     }
@@ -98,7 +99,96 @@ window.onload = function () {
     if (native && native.load) {
         native.load();
     }
+
+    // Initialize Matrix Rain
+    matrixRain = new MatrixRain('matrix');
+    resetScreensaverTimer();
 };
+
+// Matrix Rain Implementation
+class MatrixRain {
+    constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.drops = [];
+        this.fontSize = 14;
+        this.columns = 0;
+        this.interval = null;
+        this.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:\'",./<>?';
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.columns = this.canvas.width / this.fontSize;
+        this.drops = [];
+        for (let x = 0; x < this.columns; x++) {
+            this.drops[x] = 1;
+        }
+    }
+
+    draw() {
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.fillStyle = '#0F0'; // Green text
+        this.ctx.font = this.fontSize + 'px monospace';
+
+        for (let i = 0; i < this.drops.length; i++) {
+            const text = this.chars.charAt(Math.floor(Math.random() * this.chars.length));
+            this.ctx.fillText(text, i * this.fontSize, this.drops[i] * this.fontSize);
+
+            if (this.drops[i] * this.fontSize > this.canvas.height && Math.random() > 0.975) {
+                this.drops[i] = 0;
+            }
+            this.drops[i]++;
+        }
+    }
+
+    start() {
+        if (!this.interval) {
+            this.canvas.style.display = 'block';
+            this.interval = setInterval(() => this.draw(), 33);
+        }
+    }
+
+    stop() {
+        if (this.interval) {
+            clearInterval(this.interval);
+            this.interval = null;
+            this.canvas.style.display = 'none';
+        }
+    }
+}
+
+let matrixRain = null;
+let terminalEffectsEnabled = false;
+let screensaverTimeoutValue = 0;
+let screensaverTimer = null;
+let currentTransparency = 1;
+
+function resetScreensaverTimer() {
+    if (screensaverTimer) clearTimeout(screensaverTimer);
+
+    // If effects are enabled (always-on), start rain immediately
+    if (terminalEffectsEnabled) {
+        if (matrixRain) matrixRain.start();
+        return;
+    }
+
+    // If effects are disabled but screensaver is set, wait for timeout
+    if (screensaverTimeoutValue > 0) {
+        if (matrixRain) matrixRain.stop(); // Stop rain while active
+        screensaverTimer = setTimeout(() => {
+            if (matrixRain) matrixRain.start();
+        }, screensaverTimeoutValue * 1000);
+    } else {
+        // Both disabled
+        if (matrixRain) matrixRain.stop();
+    }
+}
 
 function syncPrefs() {
     try {
@@ -114,6 +204,18 @@ function syncPrefs() {
             const shape = native.getCursorShape();
             if (shape) exports.setCursorShape(shape); // Use our adapter logic
         }
+        if (native.getTerminalEffects) {
+            const effects = native.getTerminalEffects();
+            exports.setTerminalEffects(effects);
+        }
+        if (native.getTerminalTransparency) {
+            const transparency = native.getTerminalTransparency();
+            exports.setTerminalTransparency(transparency);
+        }
+        if (native.getTerminalScreensaver) {
+            const screensaver = native.getTerminalScreensaver();
+            exports.setTerminalScreensaver(screensaver);
+        }
     } catch (e) {
         console.warn("Failed to sync prefs", e);
     }
@@ -122,6 +224,7 @@ function syncPrefs() {
 function setupEventListeners() {
     // 1. Input from User (Keyboard/Mouse) -> Send to VM
     term.onData(data => {
+        resetScreensaverTimer(); // Reset screensaver on input
         // Pass data directly to native (matching original hterm behavior)
         if (native && native.sendInput) {
             native.sendInput(data);
@@ -266,6 +369,25 @@ exports.setCursorShape = (shape) => {
 
 exports.setCursorBlink = (blink) => {
     term.options.cursorBlink = blink;
+};
+
+exports.setTerminalEffects = (enabled) => {
+    terminalEffectsEnabled = enabled;
+    resetScreensaverTimer();
+};
+
+exports.setTerminalTransparency = (alpha) => {
+    // alpha is 0-100
+    currentTransparency = alpha / 100;
+    term.options.theme = {
+        ...term.options.theme,
+        background: `rgba(0, 0, 0, ${currentTransparency})`
+    };
+};
+
+exports.setTerminalScreensaver = (timeout) => {
+    screensaverTimeoutValue = timeout;
+    resetScreensaverTimer();
 };
 
 // Mock hterm.openUrl for compatibility if something calls it directly

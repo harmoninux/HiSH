@@ -40,6 +40,9 @@ export default struct WebTerminal {
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
+  @Watch('onTermEffectsChanged') @StorageProp(appOption.terminalEffects) termEffects: boolean = false
+  @Watch('onTermTransparencyChanged') @StorageProp(appOption.terminalTransparency) termTransparency: number = 100
+  @Watch('onTermScreensaverChanged') @StorageProp(appOption.terminalScreensaver) termScreensaver: number = 0
   @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
@@ -201,6 +204,7 @@ export default struct WebTerminal {
             name: 'native',
             methodList: ['sendInput', 'resize', 'load',
               'getFontSize', 'getCursorShape', 'getCursorBlink',
+              'getTerminalEffects', 'getTerminalTransparency', 'getTerminalScreensaver',
               'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift', 'getDeviceType'],
             controller: this.webviewController,
             asyncMethodList: ['pasteFromClipboard'],
@@ -514,6 +518,18 @@ export default struct WebTerminal {
     return this.cursorBlink
   }
 
+  getTerminalEffects(): boolean {
+    return this.termEffects
+  }
+
+  getTerminalTransparency(): number {
+    return this.termTransparency
+  }
+
+  getTerminalScreensaver(): number {
+    return this.termScreensaver
+  }
+
   getDeviceType(): string {
     return deviceInfo.deviceType;
   }
@@ -528,6 +544,18 @@ export default struct WebTerminal {
 
   onCursorBlinkChanged() {
     this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
+  }
+
+  onTermEffectsChanged() {
+    this.webviewController.runJavaScript(`exports.setTerminalEffects(${this.termEffects})`)
+  }
+
+  onTermTransparencyChanged() {
+    this.webviewController.runJavaScript(`exports.setTerminalTransparency(${this.termTransparency})`)
+  }
+
+  onTermScreensaverChanged() {
+    this.webviewController.runJavaScript(`exports.setTerminalScreensaver(${this.termScreensaver})`)
   }
 
   // Ctrl+Insert 复制选中文本到剪贴板
