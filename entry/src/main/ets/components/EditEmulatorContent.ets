@@ -327,30 +327,34 @@ export default struct EditEmulatorContent {
 
   private portMappingError(): string | undefined {
     let mappings = this.portMappingItems.map(it => it.model)
-    let i = mappings
-      .findIndex(it => {
-        return !(it.guest && it.host)
-      })
-    if (i >= 0) {
-      const temp = this.getResourceString('setting_incomplete_port_mapping')
-      return util.format(temp, (i + 1))
+    
+    for (let i = 0; i < mappings.length; i++) {
+      const m = mappings[i]
+      if (!m.guest || !m.host) {
+        const temp = this.getResourceString('err_port_mapping_incomplete')
+        return util.format(temp, (i + 1))
+      }
+      if ((m.host || 0) <= 1000) {
+        const temp = this.getResourceString('err_port_mapping_host_port')
+        return util.format(temp, i + 1, m.host)
+      }
     }
-
-    i = mappings
-      .findIndex(it => {
-        return (it.host || 0) <= 1000
-      })
-    if (i >= 0) {
-      const temp = this.getResourceString('setting_port_should_larger')
-      return util.format(temp, (i + 1))
+    
+    // 检查重复
+    const guestPorts = mappings.map(it => it.guest)
+    const hostPorts = mappings.map(it => it.host)
+    const dupGuest = guestPorts.find((p, i) => guestPorts.indexOf(p) !== i)
+    const dupHost = hostPorts.find((p, i) => hostPorts.indexOf(p) !== i)
+    
+    if (dupGuest) {
+      const temp = this.getResourceString('err_port_duplicate_guest')
+      return util.format(temp, dupGuest)
     }
-
-    const guestPorts = new Set(mappings.map(it => it.guest))
-    const hostPorts = new Set(mappings.map(it => it.host))
-    if (guestPorts.size < mappings.length || hostPorts.size < mappings.length) {
-      return this.getResourceString('setting_duplicated_port')
+    if (dupHost) {
+      const temp = this.getResourceString('err_port_duplicate_host')
+      return util.format(temp, dupHost)
     }
-
+    
     return undefined
   }
 

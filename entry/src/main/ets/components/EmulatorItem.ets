@@ -1,5 +1,5 @@
 import { Emulator } from '../model/Emulator';
-import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
+import { readQcow2VirtualSizeAsync } from '../lib/readQcow2VirtualSize';
 import appOption from '../model/appOption';
 import { util } from '@kit.ArkTS';
 
@@ -21,8 +21,12 @@ export default struct EmulatorItem {
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
 
   aboutToAppear(): void {
+    this.loadStorageSizeAsync()
+  }
+
+  private async loadStorageSizeAsync(): Promise<void> {
     const rootfsPath = this.emulator.rootFilesystem
-    const virtualSize = readQcow2VirtualSize(rootfsPath)
+    const virtualSize = await readQcow2VirtualSizeAsync(rootfsPath)
     this.storageSize = virtualSize / (1024 * 1024 * 1024)
   }
 
@@ -35,7 +39,8 @@ export default struct EmulatorItem {
           .ellipsisMode(EllipsisMode.END)
           .maxLines(1)
           .layoutWeight(1)
-        if (this.isRunning) {
+        if (this.isRunning && this.currentStatus !== 'SHUTDOWN') {
+          // 运行中（未关机）：显示状态 + 电源管理 + 镜像管理
           Text(this.getStatusText())
             .fontSize($r('sys.float.Body_M'))
             .fontColor(this.getStatusColor())
@@ -48,10 +53,41 @@ export default struct EmulatorItem {
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onImageManage(this.emulator))
             .height(20)
-        } else {
+        } else if (this.isRunning && this.currentStatus === 'SHUTDOWN') {
+          // 已关机但仍是当前运行模拟器：显示已关机状态 + 运行按钮
+          Text(this.getStatusText())
+            .fontSize($r('sys.float.Body_M'))
+            .fontColor(this.getStatusColor())
+            .height(20)
           Button($r('app.string.btn_run'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
-            .onClick(() => this.onStart(this.emulator))
+            .onClick(() => {
+              if (this.currentStatus === 'PAUSED') {
+                this.getUIContext().getPromptAction().showToast({
+                  message: getContext(this).resourceManager.getStringSync($r('app.string.msg_vm_in_pause').id)
+                })
+                return
+              }
+              this.onStart(this.emulator)
+            })
+            .height(20)
+          Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => this.onImageManage(this.emulator))
+            .height(20)
+        } else {
+          // 非当前运行模拟器：显示运行 + 镜像管理
+          Button($r('app.string.btn_run'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .fontSize($r('sys.float.Body_M'))
+            .onClick(() => {
+              if (this.currentStatus === 'PAUSED') {
+                this.getUIContext().getPromptAction().showToast({
+                  message: getContext(this).resourceManager.getStringSync($r('app.string.msg_vm_in_pause').id)
+                })
+                return
+              }
+              this.onStart(this.emulator)
+            })
             .height(20)
           Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))

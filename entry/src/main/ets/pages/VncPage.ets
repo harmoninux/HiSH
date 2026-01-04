@@ -1,5 +1,5 @@
 import { webview } from '@kit.ArkWeb';
-import { router } from '@kit.ArkUI';
+import { router, window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
@@ -8,11 +8,106 @@ interface VncPageParams {
   vncPort?: number
 }
 
+// Class for JS Bridge to handle fullscreen
+class NativeBridge {
+  private page: VncPage;
+
+  constructor(page: VncPage) {
+    this.page = page;
+  }
+
+  async enterFullscreen(): Promise<void> {
+    hilog.info(DOMAIN, 'VncPage', 'enterFullscreen called from JS');
+    try {
+      const win = await window.getLastWindow(getContext(this.page));
+      
+      // First maximize the window
+      await win.maximize();
+      hilog.info(DOMAIN, 'VncPage', 'Window maximized');
+      
+      // Set full screen layout
+      await win.setWindowLayoutFullScreen(true);
+      hilog.info(DOMAIN, 'VncPage', 'Window layout full screen enabled');
+      
+      // Use setSpecificSystemBarEnabled to hide system bars (API 11+)
+      try {
+        await win.setSpecificSystemBarEnabled('status', false);
+        hilog.info(DOMAIN, 'VncPage', 'Status bar hidden via setSpecificSystemBarEnabled');
+      } catch (e) {
+        hilog.warn(DOMAIN, 'VncPage', 'setSpecificSystemBarEnabled(status) failed: %{public}s', JSON.stringify(e));
+      }
+      
+      try {
+        await win.setSpecificSystemBarEnabled('navigationIndicator', false);
+        hilog.info(DOMAIN, 'VncPage', 'Navigation indicator hidden via setSpecificSystemBarEnabled');
+      } catch (e) {
+        hilog.warn(DOMAIN, 'VncPage', 'setSpecificSystemBarEnabled(navigationIndicator) failed: %{public}s', JSON.stringify(e));
+      }
+      
+      // Try to hide window decoration (title bar and borders)
+      try {
+        await win.setWindowDecorVisible(false);
+        hilog.info(DOMAIN, 'VncPage', 'Window decoration hidden');
+      } catch (e) {
+        hilog.warn(DOMAIN, 'VncPage', 'setWindowDecorVisible failed: %{public}s', JSON.stringify(e));
+      }
+      
+      this.page.setFullscreen(true);
+      hilog.info(DOMAIN, 'VncPage', 'Entered fullscreen successfully');
+    } catch (e) {
+      hilog.error(DOMAIN, 'VncPage', 'Failed to enter fullscreen: %{public}s', JSON.stringify(e));
+    }
+  }
+
+  async exitFullscreen(): Promise<void> {
+    hilog.info(DOMAIN, 'VncPage', 'exitFullscreen called from JS');
+    try {
+      const win = await window.getLastWindow(getContext(this.page));
+      
+      // Exit full screen layout
+      await win.setWindowLayoutFullScreen(false);
+      
+      // NOTE: Do NOT restore window decoration here!
+      // The app is designed to be borderless (setWindowDecorVisible(false) in EntryAbility)
+      // Calling setWindowDecorVisible(true) would override that setting
+      
+      // Restore system bars
+      try {
+        await win.setSpecificSystemBarEnabled('status', true);
+        await win.setSpecificSystemBarEnabled('navigationIndicator', true);
+      } catch (e) {
+        hilog.warn(DOMAIN, 'VncPage', 'setSpecificSystemBarEnabled restore failed: %{public}s', JSON.stringify(e));
+      }
+      
+      this.page.setFullscreen(false);
+      hilog.info(DOMAIN, 'VncPage', 'Exited fullscreen successfully');
+    } catch (e) {
+      hilog.error(DOMAIN, 'VncPage', 'Failed to exit fullscreen: %{public}s', JSON.stringify(e));
+    }
+  }
+
+  isFullscreen(): boolean {
+    const result = this.page.getFullscreen();
+    hilog.info(DOMAIN, 'VncPage', 'isFullscreen called, returning: %{public}s', String(result));
+    return result;
+  }
+}
+
 @Entry
 @Component
 struct VncPage {
   controller: webview.WebviewController = new webview.WebviewController();
-  @State vncPort: number = 60000; // 默认值，实际应从参数获取
+  @State vncPort: number = 60000;
+  @State isFullscreenState: boolean = false;
+  private nativeBridge: NativeBridge = new NativeBridge(this);
+
+  setFullscreen(value: boolean): void {
+    this.isFullscreenState = value;
+  }
+
+  getFullscreen(): boolean {
+    return this.isFullscreenState;
+  }
 
   aboutToAppear() {
     const params = router.getParams() as VncPageParams;
@@ -23,7 +118,7 @@ struct VncPage {
 
   build() {
     Column() {
-      // 顶部工具栏
+      // 顶部工具栏 (全屏时隐藏)
       Row() {
         Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
           SymbolGlyph($r('sys.symbol.arrow_left'))
@@ -52,12 +147,20 @@ struct VncPage {
       .height(48)
       .padding({ left: 8, right: 8 })
       .backgroundColor($r('sys.color.background_primary'))
+      .visibility(this.isFullscreenState ? Visibility.None : Visibility.Visible)
 
       // noVNC WebView
       Web({ src: 'http://localhost/vnc.html?autoconnect=true&resize=scale&encrypt=false&path=&host=127.0.0.1&port=' + this.vncPort, controller: this.controller })
         .domStorageAccess(true)
         .javaScriptAccess(true)
         .mixedMode(MixedMode.All)
+        .javaScriptProxy({
+          object: this.nativeBridge,
+          name: 'native',
+          methodList: ['enterFullscreen', 'exitFullscreen', 'isFullscreen'],
+          controller: this.controller
+        })
+        .backgroundColor('#000000')
         .onConsole((event) => {
           if (event) {
             hilog.info(DOMAIN, 'VncPage', 'WebView Console: %{public}s', event.message.getMessage());
@@ -111,6 +214,7 @@ struct VncPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.background_primary'))
+    .backgroundColor('#000000')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }

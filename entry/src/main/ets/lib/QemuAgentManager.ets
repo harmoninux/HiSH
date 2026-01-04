@@ -218,14 +218,33 @@ class QemuAgentManagerImpl {
     
     this.isProcessing = true
     
-    const request = this.waitQueue.shift()
-    if (request) {
-      hilog.info(DOMAIN, 'AgentManager', '处理队列请求: %{public}s', request.userId)
-      const agent = await this.createConnection(request.userId)
-      request.resolve(agent)
+    try {
+      // 循环处理，直到有用户成功连接或队列为空
+      while (this.waitQueue.length > 0 && !this.currentUser) {
+        const request = this.waitQueue.shift()
+        if (request) {
+          hilog.info(DOMAIN, 'AgentManager', '处理队列请求: %{public}s', request.userId)
+          const agent = await this.createConnection(request.userId)
+          
+          if (agent) {
+             // 连接成功，currentUser 已在 createConnection 中设置
+             request.resolve(agent)
+             // 循环结束，currentUser 不为空
+          } else {
+             // 连接失败，继续处理下一个请求
+             hilog.warn(DOMAIN, 'AgentManager', '%{public}s 连接失败，尝试下一个请求', request.userId)
+             request.resolve(null)
+          }
+        }
+      }
+    } finally {
+      this.isProcessing = false
+      
+      // 如果还有等待的请求且当前无用户，继续尝试（递归保护）
+      if (this.waitQueue.length > 0 && !this.currentUser && !this.isProcessing) {
+        this.processQueue()
+      }
     }
-    
-    this.isProcessing = false
   }
   
   /**

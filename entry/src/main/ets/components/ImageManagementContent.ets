@@ -766,10 +766,27 @@ export default struct ImageManagementContent {
       const newStat = await fs.stat(tempPath)
       const newSize = newStat.size
       
-      // 替换原文件
+      // 替换原文件 (事务性安全替换)
+      const backupPath = `${basicInfo.path}.bak`
       try {
-        await fs.unlink(basicInfo.path)
-        await fs.rename(tempPath, basicInfo.path)
+        // Step 1: 备份原文件
+        await fs.rename(basicInfo.path, backupPath)
+        
+        // Step 2: 将临时文件移动到目标位置
+        try {
+          await fs.rename(tempPath, basicInfo.path)
+          
+          // Step 3: 成功后删除备份
+          await fs.unlink(backupPath)
+          
+        } catch (renameError) {
+          // 重命名失败，回滚：恢复原文件
+          hilog.error(DOMAIN, 'ImageManagement', '重命名失败，正在回滚: %{public}s', JSON.stringify(renameError))
+          await fs.rename(backupPath, basicInfo.path)
+          // 清理临时文件
+          try { await fs.unlink(tempPath) } catch (unlinkErr) { /* 忽略 */ }
+          throw new Error((renameError as Error).message || getContext(this).resourceManager.getStringSync($r('app.string.err_rename_failed').id))
+        }
       } catch (e) {
         this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_replace_file_fail').id) + (e as Error).message
         return
