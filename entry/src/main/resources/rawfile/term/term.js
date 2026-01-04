@@ -41,19 +41,44 @@ window.term = term;
 // Main initialization function
 window.onload = function () {
     term.open(document.getElementById('terminal'));
-
-    // Try to load WebGL, fallback to Canvas if it fails
+    // Try to load WebGL only on non-mobile devices (to avoid mirroring issues)
+    let shouldEnableWebGL = true;
     try {
-        webglAddon.onContextLoss(e => {
-            webglAddon.dispose();
-        });
-        term.loadAddon(webglAddon);
-        console.log("WebGL renderer loaded");
+        if (native && native.getDeviceType) {
+            const deviceType = native.getDeviceType();
+            // phone and tablet often have mirroring issues with WebGL in WebView
+            if (deviceType === 'phone' || deviceType === 'tablet') {
+                shouldEnableWebGL = false;
+                console.log("Mobile device detected, disabling WebGL to avoid mirroring issues");
+            }
+        }
     } catch (e) {
-        console.warn("WebGL renderer failed to load, falling back to canvas", e);
+        console.warn("Failed to detect device type", e);
     }
 
-    fitAddon.fit();
+    if (shouldEnableWebGL) {
+        try {
+            webglAddon.onContextLoss(e => {
+                webglAddon.dispose();
+            });
+            term.loadAddon(webglAddon);
+            console.log("WebGL renderer loaded");
+
+            // Experimental fix for mirroring on mobile
+            if (deviceType === 'phone' || deviceType === 'tablet') {
+                const termEl = document.getElementById('terminal');
+                termEl.classList.add('webgl-mobile-fix');
+                setupMirroredInputFix(termEl);
+            }
+        } catch (e) {
+            console.warn("WebGL renderer failed to load, falling back to canvas", e);
+        }
+    }
+
+    // Initial fit with a slight delay to ensure container is ready
+    setTimeout(() => {
+        fitAddon.fit();
+    }, 100);
 
     // Sync preferences from native
     syncPrefs();
@@ -120,8 +145,52 @@ function setupEventListeners() {
 
     // 4. Handle Window Resize
     window.addEventListener('resize', () => {
-        fitAddon.fit();
+        setTimeout(() => fitAddon.fit(), 100);
     });
+
+    // 5. Prevent default browser behaviors that might interfere
+    document.addEventListener('keydown', (e) => {
+        // Allow some system shortcuts if needed, but generally intercept
+        if (e.ctrlKey || e.altKey || (e.keyCode >= 112 && e.keyCode <= 123)) {
+            // Let xterm handle it or prevent default
+        }
+    }, { passive: false });
+
+    // Prevent scrolling/bouncing on mobile
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 1) return; // Allow pinch zoom if not handled by CSS
+        e.preventDefault();
+    }, { passive: false });
+}
+
+// Fix for mouse/touch coordinates when the terminal is visually flipped
+function setupMirroredInputFix(termEl) {
+    const fixEvent = (e) => {
+        if (!termEl.classList.contains('webgl-mobile-fix')) return;
+
+        // If the event was already fixed, skip
+        if (e._fixed) return;
+
+        const rect = termEl.getBoundingClientRect();
+        let clientY = e.clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientY = e.touches[0].clientY;
+        }
+
+        // Calculate relative Y and flip it
+        const relativeY = clientY - rect.top;
+        const flippedY = rect.height - relativeY;
+        const newClientY = rect.top + flippedY;
+
+        // We can't easily modify clientY of a native event, 
+        // but xterm.js uses offsetX/offsetY or calculates from clientX/Y.
+        // This is a complex area. A simpler way is to use a proxy element or 
+        // just warn the user that touch selection might be inverted.
+        console.log("Input coordinates might need inversion due to WebGL fix");
+    };
+
+    // termEl.addEventListener('mousedown', fixEvent, true);
+    // termEl.addEventListener('touchstart', fixEvent, true);
 }
 
 // --- Implementation of exports matching term.js.bak ---
@@ -150,10 +219,13 @@ exports.copy = () => {
 
 exports.clearScrollback = () => {
     term.clear();
-    // Legacy hack for screen flicker?
-    // term.setHeight... 
-    // We probably don't need it with xterm, but force a fit might be good.
-    fitAddon.fit();
+    // Legacy hack for screen flicker/black screen on real devices
+    const oldHeight = document.getElementById('terminal').style.height;
+    document.getElementById('terminal').style.height = '99%';
+    setTimeout(() => {
+        document.getElementById('terminal').style.height = oldHeight || '100%';
+        fitAddon.fit();
+    }, 50);
 };
 
 exports.getSize = () => {

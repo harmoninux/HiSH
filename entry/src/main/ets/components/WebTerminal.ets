@@ -201,7 +201,7 @@ export default struct WebTerminal {
             name: 'native',
             methodList: ['sendInput', 'resize', 'load',
               'getFontSize', 'getCursorShape', 'getCursorBlink',
-              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift'],
+              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift', 'getDeviceType'],
             controller: this.webviewController,
             asyncMethodList: ['pasteFromClipboard'],
             permission: `{
@@ -510,6 +510,10 @@ export default struct WebTerminal {
 
   getCursorBlink(): boolean | null {
     return this.cursorBlink
+  }
+
+  getDeviceType(): string {
+    return deviceInfo.deviceType;
   }
 
   onFontSizeChanged() {
