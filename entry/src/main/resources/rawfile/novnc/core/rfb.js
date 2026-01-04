@@ -38,7 +38,7 @@ import JPEGDecoder from "./decoders/jpeg.js";
 
 // How many seconds to wait for a disconnect to finish
 const DISCONNECT_TIMEOUT = 3;
-const DEFAULT_BACKGROUND = 'rgb(40, 40, 40)';
+const DEFAULT_BACKGROUND = 'rgb(0, 0, 0)';
 
 // Minimum wait (ms) between two mouse moves
 const MOUSE_MOVE_DELAY = 17;
@@ -54,35 +54,35 @@ const DOUBLE_TAP_TIMEOUT = 1000;
 const DOUBLE_TAP_THRESHOLD = 50;
 
 // Security types
-const securityTypeNone              = 1;
-const securityTypeVNCAuth           = 2;
-const securityTypeRA2ne             = 6;
-const securityTypeTight             = 16;
-const securityTypeVeNCrypt          = 19;
-const securityTypeXVP               = 22;
-const securityTypeARD               = 30;
-const securityTypeMSLogonII         = 113;
+const securityTypeNone = 1;
+const securityTypeVNCAuth = 2;
+const securityTypeRA2ne = 6;
+const securityTypeTight = 16;
+const securityTypeVeNCrypt = 19;
+const securityTypeXVP = 22;
+const securityTypeARD = 30;
+const securityTypeMSLogonII = 113;
 
 // Special Tight security types
-const securityTypeUnixLogon         = 129;
+const securityTypeUnixLogon = 129;
 
 // VeNCrypt security types
-const securityTypePlain             = 256;
+const securityTypePlain = 256;
 
 // Extended clipboard pseudo-encoding formats
-const extendedClipboardFormatText   = 1;
+const extendedClipboardFormatText = 1;
 /*eslint-disable no-unused-vars */
-const extendedClipboardFormatRtf    = 1 << 1;
-const extendedClipboardFormatHtml   = 1 << 2;
-const extendedClipboardFormatDib    = 1 << 3;
-const extendedClipboardFormatFiles  = 1 << 4;
+const extendedClipboardFormatRtf = 1 << 1;
+const extendedClipboardFormatHtml = 1 << 2;
+const extendedClipboardFormatDib = 1 << 3;
+const extendedClipboardFormatFiles = 1 << 4;
 /*eslint-enable */
 
 // Extended clipboard pseudo-encoding actions
-const extendedClipboardActionCaps    = 1 << 24;
+const extendedClipboardActionCaps = 1 << 24;
 const extendedClipboardActionRequest = 1 << 25;
-const extendedClipboardActionPeek    = 1 << 26;
-const extendedClipboardActionNotify  = 1 << 27;
+const extendedClipboardActionPeek = 1 << 26;
+const extendedClipboardActionNotify = 1 << 27;
 const extendedClipboardActionProvide = 1 << 28;
 
 export default class RFB extends EventTargetMixin {
@@ -326,7 +326,7 @@ export default class RFB extends EventTargetMixin {
         }
         this._clippingViewport = on;
         this.dispatchEvent(new CustomEvent("clippingviewport",
-                                           { detail: this._clippingViewport }));
+            { detail: this._clippingViewport }));
     }
 
     get touchButton() { return 0; }
@@ -641,7 +641,7 @@ export default class RFB extends EventTargetMixin {
             Log.Debug("Starting VNC handshake");
         } else {
             this._fail("Unexpected server connection while " +
-                       this._rfbConnectionState);
+                this._rfbConnectionState);
         }
     }
 
@@ -670,11 +670,11 @@ export default class RFB extends EventTargetMixin {
                 break;
             case 'disconnected':
                 this._fail("Unexpected server disconnect " +
-                           "when already disconnected " + msg);
+                    "when already disconnected " + msg);
                 break;
             default:
                 this._fail("Unexpected server disconnect before connecting " +
-                           msg);
+                    msg);
                 break;
         }
         this._sock.off('close');
@@ -761,7 +761,7 @@ export default class RFB extends EventTargetMixin {
             this._display.viewportChangeSize(size.w, size.h);
             this._fixScrollbars();
             this._setClippingViewport(size.w < this._display.width ||
-                                      size.h < this._display.height);
+                size.h < this._display.height);
         } else {
             this._setClippingViewport(false);
         }
@@ -797,11 +797,11 @@ export default class RFB extends EventTargetMixin {
         const size = this._screenSize();
 
         RFB.messages.setDesktopSize(this._sock,
-                                    Math.floor(size.w), Math.floor(size.h),
-                                    this._screenID, this._screenFlags);
+            Math.floor(size.w), Math.floor(size.h),
+            this._screenID, this._screenFlags);
 
         Log.Debug('Requested new desktop size: ' +
-                   size.w + 'x' + size.h);
+            size.w + 'x' + size.h);
     }
 
     // Gets the the size of the available screen
@@ -849,7 +849,7 @@ export default class RFB extends EventTargetMixin {
             case 'connected':
                 if (oldstate !== 'connecting') {
                     Log.Error("Bad transition to connected state, " +
-                               "previous connection state: " + oldstate);
+                        "previous connection state: " + oldstate);
                     return;
                 }
                 break;
@@ -857,7 +857,7 @@ export default class RFB extends EventTargetMixin {
             case 'disconnected':
                 if (oldstate !== 'disconnecting') {
                     Log.Error("Bad transition to disconnected state, " +
-                               "previous connection state: " + oldstate);
+                        "previous connection state: " + oldstate);
                     return;
                 }
                 break;
@@ -865,7 +865,7 @@ export default class RFB extends EventTargetMixin {
             case 'connecting':
                 if (oldstate !== '') {
                     Log.Error("Bad transition to connecting state, " +
-                               "previous connection state: " + oldstate);
+                        "previous connection state: " + oldstate);
                     return;
                 }
                 break;
@@ -873,7 +873,7 @@ export default class RFB extends EventTargetMixin {
             case 'disconnecting':
                 if (oldstate !== 'connected' && oldstate !== 'connecting') {
                     Log.Error("Bad transition to disconnecting state, " +
-                               "previous connection state: " + oldstate);
+                        "previous connection state: " + oldstate);
                     return;
                 }
                 break;
@@ -918,8 +918,10 @@ export default class RFB extends EventTargetMixin {
 
             case 'disconnected':
                 this.dispatchEvent(new CustomEvent(
-                    "disconnect", { detail:
-                                    { clean: this._rfbCleanDisconnect } }));
+                    "disconnect", {
+                        detail:
+                            { clean: this._rfbCleanDisconnect }
+                }));
                 break;
         }
     }
@@ -956,7 +958,7 @@ export default class RFB extends EventTargetMixin {
     _setCapability(cap, val) {
         this._capabilities[cap] = val;
         this.dispatchEvent(new CustomEvent("capabilities",
-                                           { detail: { capabilities: this._capabilities } }));
+            { detail: { capabilities: this._capabilities } }));
     }
 
     _handleMessage() {
@@ -1054,17 +1056,17 @@ export default class RFB extends EventTargetMixin {
         }
 
         let pos = clientToElement(ev.clientX, ev.clientY,
-                                  this._canvas);
+            this._canvas);
 
         switch (ev.type) {
             case 'mousedown':
                 setCapture(this._canvas);
                 this._handleMouseButton(pos.x, pos.y,
-                                        true, 1 << ev.button);
+                    true, 1 << ev.button);
                 break;
             case 'mouseup':
                 this._handleMouseButton(pos.x, pos.y,
-                                        false, 1 << ev.button);
+                    false, 1 << ev.button);
                 break;
             case 'mousemove':
                 this._handleMouseMove(pos.x, pos.y);
@@ -1076,7 +1078,7 @@ export default class RFB extends EventTargetMixin {
         if (this.dragViewport) {
             if (down && !this._viewportDragging) {
                 this._viewportDragging = true;
-                this._viewportDragPos = {'x': x, 'y': y};
+                this._viewportDragPos = { 'x': x, 'y': y };
                 this._viewportHasMoved = false;
 
                 // Skip sending mouse events
@@ -1119,10 +1121,10 @@ export default class RFB extends EventTargetMixin {
             const deltaY = this._viewportDragPos.y - y;
 
             if (this._viewportHasMoved || (Math.abs(deltaX) > dragThreshold ||
-                                           Math.abs(deltaY) > dragThreshold)) {
+                Math.abs(deltaY) > dragThreshold)) {
                 this._viewportHasMoved = true;
 
-                this._viewportDragPos = {'x': x, 'y': y};
+                this._viewportDragPos = { 'x': x, 'y': y };
                 this._display.viewportChangePos(deltaX, deltaY);
             }
 
@@ -1151,7 +1153,7 @@ export default class RFB extends EventTargetMixin {
     _handleDelayedMouseMove() {
         this._mouseMoveTimer = null;
         this._sendMouse(this._mousePos.x, this._mousePos.y,
-                        this._mouseButtonMask);
+            this._mouseButtonMask);
         this._mouseLastMoveTime = Date.now();
     }
 
@@ -1160,7 +1162,7 @@ export default class RFB extends EventTargetMixin {
         if (this._viewOnly) { return; } // View only, skip mouse events
 
         RFB.messages.pointerEvent(this._sock, this._display.absX(x),
-                                  this._display.absY(y), mask);
+            this._display.absY(y), mask);
     }
 
     _handleWheel(ev) {
@@ -1171,7 +1173,7 @@ export default class RFB extends EventTargetMixin {
         ev.preventDefault();
 
         let pos = clientToElement(ev.clientX, ev.clientY,
-                                  this._canvas);
+            this._canvas);
 
         let dX = ev.deltaX;
         let dY = ev.deltaY;
@@ -1225,7 +1227,7 @@ export default class RFB extends EventTargetMixin {
 
     _handleTapEvent(ev, bmask) {
         let pos = clientToElement(ev.detail.clientX, ev.detail.clientY,
-                                  this._canvas);
+            this._canvas);
 
         // If the user quickly taps multiple times we assume they meant to
         // hit the same spot, so slightly adjust coordinates
@@ -1239,8 +1241,8 @@ export default class RFB extends EventTargetMixin {
 
             if (distance < DOUBLE_TAP_THRESHOLD) {
                 pos = clientToElement(this._gestureFirstDoubleTapEv.detail.clientX,
-                                      this._gestureFirstDoubleTapEv.detail.clientY,
-                                      this._canvas);
+                    this._gestureFirstDoubleTapEv.detail.clientY,
+                    this._canvas);
             } else {
                 this._gestureFirstDoubleTapEv = ev;
             }
@@ -1258,7 +1260,7 @@ export default class RFB extends EventTargetMixin {
         let magnitude;
 
         let pos = clientToElement(ev.detail.clientX, ev.detail.clientY,
-                                  this._canvas);
+            this._canvas);
         switch (ev.type) {
             case 'gesturestart':
                 switch (ev.detail.type) {
@@ -1287,7 +1289,7 @@ export default class RFB extends EventTargetMixin {
                         break;
                     case 'pinch':
                         this._gestureLastMagnitudeX = Math.hypot(ev.detail.magnitudeX,
-                                                                 ev.detail.magnitudeY);
+                            ev.detail.magnitudeY);
                         this._fakeMouseMove(ev, pos.x, pos.y);
                         break;
                 }
@@ -1342,7 +1344,7 @@ export default class RFB extends EventTargetMixin {
                                 this._handleMouseButton(pos.x, pos.y, false, 0x8);
                                 this._gestureLastMagnitudeX += GESTURE_ZOOMSENS;
                             }
-                            while ((magnitude -  this._gestureLastMagnitudeX) < -GESTURE_ZOOMSENS) {
+                            while ((magnitude - this._gestureLastMagnitudeX) < -GESTURE_ZOOMSENS) {
                                 this._handleMouseButton(pos.x, pos.y, true, 0x10);
                                 this._handleMouseButton(pos.x, pos.y, false, 0x10);
                                 this._gestureLastMagnitudeX -= GESTURE_ZOOMSENS;
@@ -1421,7 +1423,7 @@ export default class RFB extends EventTargetMixin {
         }
 
         const cversion = "00" + parseInt(this._rfbVersion, 10) +
-                       ".00" + ((this._rfbVersion * 10) % 10);
+            ".00" + ((this._rfbVersion * 10) % 10);
         this._sock.sQpushString("RFB " + cversion + "\n");
         this._sock.flush();
         Log.Debug('Sent ProtocolVersion: ' + cversion);
@@ -1511,19 +1513,23 @@ export default class RFB extends EventTargetMixin {
         if (reason !== "") {
             this.dispatchEvent(new CustomEvent(
                 "securityfailure",
-                { detail: { status: this._securityStatus,
-                            reason: reason } }));
+                {
+                    detail: {
+                        status: this._securityStatus,
+                        reason: reason
+                    }
+                }));
 
             return this._fail("Security negotiation failed on " +
-                              this._securityContext +
-                              " (reason: " + reason + ")");
+                this._securityContext +
+                " (reason: " + reason + ")");
         } else {
             this.dispatchEvent(new CustomEvent(
                 "securityfailure",
                 { detail: { status: this._securityStatus } }));
 
             return this._fail("Security negotiation failed on " +
-                              this._securityContext);
+                this._securityContext);
         }
     }
 
@@ -1702,7 +1708,7 @@ export default class RFB extends EventTargetMixin {
 
         let keyLength = this._sock.rQshift16();
 
-        if (this._sock.rQwait("read ard keylength", keyLength*2, 4)) { return false; }
+        if (this._sock.rQwait("read ard keylength", keyLength * 2, 4)) { return false; }
 
         // read the server values
         let prime = this._sock.rQshiftBytes(keyLength);  // predetermined prime modulus
@@ -1793,7 +1799,7 @@ export default class RFB extends EventTargetMixin {
             if (serverSupportedTunnelTypes[0].vendor != clientSupportedTunnelTypes[0].vendor ||
                 serverSupportedTunnelTypes[0].signature != clientSupportedTunnelTypes[0].signature) {
                 return this._fail("Client's tunnel type had the incorrect " +
-                                  "vendor or signature");
+                    "vendor or signature");
             }
             Log.Debug("Selected tunnel type: " + clientSupportedTunnelTypes[0]);
             this._sock.sQpush32(0); // use NOTUNNEL
@@ -1801,7 +1807,7 @@ export default class RFB extends EventTargetMixin {
             return false; // wait until we receive the sub auth count to continue
         } else {
             return this._fail("Server wanted tunnels, but doesn't support " +
-                              "the notunnel type");
+                "the notunnel type");
         }
     }
 
@@ -1863,7 +1869,7 @@ export default class RFB extends EventTargetMixin {
                         return true;
                     default:
                         return this._fail("Unsupported tiny auth scheme " +
-                                          "(scheme: " + authType + ")");
+                            "(scheme: " + authType + ")");
                 }
             }
         }
@@ -1991,7 +1997,7 @@ export default class RFB extends EventTargetMixin {
 
             default:
                 return this._fail("Unsupported auth scheme (scheme: " +
-                                  this._rfbAuthScheme + ")");
+                    this._rfbAuthScheme + ")");
         }
     }
 
@@ -2028,17 +2034,17 @@ export default class RFB extends EventTargetMixin {
         const height = this._sock.rQshift16();
 
         /* PIXEL_FORMAT */
-        const bpp         = this._sock.rQshift8();
-        const depth       = this._sock.rQshift8();
-        const bigEndian  = this._sock.rQshift8();
-        const trueColor  = this._sock.rQshift8();
+        const bpp = this._sock.rQshift8();
+        const depth = this._sock.rQshift8();
+        const bigEndian = this._sock.rQshift8();
+        const trueColor = this._sock.rQshift8();
 
-        const redMax     = this._sock.rQshift16();
-        const greenMax   = this._sock.rQshift16();
-        const blueMax    = this._sock.rQshift16();
-        const redShift   = this._sock.rQshift8();
+        const redMax = this._sock.rQshift16();
+        const greenMax = this._sock.rQshift16();
+        const blueMax = this._sock.rQshift16();
+        const redShift = this._sock.rQshift8();
         const greenShift = this._sock.rQshift8();
-        const blueShift  = this._sock.rQshift8();
+        const blueShift = this._sock.rQshift8();
         this._sock.rQskipBytes(3);  // padding
 
         // NB(directxman12): we don't want to call any callbacks or print messages until
@@ -2077,15 +2083,15 @@ export default class RFB extends EventTargetMixin {
         // NB(directxman12): these are down here so that we don't run them multiple times
         //                   if we backtrack
         Log.Info("Screen: " + width + "x" + height +
-                  ", bpp: " + bpp + ", depth: " + depth +
-                  ", bigEndian: " + bigEndian +
-                  ", trueColor: " + trueColor +
-                  ", redMax: " + redMax +
-                  ", greenMax: " + greenMax +
-                  ", blueMax: " + blueMax +
-                  ", redShift: " + redShift +
-                  ", greenShift: " + greenShift +
-                  ", blueShift: " + blueShift);
+            ", bpp: " + bpp + ", depth: " + depth +
+            ", bigEndian: " + bigEndian +
+            ", trueColor: " + trueColor +
+            ", redMax: " + redMax +
+            ", greenMax: " + greenMax +
+            ", blueMax: " + blueMax +
+            ", redShift: " + redShift +
+            ", greenShift: " + greenShift +
+            ", blueShift: " + blueShift);
 
         // we're past the point where we could backtrack, so it's safe to call this
         this._setDesktopName(name);
@@ -2183,7 +2189,7 @@ export default class RFB extends EventTargetMixin {
 
             default:
                 return this._fail("Unknown init state (state: " +
-                                  this._rfbInitState + ")");
+                    this._rfbInitState + ")");
         }
     }
 
@@ -2264,7 +2270,7 @@ export default class RFB extends EventTargetMixin {
                     extendedClipboardActionNotify,
                     extendedClipboardActionProvide
                 ];
-                RFB.messages.extendedClipboardCaps(this._sock, clientActions, {extendedClipboardFormatText: 0});
+                RFB.messages.extendedClipboardCaps(this._sock, clientActions, { extendedClipboardFormatText: 0 });
 
             } else if (actions === extendedClipboardActionRequest) {
                 if (this._viewOnly) {
@@ -2395,13 +2401,13 @@ export default class RFB extends EventTargetMixin {
          *  (1<<31) - Request
          */
 
-        if (!(flags & (1<<31))) {
+        if (!(flags & (1 << 31))) {
             return this._fail("Unexpected fence response");
         }
 
         // Filter out unsupported flags
         // FIXME: support syncNext
-        flags &= (1<<0) | (1<<1);
+        flags &= (1 << 0) | (1 << 1);
 
         // BlockBefore and BlockAfter are automatically handled by
         // the fact that we process each incoming message
@@ -2448,7 +2454,7 @@ export default class RFB extends EventTargetMixin {
                 ret = this._framebufferUpdate();
                 if (ret && !this._enabledContinuousUpdates) {
                     RFB.messages.fbUpdateRequest(this._sock, true, 0, 0,
-                                                 this._fbWidth, this._fbHeight);
+                        this._fbWidth, this._fbHeight);
                 }
                 return ret;
 
@@ -2599,7 +2605,7 @@ export default class RFB extends EventTargetMixin {
             rgba = new Array(w * h * bytesPerPixel);
 
             if (this._sock.rQwait("VMware cursor classic encoding",
-                                  (w * h * bytesPerPixel) * 2, 2)) {
+                (w * h * bytesPerPixel) * 2, 2)) {
                 return false;
             }
 
@@ -2617,55 +2623,55 @@ export default class RFB extends EventTargetMixin {
                 if (andMask[pixel] == 0) {
                     //Fully opaque pixel
                     let bgr = xorMask[pixel];
-                    let r   = bgr >> 8  & 0xff;
-                    let g   = bgr >> 16 & 0xff;
-                    let b   = bgr >> 24 & 0xff;
+                    let r = bgr >> 8 & 0xff;
+                    let g = bgr >> 16 & 0xff;
+                    let b = bgr >> 24 & 0xff;
 
-                    rgba[(pixel * bytesPerPixel)     ] = r;    //r
-                    rgba[(pixel * bytesPerPixel) + 1 ] = g;    //g
-                    rgba[(pixel * bytesPerPixel) + 2 ] = b;    //b
-                    rgba[(pixel * bytesPerPixel) + 3 ] = 0xff; //a
+                    rgba[(pixel * bytesPerPixel)] = r;    //r
+                    rgba[(pixel * bytesPerPixel) + 1] = g;    //g
+                    rgba[(pixel * bytesPerPixel) + 2] = b;    //b
+                    rgba[(pixel * bytesPerPixel) + 3] = 0xff; //a
 
                 } else if ((andMask[pixel] & PIXEL_MASK) ==
-                           PIXEL_MASK) {
+                    PIXEL_MASK) {
                     //Only screen value matters, no mouse colouring
                     if (xorMask[pixel] == 0) {
                         //Transparent pixel
-                        rgba[(pixel * bytesPerPixel)     ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 1 ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 2 ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 3 ] = 0x00;
+                        rgba[(pixel * bytesPerPixel)] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 1] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 2] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 3] = 0x00;
 
                     } else if ((xorMask[pixel] & PIXEL_MASK) ==
-                               PIXEL_MASK) {
+                        PIXEL_MASK) {
                         //Inverted pixel, not supported in browsers.
                         //Fully opaque instead.
-                        rgba[(pixel * bytesPerPixel)     ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 1 ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 2 ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 3 ] = 0xff;
+                        rgba[(pixel * bytesPerPixel)] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 1] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 2] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 3] = 0xff;
 
                     } else {
                         //Unhandled xorMask
-                        rgba[(pixel * bytesPerPixel)     ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 1 ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 2 ] = 0x00;
-                        rgba[(pixel * bytesPerPixel) + 3 ] = 0xff;
+                        rgba[(pixel * bytesPerPixel)] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 1] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 2] = 0x00;
+                        rgba[(pixel * bytesPerPixel) + 3] = 0xff;
                     }
 
                 } else {
                     //Unhandled andMask
-                    rgba[(pixel * bytesPerPixel)     ] = 0x00;
-                    rgba[(pixel * bytesPerPixel) + 1 ] = 0x00;
-                    rgba[(pixel * bytesPerPixel) + 2 ] = 0x00;
-                    rgba[(pixel * bytesPerPixel) + 3 ] = 0xff;
+                    rgba[(pixel * bytesPerPixel)] = 0x00;
+                    rgba[(pixel * bytesPerPixel) + 1] = 0x00;
+                    rgba[(pixel * bytesPerPixel) + 2] = 0x00;
+                    rgba[(pixel * bytesPerPixel) + 3] = 0xff;
                 }
             }
 
-        //Alpha cursor.
+            //Alpha cursor.
         } else if (cursorType == 1) {
             if (this._sock.rQwait("VMware cursor alpha encoding",
-                                  (w * h * 4), 2)) {
+                (w * h * 4), 2)) {
                 return false;
             }
 
@@ -2674,15 +2680,15 @@ export default class RFB extends EventTargetMixin {
             for (let pixel = 0; pixel < (w * h); pixel++) {
                 let data = this._sock.rQshift32();
 
-                rgba[(pixel * 4)     ] = data >> 24 & 0xff; //r
-                rgba[(pixel * 4) + 1 ] = data >> 16 & 0xff; //g
-                rgba[(pixel * 4) + 2 ] = data >> 8 & 0xff;  //b
-                rgba[(pixel * 4) + 3 ] = data & 0xff;       //a
+                rgba[(pixel * 4)] = data >> 24 & 0xff; //r
+                rgba[(pixel * 4) + 1] = data >> 16 & 0xff; //g
+                rgba[(pixel * 4) + 2] = data >> 8 & 0xff;  //b
+                rgba[(pixel * 4) + 3] = data & 0xff;       //a
             }
 
         } else {
             Log.Warn("The given cursor type is not supported: "
-                      + cursorType + " given.");
+                + cursorType + " given.");
             return false;
         }
 
@@ -2715,7 +2721,7 @@ export default class RFB extends EventTargetMixin {
             for (let x = 0; x < w; x++) {
                 let maskIdx = y * Math.ceil(w / 8) + Math.floor(x / 8);
                 let alpha = (mask[maskIdx] << (x % 8)) & 0x80 ? 255 : 0;
-                rgba[pixIdx    ] = pixels[pixIdx + 2];
+                rgba[pixIdx] = pixels[pixIdx + 2];
                 rgba[pixIdx + 1] = pixels[pixIdx + 1];
                 rgba[pixIdx + 2] = pixels[pixIdx];
                 rgba[pixIdx + 3] = alpha;
@@ -2821,7 +2827,7 @@ export default class RFB extends EventTargetMixin {
                     break;
             }
             Log.Warn("Server did not accept the resize request: "
-                     + msg);
+                + msg);
         } else {
             this._resize(this._FBU.width, this._FBU.height);
         }
@@ -2841,15 +2847,15 @@ export default class RFB extends EventTargetMixin {
         let decoder = this._decoders[this._FBU.encoding];
         if (!decoder) {
             this._fail("Unsupported encoding (encoding: " +
-                       this._FBU.encoding + ")");
+                this._FBU.encoding + ")");
             return false;
         }
 
         try {
             return decoder.decodeRect(this._FBU.x, this._FBU.y,
-                                      this._FBU.width, this._FBU.height,
-                                      this._sock, this._display,
-                                      this._fbDepth);
+                this._FBU.width, this._FBU.height,
+                this._sock, this._display,
+                this._fbDepth);
         } catch (err) {
             this._fail("Error decoding rect: " + err);
             return false;
@@ -2860,7 +2866,7 @@ export default class RFB extends EventTargetMixin {
         if (!this._enabledContinuousUpdates) { return; }
 
         RFB.messages.enableContinuousUpdates(this._sock, true, 0, 0,
-                                             this._fbWidth, this._fbHeight);
+            this._fbWidth, this._fbHeight);
     }
 
     _resize(width, height) {
@@ -2922,8 +2928,8 @@ export default class RFB extends EventTargetMixin {
         }
         const image = this._shouldShowDotCursor() ? RFB.cursors.dot : this._cursorImage;
         this._cursor.change(image.rgbaPixels,
-                            image.hotx, image.hoty,
-                            image.w, image.h
+            image.hotx, image.hoty,
+            image.w, image.h
         );
     }
 
@@ -3022,10 +3028,10 @@ RFB.messages = {
             // Check if it already has \0
             let text = encodeUTF8(inData[i] + "\0");
 
-            dataToDeflate.push( (text.length >> 24) & 0xFF,
-                                (text.length >> 16) & 0xFF,
-                                (text.length >>  8) & 0xFF,
-                                (text.length & 0xFF));
+            dataToDeflate.push((text.length >> 24) & 0xFF,
+                (text.length >> 16) & 0xFF,
+                (text.length >> 8) & 0xFF,
+                (text.length & 0xFF));
 
             for (let j = 0; j < text.length; j++) {
                 dataToDeflate.push(text.charCodeAt(j));
@@ -3037,7 +3043,7 @@ RFB.messages = {
         // Build data  to send
         let data = new Uint8Array(4 + deflatedData.length);
         data.set(RFB.messages._buildExtendedClipboardFlags([extendedClipboardActionProvide],
-                                                           formats));
+            formats));
         data.set(deflatedData, 4);
 
         RFB.messages.clientCutText(sock, data, true);
@@ -3045,28 +3051,28 @@ RFB.messages = {
 
     extendedClipboardNotify(sock, formats) {
         let flags = RFB.messages._buildExtendedClipboardFlags([extendedClipboardActionNotify],
-                                                              formats);
+            formats);
         RFB.messages.clientCutText(sock, flags, true);
     },
 
     extendedClipboardRequest(sock, formats) {
         let flags = RFB.messages._buildExtendedClipboardFlags([extendedClipboardActionRequest],
-                                                              formats);
+            formats);
         RFB.messages.clientCutText(sock, flags, true);
     },
 
     extendedClipboardCaps(sock, actions, formats) {
         let formatKeys = Object.keys(formats);
-        let data  = new Uint8Array(4 + (4 * formatKeys.length));
+        let data = new Uint8Array(4 + (4 * formatKeys.length));
 
         formatKeys.map(x => parseInt(x));
-        formatKeys.sort((a, b) =>  a - b);
+        formatKeys.sort((a, b) => a - b);
 
         data.set(RFB.messages._buildExtendedClipboardFlags(actions, []));
 
         let loopOffset = 4;
         for (let i = 0; i < formatKeys.length; i++) {
-            data[loopOffset]     = formats[formatKeys[i]] >> 24;
+            data[loopOffset] = formats[formatKeys[i]] >> 24;
             data[loopOffset + 1] = formats[formatKeys[i]] >> 16;
             data[loopOffset + 2] = formats[formatKeys[i]] >> 8;
             data[loopOffset + 3] = formats[formatKeys[i]] >> 0;
@@ -3159,7 +3165,7 @@ RFB.messages = {
             bpp = 8;
         }
 
-        const bits = Math.floor(depth/3);
+        const bits = Math.floor(depth / 3);
 
         sock.sQpush8(0); // msg-type
 
@@ -3201,8 +3207,8 @@ RFB.messages = {
     },
 
     fbUpdateRequest(sock, incremental, x, y, w, h) {
-        if (typeof(x) === "undefined") { x = 0; }
-        if (typeof(y) === "undefined") { y = 0; }
+        if (typeof (x) === "undefined") { x = 0; }
+        if (typeof (y) === "undefined") { y = 0; }
 
         sock.sQpush8(3); // msg-type
 
@@ -3238,9 +3244,9 @@ RFB.cursors = {
     dot: {
         /* eslint-disable indent */
         rgbaPixels: new Uint8Array([
-            255, 255, 255, 255,   0,   0,   0, 255, 255, 255, 255, 255,
-              0,   0,   0, 255,   0,   0,   0,   0,   0,   0,  0,  255,
-            255, 255, 255, 255,   0,   0,   0, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255,
+            0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 255,
+            255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255,
         ]),
         /* eslint-enable indent */
         w: 3, h: 3,

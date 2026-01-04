@@ -1611,6 +1611,30 @@
     {
       "name": "msg_vm_switch_failed",
       "value": "Failed to switch virtual machine. Please try again."
+    },
+    {
+      "name": "err_port_mapping_incomplete",
+      "value": "Port mapping #%d: Please complete host and guest ports"
+    },
+    {
+      "name": "err_port_mapping_host_port",
+      "value": "Port mapping #%d: Host port must be greater than 1000 (Current: %d)"
+    },
+    {
+      "name": "err_port_duplicate_guest",
+      "value": "Guest port %d is duplicated"
+    },
+    {
+      "name": "err_port_duplicate_host",
+      "value": "Host port %d is duplicated"
+    },
+    {
+      "name": "err_rename_failed",
+      "value": "Rename failed"
+    },
+    {
+      "name": "msg_vm_in_pause",
+      "value": "There is a paused VM. Please resume or shut it down first."
     }
   ]
 }

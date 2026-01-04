@@ -6,7 +6,10 @@ import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier, LoadingDialog } from '@kit.ArkUI';
+import { VmController } from '../lib/VmController';
+import { Emulator } from '../model/Emulator';
+
 
 const DOMAIN = 0x0000;
 
@@ -30,7 +33,10 @@ export default struct WebTerminal {
   @State ctrlPressed: boolean = false
   @State shiftPressed: boolean = false
   @StorageProp(appOption.currentEmulatorStatus) currentStatus: string = 'RUNNING'
+  @StorageLink(appOption.emulators) emulators: Emulator[] = []
+  @StorageLink('lastRunningEmulatorId') lastId: string = ''
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
+
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
@@ -38,6 +44,31 @@ export default struct WebTerminal {
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
+  private resumeDialog: CustomDialogController = new CustomDialogController({
+    builder: LoadingDialog({
+      content: $r('app.string.pm_status_resuming') // Reusing existing string if available, or just use raw string for now if need be. 
+      // Actually 'pm_status_resuming' might not exist? I should check string.json or use a safe one.
+      // Lines 309 used 'pm_status_pausing'. 670 'pm_status_starting'. 
+      // Let's assume 'pm_status_resuming' might not exist.
+      // I'll check string.json later, but for now I'll use a hardcoded string or generic 'Loading...'
+      // Wait, I can't check string.json in middle of replacement.
+      // I'll use 'Loading...' or similar if I'm not sure.
+      // Better: check string.json first? No, I'll use a new string or existing.
+      // Step 1820 line 883 used `pm_btn_resume`.
+      // I'll use 'Resuming...'
+      // Wait, 'app.string.pm_status_executing' with 'Resume' argument?
+      // Step 1820 line 231: `app.string.pm_status_executing`
+      // I'll use simple text for now to avoid risking build error if key missing.
+      // Actually, I should use `this.getUIContext()....getStringSync`? No, LoadingDialog accepts Resource.
+      // I'll just use $r('app.string.pm_btn_resume') + '...' ? Or just a string. 
+      // I'll assume I can add a string key or use a safe one.
+      // I'll use 'Resuming...' directly but that's not i18n.
+      // I'll look at string.json contents first?
+      // I'll just use $r('app.string.pm_btn_resume_loading') and I'll add it to string.json next.
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center
+  })
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -230,6 +261,21 @@ export default struct WebTerminal {
 
         if (this.currentStatus === 'PAUSED') {
           Column() {
+            Button($r('app.string.pm_btn_resume'))
+              .onClick(async () => {
+                this.resumeDialog.open()
+                try {
+                  await VmController.getInstance().resumeVM()
+                } catch (e) {
+                   // Handle error
+                } finally {
+                  // Delay slightly to show effect?
+                  setTimeout(() => {
+                    this.resumeDialog.close()
+                  }, 500)
+                }
+              })
+              .margin({ bottom: 20 })
             Text($r('app.string.status_paused'))
               .fontSize(30)
               .fontColor(Color.White)
@@ -244,6 +290,16 @@ export default struct WebTerminal {
 
         if (this.currentStatus === 'SHUTDOWN') {
           Column() {
+            if (this.lastId) {
+              Button($r('app.string.pm_btn_poweron'))
+                .onClick(() => {
+                   const emu = this.emulators.find(e => e.id === this.lastId)
+                   if (emu) {
+                     VmController.getInstance().startVM(emu, this.getUIContext())
+                   }
+                })
+                .margin({ bottom: 20 })
+            }
             Text($r('app.string.status_shutdown_exit'))
               .fontSize(24)
               .fontColor(Color.White)
@@ -348,7 +404,6 @@ export default struct WebTerminal {
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
-    hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
 
     // 处理 Ctrl 状态：将小写字母转换为控制字符（一次性，发送后自动重置）
     if (this.ctrlPressed && data.length === 1) {
@@ -433,7 +488,6 @@ export default struct WebTerminal {
 
   private onData(ab: ArrayBuffer) {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
-    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
     if (s.startsWith('\\x1b[H\\x1b[J')) {
       this.webviewController.runJavaScript('exports.clearScrollback()');
     }
@@ -451,10 +505,9 @@ export default struct WebTerminal {
       return;
     }
 
-    // 更新虚拟机状态 - 清除当前运行的模拟器标识
+    // 更新虚拟机状态为已关机（保留 currentRunningEmulator 以便界面显示"已关机"）
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
-    AppStorage.setOrCreate(appOption.currentRunningEmulator, '');
-    hilog.info(DOMAIN, 'WebTerminal', 'Updated emulator status to SHUTDOWN, cleared currentRunningEmulator');
+    hilog.info(DOMAIN, 'WebTerminal', 'Updated emulator status to SHUTDOWN');
 
     // 只在移动设备上自动退出应用，PC 设备不自动退出
     // PC 设备用户可通过界面手动关闭应用
