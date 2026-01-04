@@ -478,25 +478,27 @@ export default struct WebTerminal {
 
   private async onShutdown() {
     // QEMU 退出后记录日志
-    hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
+    hilog.info(DOMAIN, 'WebTerminal', 'QEMU 进程已退出 (onShutdown)');
 
-    // 检查是否正在切换 VM，如果是则跳过状态更新，避免覆盖新 VM 的状态
+    // 检查是否正在切换 VM，如果是则跳过状态更新和退出逻辑
     const isVmSwitching = AppStorage.get(appOption.isVmSwitching) as boolean;
     if (isVmSwitching) {
-      hilog.info(DOMAIN, 'WebTerminal', '检测到 VM 切换进行中，跳过 shutdown 状态更新');
+      hilog.info(DOMAIN, 'WebTerminal', '检测到 VM 切换进行中 (isVmSwitching=true)，跳过关机处理');
       return;
     }
 
-    // 更新虚拟机状态为已关机（保留 currentRunningEmulator 以便界面显示"已关机"）
+    // 更新虚拟机状态为已关机
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
-    hilog.info(DOMAIN, 'WebTerminal', 'Updated emulator status to SHUTDOWN');
+    hilog.info(DOMAIN, 'WebTerminal', '虚拟机状态已更新为 SHUTDOWN');
 
-    // 只在移动设备上自动退出应用，PC 设备不自动退出
-    // PC 设备用户可通过界面手动关闭应用
-    const isPc = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet';
-    if (!isPc) {
+    // 只在移动设备上自动退出应用，PC/平板设备不自动退出
+    const isPcOrTablet = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet';
+    if (!isPcOrTablet) {
+      hilog.info(DOMAIN, 'WebTerminal', '移动设备检测：准备自动退出应用');
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
       await context?.terminateSelf()
+    } else {
+      hilog.info(DOMAIN, 'WebTerminal', 'PC/平板设备：保持应用运行');
     }
   }
 
