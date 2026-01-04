@@ -1635,6 +1635,38 @@
     {
       "name": "msg_vm_in_pause",
       "value": "当前有暂停的虚拟机，请恢复或关闭后再执行。"
+    },
+    {
+      "name": "setting_terminal_effects",
+      "value": "终端特效"
+    },
+    {
+      "name": "setting_terminal_effects_desc",
+      "value": "启用终端特效功能"
+    },
+    {
+      "name": "setting_terminal_transparency",
+      "value": "终端透明度"
+    },
+    {
+      "name": "setting_terminal_transparency_desc",
+      "value": "0%全透明，100%不透明"
+    },
+    {
+      "name": "setting_terminal_screensaver",
+      "value": "终端屏保时间"
+    },
+    {
+      "name": "setting_terminal_screensaver_desc",
+      "value": "设定终端无操作屏保启用时间，使用终端特效，0为不启用"
+    },
+    {
+      "name": "setting_terminal_screensaver_unit",
+      "value": "秒"
+    },
+    {
+      "name": "setting_terminal_screensaver_error",
+      "value": "请输入0到3600之间的整数"
     }
   ]
 }

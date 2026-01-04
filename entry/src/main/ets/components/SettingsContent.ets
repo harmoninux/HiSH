@@ -42,6 +42,9 @@ export default struct SettingsContent {
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   @StorageProp(appOption.cpuArchVersion) cpuArchVersion: string = ''
+  @Watch('saveTermEffects') @StorageProp(appOption.terminalEffects) termEffects: boolean = false
+  @Watch('saveTermTransparency') @StorageProp(appOption.terminalTransparency) termTransparency: number = 100
+  @Watch('saveTermScreensaver') @StorageProp(appOption.terminalScreensaver) termScreensaver: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -83,6 +86,18 @@ export default struct SettingsContent {
     if (mainWindow) {
       mainWindow.setWindowKeepScreenOn(this.keepScreenOn)
     }
+  }
+
+  async saveTermEffects() {
+    await savePreference(appOption.terminalEffects, this.termEffects, this.getUIContext())
+  }
+
+  async saveTermTransparency() {
+    await savePreference(appOption.terminalTransparency, this.termTransparency, this.getUIContext())
+  }
+
+  async saveTermScreensaver() {
+    await savePreference(appOption.terminalScreensaver, this.termScreensaver, this.getUIContext())
   }
 
   @Builder
@@ -137,6 +152,44 @@ export default struct SettingsContent {
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalCursorShape, value))
   }
 
+  @Builder
+  private buildTerminalEffects() {
+    Checkbox()
+      .select(this.termEffects)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.terminalEffects, value)
+      })
+  }
+
+  @Builder
+  private buildTerminalTransparency() {
+    Slider({
+      value: this.termTransparency,
+      min: 0,
+      max: 100,
+      style: SliderStyle.OutSet
+    })
+      .showSteps(true)
+      .onChange((value: number, mode: SliderChangeMode) => {
+        AppStorage.setOrCreate(appOption.terminalTransparency, value)
+      })
+      .width('60%')
+  }
+
+  @Builder
+  private buildTerminalScreensaver() {
+    TextInput({ text: this.termScreensaver.toString() })
+      .type(InputType.Number)
+      .width(80)
+      .onChange((value: string) => {
+        let val = parseInt(value)
+        if (isNaN(val)) val = 0
+        if (val < 0) val = 0
+        if (val > 3600) val = 3600
+        AppStorage.setOrCreate(appOption.terminalScreensaver, val)
+      })
+  }
+
   build() {
     Column() {
       Scroll() {
@@ -182,6 +235,32 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalCursorBlink, !this.termCursorBlink)
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_terminal_effects'),
+              subTitle: $r('app.string.setting_terminal_effects_desc'),
+              content: () => {
+                this.buildTerminalEffects()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.terminalEffects, !this.termEffects)
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_terminal_transparency'),
+              subTitle: $r('app.string.setting_terminal_transparency_desc'),
+              content: () => {
+                this.buildTerminalTransparency()
+              }
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_terminal_screensaver'),
+              subTitle: $r('app.string.setting_terminal_screensaver_desc'),
+              content: () => {
+                this.buildTerminalScreensaver()
+              }
             })
           }
           .attributeModifier(this.blockStyle)
