@@ -9,3 +9,8 @@ body {
     top: 0; bottom: 0;
     left: 0; right: 0;
 }
+
+/* Fix for WebGL mirroring on some mobile devices */
+.webgl-mobile-fix .xterm-screen {
+    transform: scaleY(-1);
+}
