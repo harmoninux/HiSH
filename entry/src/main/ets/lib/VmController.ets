@@ -6,7 +6,7 @@ import { startVm, VmOptions } from './startVm'
 import { startQmpEventListener, stopQmpEventListener, QmpEventType, QmpEventData } from './QmpEventListener'
 import QmpClient from './QmpClient'
 import { hilog } from '@kit.PerformanceAnalysisKit'
-import appOption from '../model/appOption'
+import appOption, { savePreference } from '../model/appOption'
 import preference from '@ohos.data.preferences'
 import { UIContext } from '@kit.ArkUI'
 import { QemuAgent } from './QemuAgent'
@@ -32,6 +32,26 @@ export class VmController {
     this.currentUiContext = uiContext;
     try {
       hilog.info(DOMAIN, 'VmController', '准备启动虚拟机: %{public}s (ID: %{public}s)', item.name, item.id);
+
+      // 手机端切换优化：如果当前有 VM 运行，则通过重启应用来实现干净的切换
+      const isMobile = deviceInfo.deviceType === 'phone' || deviceInfo.deviceType === 'default';
+      const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string;
+      const isVmRunning = currentStatus && currentStatus !== 'SHUTDOWN' && currentStatus !== '';
+
+      if (isMobile && isVmRunning && AppStorage.get(appOption.currentRunningEmulator) !== item.id) {
+        hilog.info(DOMAIN, 'VmController', '手机端检测到 VM 运行中，执行重启切换策略');
+        const abilityContext = uiContext.getHostContext() as common.UIAbilityContext;
+        const appContext = abilityContext.getApplicationContext();
+        // 1. 保存目标 VM ID 到临时启动项
+        await savePreference(appOption.temporaryStartEmulator, item.id, uiContext);
+        // 2. 触发应用重启
+        const want: Want = {
+          bundleName: abilityContext.abilityInfo.bundleName,
+          abilityName: abilityContext.abilityInfo.name
+        };
+        appContext.restartApp(want);
+        return;
+      }
 
       // 设置 VM 切换标志
       AppStorage.setOrCreate(appOption.isVmSwitching, true);

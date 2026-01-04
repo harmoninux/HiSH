@@ -54,6 +54,9 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    
+    // 初始化 VM 切换标志，防止启动时的竞态导致意外退出
+    AppStorage.setOrCreate(appOption.isVmSwitching, false);
   }
 
   onDestroy(): void {
@@ -76,9 +79,10 @@ export default class EntryAbility extends UIAbility {
       hilog.warn(DOMAIN, 'testTag', 'Failed to stop QMP event listener: %{public}s', e.message);
     });
     
-    // 杀死 QEMU 子进程（PC 模式下）
+    // 杀死 QEMU 子进程
     try {
-      const pidFilePath = this.context.filesDir + '/qemu.pid';
+      // 修正路径：pid 文件位于 filesDir/vm/qemu.pid
+      const pidFilePath = this.context.filesDir + '/vm/qemu.pid';
       napi.killQemuProcess(pidFilePath);
     } catch (e) {
       hilog.error(DOMAIN, 'testTag', 'Failed to kill QEMU process: %{public}s', JSON.stringify(e));
