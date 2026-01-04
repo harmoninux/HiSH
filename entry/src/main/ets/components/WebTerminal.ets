@@ -46,25 +46,7 @@ export default struct WebTerminal {
   resizeTimeout?: number = undefined
   private resumeDialog: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
-      content: $r('app.string.pm_status_resuming') // Reusing existing string if available, or just use raw string for now if need be. 
-      // Actually 'pm_status_resuming' might not exist? I should check string.json or use a safe one.
-      // Lines 309 used 'pm_status_pausing'. 670 'pm_status_starting'. 
-      // Let's assume 'pm_status_resuming' might not exist.
-      // I'll check string.json later, but for now I'll use a hardcoded string or generic 'Loading...'
-      // Wait, I can't check string.json in middle of replacement.
-      // I'll use 'Loading...' or similar if I'm not sure.
-      // Better: check string.json first? No, I'll use a new string or existing.
-      // Step 1820 line 883 used `pm_btn_resume`.
-      // I'll use 'Resuming...'
-      // Wait, 'app.string.pm_status_executing' with 'Resume' argument?
-      // Step 1820 line 231: `app.string.pm_status_executing`
-      // I'll use simple text for now to avoid risking build error if key missing.
-      // Actually, I should use `this.getUIContext()....getStringSync`? No, LoadingDialog accepts Resource.
-      // I'll just use $r('app.string.pm_btn_resume') + '...' ? Or just a string. 
-      // I'll assume I can add a string key or use a safe one.
-      // I'll use 'Resuming...' directly but that's not i18n.
-      // I'll look at string.json contents first?
-      // I'll just use $r('app.string.pm_btn_resume_loading') and I'll add it to string.json next.
+      content: $r('app.string.pm_status_resuming')
     }),
     autoCancel: false,
     alignment: DialogAlignment.Center
