@@ -205,6 +205,7 @@ export class VmController {
      const appTempDir = AppStorage.get(appOption.appTempDir) as string;
      const qmpSocket = appTempDir + '/qmp_socket'; // Use Command Socket
 
+     let lastError: Error | null = null;
      // Explicitly retry connection
      for (let attempt = 0; attempt < 3; attempt++) {
        const client = new QmpClient(qmpSocket);
@@ -216,12 +217,15 @@ export class VmController {
            return;
          }
        } catch (e) {
+         lastError = e as Error;
          hilog.warn(DOMAIN, 'VmController', 'Resume attempt %{public}d failed: %{public}s', attempt + 1, JSON.stringify(e));
        }
        // Wait short duration
        await new Promise<void>((resolve: () => void) => setTimeout(resolve, 500));
      }
+     const errorMessage = lastError ? lastError.message : 'Unknown error';
      hilog.error(DOMAIN, 'VmController', 'Resume failed after 3 attempts');
+     throw new Error(`Resume failed: ${errorMessage}`);
   }
 
   /**
@@ -369,7 +373,13 @@ export class VmController {
     
     if (!shutdownSent) {
       hilog.warn(DOMAIN, 'EmulatorListGrid', '所有优雅关机方法都失败，将使用强制终止');
-      return false;
+      try {
+        napi.killQemuProcess(pidFilePath);
+        return true;
+      } catch (e) {
+        hilog.error(DOMAIN, 'EmulatorListGrid', '强制终止失败: %{public}s', JSON.stringify(e));
+        return false;
+      }
     }
     
     // 等待 QEMU 进程退出
@@ -388,7 +398,13 @@ export class VmController {
     }
     
     hilog.warn(DOMAIN, 'EmulatorListGrid', '优雅关机超时（%{public}d ms），将使用强制终止', timeoutMs);
-    return false;
+    try {
+      napi.killQemuProcess(pidFilePath);
+      return true;
+    } catch (e) {
+      hilog.error(DOMAIN, 'EmulatorListGrid', '超时后强制终止失败: %{public}s', JSON.stringify(e));
+      return false;
+    }
   }
   
   // Helper for VNC port

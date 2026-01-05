@@ -430,9 +430,30 @@ export default class EntryAbility extends UIAbility {
 
   private getEmulatorToStart() {
     const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string;
+    
+    // 如果存在临时启动项，使用后立即清除，防止影响下次正常启动
+    if (temporaryStart) {
+      hilog.info(DOMAIN, 'testTag', '检测到临时启动项: %{public}s，将优先启动', temporaryStart);
+      // 异步清除，不阻塞当前流程
+      const appContext = this.context.getApplicationContext();
+      preference.getPreferences(appContext, appOption.preferenceName).then(pref => {
+        pref.delete(appOption.temporaryStartEmulator).then(() => {
+          pref.flush();
+          AppStorage.setOrCreate(appOption.temporaryStartEmulator, undefined);
+        });
+      });
+    }
+
     const defaultStart: string | undefined = temporaryStart || AppStorage.get(appOption.defaultStartEmulator) as string;
     const emulators = AppStorage.get(appOption.emulators) as Emulator[];
-    const emulatorToStart = emulators.find(it => it.id === defaultStart)!!;
+    // 如果找不到对应的 VM（可能被删除了），则回退到第一个，或者抛出错误
+    const emulatorToStart = emulators.find(it => it.id === defaultStart) || emulators[0];
+    
+    if (!emulatorToStart) {
+       hilog.error(DOMAIN, 'testTag', '未找到可启动的虚拟机配置');
+       throw new Error('No emulator found');
+    }
+    
     return emulatorToStart;
   }
 

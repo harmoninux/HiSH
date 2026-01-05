@@ -269,41 +269,27 @@ export default struct PowerManagementContent {
   async performResume() {
     if (this.isOperating) return
     this.isOperating = true
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resuming').id)
+    this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_resuming').id)
     this.processingMessage = this.statusMessage
     this.processingDialog.open()
 
-    let qmpClient: QmpClient | null = null
-
     try {
-      qmpClient = await this.connectToQmp()
+      // 使用 VmController 统一的恢复逻辑
+      await VmController.getInstance().resumeVM()
       
-      if (qmpClient) {
-        // 1. 发送 cont 命令
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_sending_resume').id)
-        this.processingMessage = this.statusMessage
-        await qmpClient.cont()
-        
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resumed').id)
-        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
-        
-        // 2. 尝试连接 Agent
-        this.connectToQGA()
-      } else {
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resume_failed_cmd').id)
-      }
+      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_resumed').id)
+      // 2. 尝试连接 Agent
+      this.connectToQGA()
+
     } catch (e) {
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resume_failed_cmd').id)
-      hilog.error(DOMAIN, 'PowerManagement', '恢复失败: %{public}s', JSON.stringify(e))
+      const errorMsg = (e as Error).message || JSON.stringify(e);
+      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_resume_failed_cmd').id) + `: ${errorMsg}`
+      hilog.error(DOMAIN, 'PowerManagement', '恢复失败: %{public}s', errorMsg)
     } finally {
       this.isOperating = false
       this.processingDialog.close()
-      if (qmpClient) {
-        try { await qmpClient.disconnect() } catch (e) {}
-      }
     }
   }
-
   async performPause() {
     if (this.isOperating) return
     this.isOperating = true
@@ -612,7 +598,7 @@ export default struct PowerManagementContent {
       }
       
       // 读取 VNC 启用配置
-      const appContext = getContext(this).getApplicationContext();
+      const appContext = this.getUIContext().getHostContext()!!.getApplicationContext();
       const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
       const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
       const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
@@ -641,14 +627,14 @@ export default struct PowerManagementContent {
         vncWebSocketPort: vncPort
       })
       
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_running').id)
+      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_running').id)
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
       // 延迟后连接 Agent
       setTimeout((): void => { 
         if (this.isComponentActive) this.forceReconnectAgent(true) 
       }, 3000)
     } catch (e) {
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, JSON.stringify(e))
+      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, JSON.stringify(e))
       hilog.error(DOMAIN, 'PowerManagement', '重置失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
@@ -662,7 +648,7 @@ export default struct PowerManagementContent {
   async performForceShutdown() {
     if (this.isOperating) return
     this.isOperating = true
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_force_shutdown').id)
+    this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_force_shutdown').id)
     this.isConnected = false
     
     if (this.qgaAgent) {
@@ -681,7 +667,7 @@ export default struct PowerManagementContent {
     } catch (e) {}
     
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
+    this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
     this.isOperating = false
   }
 
@@ -692,7 +678,7 @@ export default struct PowerManagementContent {
     // 设置 VM 切换标志
     AppStorage.setOrCreate(appOption.isVmSwitching, true)
     
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_starting').id)
+    this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_starting').id)
     try {
       const appTempDir = AppStorage.get(appOption.appTempDir) as string
       const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string

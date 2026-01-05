@@ -152,14 +152,24 @@ export default struct ImageManagementContent {
     alignment: DialogAlignment.Center
   })
 
+  // 组件生命周期标志
+  private isComponentAttached: boolean = false
+
   aboutToAppear(): void {
+    this.isComponentAttached = true
     // 检查设备类型，仅 2in1 设备视为 PC
     this.isPC = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet'
     
     // 异步加载，先加载基本信息，完成后再加载快照
     this.loadBasicInfoAsync().then(() => {
-      this.loadSnapshotsAsync()
+      if (this.isComponentAttached) {
+        this.loadSnapshotsAsync()
+      }
     })
+  }
+
+  aboutToDisappear(): void {
+    this.isComponentAttached = false
   }
 
   /**
@@ -216,8 +226,9 @@ export default struct ImageManagementContent {
         diskSize: diskSize
       }
     } catch (e) {
+      if (!this.isComponentAttached) return
       hilog.error(DOMAIN, 'ImageManagement', '读取镜像信息失败: %{public}s', JSON.stringify(e))
-      this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_read_image_info_fail').id)
+      this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_read_image_info_fail').id)
     }
   }
 
@@ -297,8 +308,9 @@ export default struct ImageManagementContent {
       // 打开详情对话框
       this.detailDialogController.open()
     } catch (e) {
+      if (!this.isComponentAttached) return
       hilog.error(DOMAIN, 'ImageManagement', '获取镜像详情失败: %{public}s', JSON.stringify(e))
-      this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_get_detail_fail').id) + (e as Error).message
+      this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_get_detail_fail').id) + (e as Error).message
     } finally {
       this.isLoading = false
     }
@@ -349,7 +361,7 @@ export default struct ImageManagementContent {
   private checkAndLockTask(description: string): boolean {
     if (this.globalTaskRunning) {
       this.promptAction.showToast({
-        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_bg_task_running').id) + this.globalTaskDescription,
+        message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_bg_task_running').id) + this.globalTaskDescription,
         duration: 2000
       })
       return false
@@ -393,8 +405,13 @@ export default struct ImageManagementContent {
       this.snapshots = (result['snapshots'] as SnapshotInfo[]) || []
       this.needRestart = await taskpool.execute(needRestartTask) as boolean
     } catch (e) {
+      if (!this.isComponentAttached) return
       hilog.error(DOMAIN, 'ImageManagement', '加载快照失败: %{public}s', JSON.stringify(e))
-      this.snapshotError = getContext(this).resourceManager.getStringSync($r('app.string.msg_load_snapshot_failed').id)
+      try {
+        this.snapshotError = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_load_snapshot_failed').id)
+      } catch (err) {
+        this.snapshotError = 'Load snapshot failed'
+      }
     } finally {
       this.isSnapshotLoading = false
     }
@@ -413,10 +430,14 @@ export default struct ImageManagementContent {
    */
   private checkNeedShutdown(): boolean {
     if (this.isVmRunning) {
-      this.promptAction.showToast({
-        message: $r('app.string.vm_shutdown_required'),
-        duration: 3000
-      })
+      try {
+        this.promptAction.showToast({
+          message: $r('app.string.vm_shutdown_required'),
+          duration: 3000
+        })
+      } catch (e) {
+        hilog.error(DOMAIN, 'ImageManagement', 'showToast failed: %{public}s', JSON.stringify(e))
+      }
       return true
     }
     return false
@@ -427,10 +448,14 @@ export default struct ImageManagementContent {
    */
   private checkNeedRestart(): boolean {
     if (this.needRestart) {
-      this.promptAction.showToast({
-        message: $r('app.string.restart_app_required'),
-        duration: 3000
-      })
+      try {
+        this.promptAction.showToast({
+          message: $r('app.string.restart_app_required'),
+          duration: 3000
+        })
+      } catch (e) {
+        hilog.error(DOMAIN, 'ImageManagement', 'showToast failed: %{public}s', JSON.stringify(e))
+      }
       return true
     }
     return false
@@ -442,7 +467,7 @@ export default struct ImageManagementContent {
   private async createSnapshot(name: string): Promise<void> {
     const basicInfo = this.basicInfo
     if (!basicInfo) return
-    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_creating_snapshot').id))) return
+    if (!this.checkAndLockTask(this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.task_creating_snapshot').id))) return
     
     this.isLoading = true
     try {
@@ -464,8 +489,9 @@ export default struct ImageManagementContent {
         await this.loadSnapshots()
       }
     } catch (e) {
+      if (!this.isComponentAttached) return
       hilog.error(DOMAIN, 'ImageManagement', '创建快照失败: %{public}s', JSON.stringify(e))
-      this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_snapshot_create_fail').id) + (e as Error).message
+      this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_snapshot_create_fail').id) + (e as Error).message
     } finally {
       this.isLoading = false
       this.unlockTask()
@@ -480,11 +506,11 @@ export default struct ImageManagementContent {
     if (!basicInfo) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
-    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_restoring_snapshot').id))) return
+    if (!this.checkAndLockTask(this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.task_restoring_snapshot').id))) return
     
     this.promptAction.showDialog({
       title: $r('app.string.dialog_confirm_restore'),
-      message: getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_restore').id) + ` "${name}" ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_restore_suffix').id),
+      message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_confirm_restore').id) + ` "${name}" ` + this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_confirm_restore_suffix').id),
       buttons: [
         { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
         { text: $r('app.string.btn_restore'), color: '#E74C3C' }
@@ -510,8 +536,9 @@ export default struct ImageManagementContent {
             })
           }
         } catch (e) {
+          if (!this.isComponentAttached) return
           hilog.error(DOMAIN, 'ImageManagement', '恢复快照失败: %{public}s', JSON.stringify(e))
-          this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_snapshot_restore_fail').id) + (e as Error).message
+          this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_snapshot_restore_fail').id) + (e as Error).message
         } finally {
           this.isLoading = false
           this.unlockTask()
@@ -530,11 +557,11 @@ export default struct ImageManagementContent {
     if (!basicInfo) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
-    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_deleting_snapshot').id))) return
+    if (!this.checkAndLockTask(this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.task_deleting_snapshot').id))) return
     
     this.promptAction.showDialog({
       title: $r('app.string.dialog_confirm_delete'),
-      message: getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_delete_snapshot').id) + ` "${name}"?`,
+      message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_confirm_delete_snapshot').id) + ` "${name}"?`,
       buttons: [
         { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
         { text: $r('app.string.delete_this'), color: '#E74C3C' }
@@ -561,8 +588,9 @@ export default struct ImageManagementContent {
             await this.loadSnapshots()
           }
         } catch (e) {
+          if (!this.isComponentAttached) return
           hilog.error(DOMAIN, 'ImageManagement', '删除快照失败: %{public}s', JSON.stringify(e))
-          this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_snapshot_delete_fail').id) + (e as Error).message
+          this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_snapshot_delete_fail').id) + (e as Error).message
         } finally {
           this.isLoading = false
           this.unlockTask()
@@ -581,11 +609,11 @@ export default struct ImageManagementContent {
     if (!basicInfo || this.selectedSnapshots.size === 0) return
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
-    if (!this.checkAndLockTask(getContext(this).resourceManager.getStringSync($r('app.string.task_batch_deleting_snapshots').id))) return
+    if (!this.checkAndLockTask(this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.task_batch_deleting_snapshots').id))) return
 
     this.promptAction.showDialog({
       title: $r('app.string.dialog_confirm_batch_delete'),
-      message: getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_batch_delete').id) + ` ${this.selectedSnapshots.size} ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_confirm_batch_delete_suffix').id),
+      message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_confirm_batch_delete').id) + ` ${this.selectedSnapshots.size} ` + this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_confirm_batch_delete_suffix').id),
       buttons: [
         { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
         { text: $r('app.string.delete_this'), color: '#E74C3C' }
@@ -622,7 +650,7 @@ export default struct ImageManagementContent {
           }
           
           this.promptAction.showToast({
-            message: getContext(this).resourceManager.getStringSync($r('app.string.msg_batch_delete_result').id) + ` ${successCount}, ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_failed').id) + ` ${failCount}`,
+            message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_batch_delete_result').id) + ` ${successCount}, ` + this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_failed').id) + ` ${failCount}`,
             duration: 3000
           })
           
@@ -630,7 +658,8 @@ export default struct ImageManagementContent {
           await this.loadSnapshots()
           
         } catch (e) {
-          this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_batch_delete_fail').id) + (e as Error).message
+          if (!this.isComponentAttached) return
+          this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_batch_delete_fail').id) + (e as Error).message
         } finally {
           this.isLoading = false
           this.unlockTask()
@@ -662,7 +691,7 @@ export default struct ImageManagementContent {
     if (this.globalTaskRunning) {
       this.promptAction.showDialog({
         title: $r('app.string.dialog_task_running'),
-        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_task_running_prefix').id) + `${this.globalTaskDescription}\n\n` + getContext(this).resourceManager.getStringSync($r('app.string.msg_task_running_desc').id),
+        message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_task_running_prefix').id) + `${this.globalTaskDescription}\n\n` + this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_task_running_desc').id),
         buttons: [
           { text: $r('app.string.btn_wait'), color: '#007DFF' },
           { text: $r('app.string.btn_force_cleanup'), color: '#E74C3C' }
@@ -706,7 +735,7 @@ export default struct ImageManagementContent {
       
       this.promptAction.showDialog({
         title: $r('app.string.dialog_temp_file_found'),
-        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_found').id) + ` (${tmpSize})，` + getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_time').id) + ` ${elapsed} ` + getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_desc').id),
+        message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_temp_file_found').id) + ` (${tmpSize})，` + this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_temp_file_time').id) + ` ${elapsed} ` + this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_temp_file_desc').id),
         buttons: [
           { text: $r('app.string.setting_generic_cancel'), color: '#666666' },
           { text: $r('app.string.btn_force_cleanup'), color: '#E74C3C' }
@@ -722,7 +751,8 @@ export default struct ImageManagementContent {
               duration: 2000
             })
           } catch (e) {
-            this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_temp_file_clean_fail').id) + (e as Error).message
+            if (!this.isComponentAttached) return
+            this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_temp_file_clean_fail').id) + (e as Error).message
           }
         }
       })
@@ -733,11 +763,11 @@ export default struct ImageManagementContent {
     
     // 设置任务状态
     this.isLoading = true
-    const modeName = getContext(this).resourceManager.getStringSync(modeNames[mode].id)
+    const modeName = this.getUIContext().getHostContext()!!.resourceManager.getStringSync(modeNames[mode].id)
     this.checkAndLockTask(`${modeName} (${new Date().toLocaleTimeString()})`)
     
     // 显示进度对话框（不可关闭）
-    this.optimizeTaskMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_executing_prefix').id) + `${modeName}` + getContext(this).resourceManager.getStringSync($r('app.string.msg_executing_suffix').id)
+    this.optimizeTaskMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_executing_prefix').id) + `${modeName}` + this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_executing_suffix').id)
     this.optimizeProgressDialog.open()
     
     try {
@@ -785,19 +815,20 @@ export default struct ImageManagementContent {
           await fs.rename(backupPath, basicInfo.path)
           // 清理临时文件
           try { await fs.unlink(tempPath) } catch (unlinkErr) { /* 忽略 */ }
-          throw new Error((renameError as Error).message || getContext(this).resourceManager.getStringSync($r('app.string.err_rename_failed').id))
+          throw new Error((renameError as Error).message || this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.err_rename_failed').id))
         }
       } catch (e) {
-        this.errorMessage = getContext(this).resourceManager.getStringSync($r('app.string.msg_replace_file_fail').id) + (e as Error).message
+        if (!this.isComponentAttached) return
+        this.errorMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_replace_file_fail').id) + (e as Error).message
         return
       }
       
       // 计算节省空间
       const savedBytes = oldSize - newSize
-      const savedStr = savedBytes > 0 ? getContext(this).resourceManager.getStringSync($r('app.string.msg_saved_space').id) + ` ${this.formatSize(savedBytes)}` : getContext(this).resourceManager.getStringSync($r('app.string.msg_increased_space').id) + ` ${this.formatSize(-savedBytes)}`
+      const savedStr = savedBytes > 0 ? this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_saved_space').id) + ` ${this.formatSize(savedBytes)}` : this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_increased_space').id) + ` ${this.formatSize(-savedBytes)}`
       
       this.promptAction.showToast({
-        message: getContext(this).resourceManager.getStringSync($r('app.string.msg_optimize_finished').id) + `${savedStr}`,
+        message: this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.msg_optimize_finished').id) + `${savedStr}`,
         duration: 3000
       })
       
