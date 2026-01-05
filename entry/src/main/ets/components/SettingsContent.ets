@@ -43,8 +43,9 @@ export default struct SettingsContent {
   @StorageProp('versionCode') versionCode: number = 0
   @StorageProp(appOption.cpuArchVersion) cpuArchVersion: string = ''
   @Watch('saveTermEffects') @StorageProp(appOption.terminalEffects) termEffects: boolean = false
-  @Watch('saveTermTransparency') @StorageProp(appOption.terminalTransparency) termTransparency: number = 100
+  @Watch('saveTermTransparency') @StorageProp(appOption.terminalTransparency) termTransparency: number = 50
   @Watch('saveTermScreensaver') @StorageProp(appOption.terminalScreensaver) termScreensaver: number = 0
+  @Watch('saveTermEffectType') @StorageProp(appOption.terminalEffectType) termEffectType: string = 'random'
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -98,6 +99,10 @@ export default struct SettingsContent {
 
   async saveTermScreensaver() {
     await savePreference(appOption.terminalScreensaver, this.termScreensaver, this.getUIContext())
+  }
+
+  async saveTermEffectType() {
+    await savePreference(appOption.terminalEffectType, this.termEffectType, this.getUIContext())
   }
 
   @Builder
@@ -163,17 +168,24 @@ export default struct SettingsContent {
 
   @Builder
   private buildTerminalTransparency() {
-    Slider({
-      value: this.termTransparency,
-      min: 0,
-      max: 100,
-      style: SliderStyle.OutSet
-    })
-      .showSteps(true)
-      .onChange((value: number, mode: SliderChangeMode) => {
-        AppStorage.setOrCreate(appOption.terminalTransparency, value)
+    Row() {
+      Slider({
+        value: this.termTransparency,
+        min: 0,
+        max: 100,
+        style: SliderStyle.OutSet
       })
-      .width('60%')
+        .showSteps(true)
+        .onChange((value: number, mode: SliderChangeMode) => {
+          AppStorage.setOrCreate(appOption.terminalTransparency, value)
+        })
+        .width('39%')
+
+      Text(`${this.termTransparency}%`)
+        .fontSize(14)
+        .fontColor($r('sys.color.font_secondary'))
+        .margin({ left: 10 })
+    }
   }
 
   @Builder
@@ -187,6 +199,19 @@ export default struct SettingsContent {
         if (val < 0) val = 0
         if (val > 3600) val = 3600
         AppStorage.setOrCreate(appOption.terminalScreensaver, val)
+      })
+  }
+
+  @Builder
+  private buildTerminalEffectType() {
+    Select([
+      { value: $r('app.string.setting_terminal_effect_type_random') },
+      { value: $r('app.string.setting_terminal_effect_type_binary') }
+    ])
+      .selected(this.termEffectType === 'binary' ? 1 : 0)
+      .width(120)
+      .onSelect((index) => {
+        AppStorage.setOrCreate(appOption.terminalEffectType, index === 1 ? 'binary' : 'random')
       })
   }
 
@@ -245,6 +270,14 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalEffects, !this.termEffects)
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_terminal_effect_type'),
+              subTitle: $r('app.string.setting_terminal_effect_type_desc'),
+              content: () => {
+                this.buildTerminalEffectType()
+              }
             })
 
             SettingItem({

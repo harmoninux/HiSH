@@ -3,14 +3,15 @@
 var term = new Terminal({
     cursorBlink: true,
     allowProposedApi: true, // Needed for some addons
-    allowTransparency: true,
+    allowTransparency: true, // User preference: Transparency supported
     fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
     fontSize: 14, // Default, will be overridden by native.getFontSize()
     theme: {
-        background: 'rgba(0, 0, 0, 1)',
+        background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
         foreground: '#cccccc',
         cursor: '#cccccc'
-    }
+    },
+    screenReaderMode: true, // Force DOM-friendly rendering for native selection
 });
 
 // Initialize Addons
@@ -42,67 +43,99 @@ window.term = term;
 // Main initialization function
 window.onload = function () {
     term.open(document.getElementById('terminal'));
-    // Try to load WebGL only on non-mobile devices (to avoid mirroring issues)
-    let shouldEnableWebGL = true;
-    try {
-        if (native && native.getDeviceType) {
-            const deviceType = native.getDeviceType();
-            // phone and tablet often have mirroring issues with WebGL in WebView
-            if (deviceType === 'phone' || deviceType === 'tablet') {
-                shouldEnableWebGL = false;
-                console.log("Mobile device detected, disabling WebGL to avoid mirroring issues");
-            }
+
+    // Retry mechanism for native object injection
+    let retryCount = 0;
+    const maxRetries = 10;
+
+    function initialize() {
+        // Disable WebGL as per user request (Compatibility Mode)
+        let shouldEnableWebGL = false;
+        let deviceType = 'unknown';
+
+        // Check if native is ready
+        if (!window.native && retryCount < maxRetries) {
+            console.log(`Waiting for native object... (${retryCount + 1}/${maxRetries})`);
+            retryCount++;
+            setTimeout(initialize, 200);
+            return;
         }
-    } catch (e) {
-        console.warn("Failed to detect device type", e);
-    }
 
-    if (shouldEnableWebGL) {
         try {
-            webglAddon.onContextLoss(e => {
-                webglAddon.dispose();
-            });
-            term.loadAddon(webglAddon);
-            console.log("WebGL renderer loaded");
-
-            // Experimental fix for mirroring on mobile
-            if (deviceType === 'phone' || deviceType === 'tablet') {
-                const termEl = document.getElementById('terminal');
-                termEl.classList.add('webgl-mobile-fix');
-                setupMirroredInputFix(termEl);
+            if (window.native && native.getDeviceType) {
+                deviceType = native.getDeviceType();
+                console.log("Device type detected: " + deviceType);
             }
         } catch (e) {
-            console.warn("WebGL renderer failed to load, falling back to canvas", e);
+            console.warn("Failed to detect device type", e);
         }
+
+        // Initial fit with a slight delay to ensure container is ready
+        setTimeout(() => {
+            // 1. Fit Terminal
+            try {
+                fitAddon.fit();
+                console.log(`Terminal size after fit: ${term.cols}x${term.rows}`);
+
+                // If fit failed (size 0), force a default size
+                if (term.cols < 2 || term.rows < 2) {
+                    term.resize(80, 24);
+                    console.log("Forced resize to 80x24");
+                }
+            } catch (e) {
+                console.error("Fit failed", e);
+                term.resize(80, 24); // Fallback
+            }
+
+            // 2. Load WebGL
+            if (shouldEnableWebGL) {
+                try {
+                    webglAddon.onContextLoss(e => {
+                        webglAddon.dispose();
+                    });
+                    term.loadAddon(webglAddon);
+                    console.log("WebGL renderer loaded");
+                } catch (e) {
+                    console.warn("WebGL renderer failed to load, falling back to canvas", e);
+                }
+            }
+
+            // 3. Initialize and Start Shell
+            try {
+                // Sync preferences from native
+                syncPrefs();
+
+                // Event Listeners
+                setupEventListeners();
+
+                // Restore HiSH Startup Logo
+                term.writeln(
+                    'HiSH is starting...\r\n\r\n' +
+                    '     |  | _)   __|  |  |\r\n' +
+                    '     __ |  | \\__ \\  __ |\r\n' +
+                    '    _| _| _| ____/ _| _|\r\n'
+                );
+
+                // Notify native that we are ready
+                if (window.native && native.load) {
+                    native.load();
+                } else {
+                    console.error("Native object still missing after retries");
+                    term.writeln('\r\nError: Native bridge failed to initialize.\r\n');
+                }
+            } catch (e) {
+                console.error("Error during init/load", e);
+            }
+
+        }, 300); // Increased delay to 300ms
+
+        // Initialize Matrix Rain
+        matrixRain = new MatrixRain('matrix');
+        resetScreensaverTimer();
     }
 
-    // Initial fit with a slight delay to ensure container is ready
-    setTimeout(() => {
-        fitAddon.fit();
-    }, 100);
-
-    // Sync preferences from native
-    syncPrefs();
-
-    // Event Listeners
-    setupEventListeners();
-
-    // Restore HiSH Startup Logo
-    term.writeln(
-        'HiSH is starting...\r\n\r\n' +
-        '     |  | _)   __|  |  |\r\n' +
-        '     __ |  | \\__ \\  __ |\r\n' +
-        '    _| _| _| ____/ _| _|\r\n'
-    );
-
-    // Notify native that we are ready
-    if (native && native.load) {
-        native.load();
-    }
-
-    // Initialize Matrix Rain
-    matrixRain = new MatrixRain('matrix');
-    resetScreensaverTimer();
+    // Start initialization
+    initialize();
 };
 
 // Matrix Rain Implementation
@@ -119,13 +152,23 @@ class MatrixRain {
         window.addEventListener('resize', () => this.resize());
     }
 
+    setCharSet(type) {
+        if (type === 'binary') {
+            this.chars = '01';
+        } else {
+            // Random/default character set
+            this.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:\'",.<>?';
+        }
+    }
+
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         this.columns = this.canvas.width / this.fontSize;
         this.drops = [];
         for (let x = 0; x < this.columns; x++) {
-            this.drops[x] = 1;
+            // Randomize start position above the screen to stagger entry
+            this.drops[x] = Math.floor(Math.random() * -(this.canvas.height / this.fontSize));
         }
     }
 
@@ -168,25 +211,42 @@ let terminalEffectsEnabled = false;
 let screensaverTimeoutValue = 0;
 let screensaverTimer = null;
 let currentTransparency = 1;
+let currentEffectType = 'random';
+
+exports.setTerminalEffectType = (type) => {
+    currentEffectType = type;
+    if (matrixRain) {
+        matrixRain.setCharSet(type);
+    }
+};
 
 function resetScreensaverTimer() {
     if (screensaverTimer) clearTimeout(screensaverTimer);
 
-    // If effects are enabled (always-on), start rain immediately
+    // Logic:
+    // 1. If Effects Enabled: Matrix runs in BACKGROUND (z-index 0).
+    // 2. If Screensaver Activates: Matrix runs in FOREGROUND (z-index 2).
+
+    const canvas = document.getElementById('matrix');
+
+    // Default state: If effects enabled, run in background.
     if (terminalEffectsEnabled) {
         if (matrixRain) matrixRain.start();
-        return;
+        if (canvas) canvas.style.zIndex = '0'; // Background
+    } else {
+        // Effects disabled, stop rain until screensaver
+        if (matrixRain) matrixRain.stop();
     }
 
-    // If effects are disabled but screensaver is set, wait for timeout
+    // Screensaver Timer
     if (screensaverTimeoutValue > 0) {
-        if (matrixRain) matrixRain.stop(); // Stop rain while active
         screensaverTimer = setTimeout(() => {
-            if (matrixRain) matrixRain.start();
+            if (matrixRain) {
+                matrixRain.start();
+                // Bring to front when screensaver activates
+                if (canvas) canvas.style.zIndex = '2'; // Foreground
+            }
         }, screensaverTimeoutValue * 1000);
-    } else {
-        // Both disabled
-        if (matrixRain) matrixRain.stop();
     }
 }
 
@@ -215,6 +275,10 @@ function syncPrefs() {
         if (native.getTerminalScreensaver) {
             const screensaver = native.getTerminalScreensaver();
             exports.setTerminalScreensaver(screensaver);
+        }
+        if (native.getTerminalEffectType) {
+            const effectType = native.getTerminalEffectType();
+            exports.setTerminalEffectType(effectType);
         }
     } catch (e) {
         console.warn("Failed to sync prefs", e);
@@ -262,8 +326,24 @@ function setupEventListeners() {
     // Prevent scrolling/bouncing on mobile
     document.addEventListener('touchmove', (e) => {
         if (e.touches.length > 1) return; // Allow pinch zoom if not handled by CSS
-        e.preventDefault();
+        // e.preventDefault(); // DISABLED: Allow native text selection gestures
     }, { passive: false });
+
+    // --- EVENT SHIELD: Force Native Context Menu (Global Capture) ---
+    // This listener runs in the CAPTURE phase on the DOCUMENT.
+    // It intercepts the 'contextmenu' event BEFORE it reaches xterm.js.
+    // We stop it from propagating to xterm, but allow the default browser behavior (menu).
+
+    document.addEventListener('contextmenu', (e) => {
+        // Only intercept if inside the terminal
+        if (e.target.closest('#terminal')) {
+            e.stopImmediatePropagation(); // Kill it before xterm sees it
+            // e.preventDefault(); // DO NOT CALL THIS! We want the menu!
+            return true;
+        }
+    }, true); // true = Capture Phase
+
+    console.log("Global ContextMenu Interceptor activated");
 }
 
 // Fix for mouse/touch coordinates when the terminal is visually flipped
@@ -296,6 +376,13 @@ function setupMirroredInputFix(termEl) {
     // termEl.addEventListener('touchstart', fixEvent, true);
 }
 
+// Add global event listeners to reset screensaver on any user activity
+['mousedown', 'mousemove', 'keydown', 'touchstart'].forEach(event => {
+    document.addEventListener(event, () => {
+        resetScreensaverTimer();
+    }, { passive: true });
+});
+
 // --- Implementation of exports matching term.js.bak ---
 
 // exports.write(data) - Write data from VM to terminal
@@ -317,54 +404,24 @@ exports.paste = (data) => {
 };
 
 exports.copy = () => {
-    return term.getSelection();
-};
-
-exports.clearScrollback = () => {
-    term.clear();
-    // Legacy hack for screen flicker/black screen on real devices
-    const oldHeight = document.getElementById('terminal').style.height;
-    document.getElementById('terminal').style.height = '99%';
-    setTimeout(() => {
-        document.getElementById('terminal').style.height = oldHeight || '100%';
-        fitAddon.fit();
-    }, 50);
-};
-
-exports.getSize = () => {
-    return [term.cols, term.rows];
-};
-
-exports.setFocused = (focus) => {
-    if (focus) {
-        term.focus();
-    } else {
-        term.blur();
-    }
-};
-
-exports.getCharacterSize = () => {
-    const cellWidth = term._core?._renderService?.dimensions?.css?.cell?.width || 9;
-    const cellHeight = term._core?._renderService?.dimensions?.css?.cell?.height || 18;
-    return [cellWidth, cellHeight];
+    // xterm.js selection API
+    const selection = term.getSelection();
+    return JSON.stringify(selection);
 };
 
 exports.setFontSize = (size) => {
     term.options.fontSize = size;
-    fitAddon.fit(); // Re-fit after size change
+    fitAddon.fit();
 };
 
 exports.setCursorShape = (shape) => {
-    // shape string from Native ('BLOCK', 'UNDERLINE', 'BEAM')
-    // xterm options: 'block', 'underline', 'bar'
-    let style = 'block';
-    if (shape === 'UNDERLINE') style = 'underline';
-    else if (shape === 'BEAM') style = 'bar';
-    else if (shape === 'BLOCK') style = 'block';
-    // legacy hterm might use different strings? 
-    // term.js.bak: term.getPrefs().set('cursor-shape', shape);
-    // hterm shapes: BLOCK, BEAM, UNDERLINE.
-    term.options.cursorStyle = style;
+    // hterm: BLOCK, BEAM, UNDERLINE
+    // xterm: block, bar, underline
+    switch (shape) {
+        case 'BEAM': term.options.cursorStyle = 'bar'; break;
+        case 'UNDERLINE': term.options.cursorStyle = 'underline'; break;
+        default: term.options.cursorStyle = 'block'; break;
+    }
 };
 
 exports.setCursorBlink = (blink) => {
@@ -399,7 +456,11 @@ window.hterm = {
 
 // Also listen to link clicks in xterm
 term.options.linkHandler = {
-    activate: (e, text, range) => {
+    activate: (e, text) => {
         if (native && native.openLink) native.openLink(text);
     }
+};
+
+exports.selectAll = () => {
+    term.selectAll();
 };
