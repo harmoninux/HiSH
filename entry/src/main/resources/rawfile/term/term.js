@@ -522,10 +522,8 @@ function setupMirroredInputFix(termEl) {
 
 // exports.write(data) - Write data from VM to terminal
 exports.write = (data) => {
-    // legacy hterm code imply data is Binary String (UTF-8/Latin1 bytes)
     try {
-        const uint8 = strToUint8Array(data);
-        term.write(uint8);
+        term.write(data);
     } catch (e) {
         console.error("exports.write failed", e);
     }

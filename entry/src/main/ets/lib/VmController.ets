@@ -11,12 +11,42 @@ import preference from '@ohos.data.preferences'
 import { UIContext } from '@kit.ArkUI'
 import { QemuAgent } from './QemuAgent'
 import { common, Want } from '@kit.AbilityKit'
+import { QemuAgentManager } from './QemuAgentManager'
+
+class Mutex {
+  private queue: Promise<void> = Promise.resolve();
+
+  public async lock(): Promise<() => void> {
+    let release: () => void = () => {};
+    const currentLock = new Promise<void>(resolve => {
+      release = resolve;
+    });
+
+    const previousLock = this.queue;
+    this.queue = this.queue.then(() => currentLock);
+
+    await previousLock;
+
+    return release;
+  }
+
+  async lockAsync<T>(callback: () => Promise<T>): Promise<T> {
+    const unlock = await this.lock();
+    try {
+      return await callback();
+    } finally {
+      unlock();
+    }
+  }
+}
 
 const DOMAIN = 0x0000;
 
 export class VmController {
   private static instance: VmController;
   private currentUiContext: UIContext | null = null; // Store context for event handling
+  private lock: Mutex = new Mutex();
+  private portCheckTimer: number = -1;
 
   public static getInstance(): VmController {
     if (!VmController.instance) {
@@ -26,116 +56,146 @@ export class VmController {
   }
 
   /**
+   * 销毁资源
+   * [修复] 确保所有监听器和定时器在 VM 停止或应用销毁时被清理
+   */
+  async dispose(): Promise<void> {
+    hilog.info(DOMAIN, 'VmController', '正在销毁 VmController 资源...');
+    
+    // 1. 停止 QMP 监听器
+    try {
+      await stopQmpEventListener();
+    } catch (e) {}
+
+    // 2. 清理端口检查定时器
+    this.stopPortCheck();
+
+    // 3. 强制释放 QGA 连接
+    try {
+      await QemuAgentManager.release('VmController');
+    } catch (e) {}
+
+    this.currentUiContext = null;
+    AppStorage.setOrCreate(appOption.isVmSwitching, false);
+  }
+
+  /**
    * 启动虚拟机
    */
   async startVM(item: Emulator, uiContext: UIContext): Promise<void> {
-    this.currentUiContext = uiContext;
-    try {
-      hilog.info(DOMAIN, 'VmController', '准备启动虚拟机: %{public}s (ID: %{public}s)', item.name, item.id);
-
-      // 手机端切换优化：如果当前有 VM 运行，则通过重启应用来实现干净的切换
-      const isMobile = deviceInfo.deviceType === 'phone' || deviceInfo.deviceType === 'default';
-      const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string;
-      const isVmRunning = currentStatus && currentStatus !== 'SHUTDOWN' && currentStatus !== '';
-
-      if (isMobile && isVmRunning && AppStorage.get(appOption.currentRunningEmulator) !== item.id) {
-        hilog.info(DOMAIN, 'VmController', '手机端检测到 VM 运行中，执行重启切换策略');
-        const abilityContext = uiContext.getHostContext() as common.UIAbilityContext;
-        const appContext = abilityContext.getApplicationContext();
-        // 1. 保存目标 VM ID 到临时启动项
-        await savePreference(appOption.temporaryStartEmulator, item.id, uiContext);
-        // 2. 触发应用重启
-        const want: Want = {
-          bundleName: abilityContext.abilityInfo.bundleName,
-          abilityName: abilityContext.abilityInfo.name
-        };
-        appContext.restartApp(want);
-        return;
-      }
-
-      // 设置 VM 切换标志
-      AppStorage.setOrCreate(appOption.isVmSwitching, true);
-
-      // 停止旧的 QMP 监听器
+    // 使用锁保护启动过程，防止并发冲突
+    return this.lock.lockAsync(async () => {
+      this.currentUiContext = uiContext;
       try {
-        await stopQmpEventListener();
-      } catch (e) {
-        hilog.warn(DOMAIN, 'VmController', '停止 QMP 监听器异常: %{public}s', JSON.stringify(e));
-      }
+        hilog.info(DOMAIN, 'VmController', '准备启动虚拟机: %{public}s (ID: %{public}s)', item.name, item.id);
 
-      const appTempDir = AppStorage.get(appOption.appTempDir) as string;
-      const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string;
-      const kernelFile = AppStorage.get(appOption.kernel) as string;
-      const sharedFolder = AppStorage.get(appOption.sharedHost) as string;
+        // 手机端切换优化：如果当前有 VM 运行，则通过重启应用来实现干净的切换
+        const isMobile = deviceInfo.deviceType === 'phone' || deviceInfo.deviceType === 'default';
+        const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string;
+        const isVmRunning = currentStatus && currentStatus !== 'SHUTDOWN' && currentStatus !== '';
 
-      // 尝试优雅关闭当前运行的虚拟机
-      await this.gracefulShutdownAndWait(appTempDir, 30000);
-
-      // 检查端口占用
-      const portUsed = item.portMapping.map((it: PortMapping) => it.host!!).filter((p: number) => napi.checkPortUsed(p));
-      const portMapping = item.portMapping.filter((it: PortMapping) => portUsed.indexOf(it.host!!) < 0);
-
-      AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed);
-
-      // VNC配置
-      const appContext = uiContext.getHostContext()!!.getApplicationContext();
-      const appPref = await preference.getPreferences(appContext, appOption.preferenceName);
-      const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
-      const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
-
-      const vncPort = vncEnabled ? this.getFreeVncPort(60000, 65000) : undefined;
-      if (vncPort) {
-        AppStorage.setOrCreate('vncWebSocketPort', vncPort);
-      }
-
-      startVm({
-        baseDir: vmBaseDir,
-        cpu: item.cpu,
-        memory: item.memory,
-        portMapping: portMapping,
-        kernel: kernelFile,
-        rootVda: item.rootVda,
-        rootFilesystem: item.rootFilesystem,
-        sharedFolder: sharedFolder,
-        serialUnixSocket: appTempDir + '/serial_socket',
-        sharedFolderReadonly: item.sharedFolderReadonly,
-        init: item.init,
-        qmpUnixSocket: appTempDir + '/qmp_socket',
-        qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
-        qgaUnixSocket: appTempDir + '/qga_socket',
-        vncWebSocketPort: vncPort
-      });
-
-      // 更新状态
-      AppStorage.setOrCreate(appOption.currentRunningEmulator, item.id);
-      AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
-
-      // 启动 QMP 监听
-      setTimeout(async () => {
-        try {
-          const qmpSocketPath = appTempDir + '/qmp_socket_ui';
-          await startQmpEventListener(qmpSocketPath, (event, data) => {
-            this.handleQmpEvent(event, data);
-          });
-          AppStorage.setOrCreate(appOption.isVmSwitching, false);
-        } catch (e) {
-          hilog.error(DOMAIN, 'VmController', 'QMP 重连异常: %{public}s', JSON.stringify(e));
-          AppStorage.setOrCreate(appOption.isVmSwitching, false);
+        if (isMobile && isVmRunning && AppStorage.get(appOption.currentRunningEmulator) !== item.id) {
+          hilog.info(DOMAIN, 'VmController', '手机端检测到 VM 运行中，执行重启切换策略');
+          const abilityContext = uiContext.getHostContext() as common.UIAbilityContext;
+          const appContext = abilityContext.getApplicationContext();
+          // 1. 保存目标 VM ID 到临时启动项
+          await savePreference(appOption.temporaryStartEmulator, item.id, uiContext);
+          // 2. 触发应用重启
+          const want: Want = {
+            bundleName: abilityContext.abilityInfo.bundleName,
+            abilityName: abilityContext.abilityInfo.name
+          };
+          appContext.restartApp(want);
+          return;
         }
-      }, 3000);
 
-    } catch (e) {
-      hilog.error(DOMAIN, 'VmController', '启动失败: %{public}s', JSON.stringify(e));
-      AppStorage.setOrCreate(appOption.isVmSwitching, false);
-      
-      uiContext.showAlertDialog({
-        title: $r('app.string.msg_start_vm_confirm'), 
-        message: `启动失败: ${JSON.stringify(e)}`,
-        autoCancel: true,
-        alignment: DialogAlignment.Center,
-        buttons: [{ value: $r('app.string.setting_generic_confirm'), action: () => {} }]
-      });
-    }
+        // 设置 VM 切换标志
+        AppStorage.setOrCreate(appOption.isVmSwitching, true);
+
+        // 停止旧的 QMP 监听器
+        try {
+          await stopQmpEventListener();
+        } catch (e) {
+          hilog.warn(DOMAIN, 'VmController', '停止 QMP 监听器异常: %{public}s', JSON.stringify(e));
+        }
+
+        const appTempDir = AppStorage.get(appOption.appTempDir) as string;
+        const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string;
+        const kernelFile = AppStorage.get(appOption.kernel) as string;
+        const sharedFolder = AppStorage.get(appOption.sharedHost) as string;
+
+        // 尝试优雅关闭当前运行的虚拟机
+        await this.gracefulShutdownAndWait(appTempDir, 30000);
+
+        // 检查端口占用
+        const portUsed = item.portMapping.map((it: PortMapping) => it.host!!).filter((p: number) => napi.checkPortUsed(p));
+        const portMapping = item.portMapping.filter((it: PortMapping) => portUsed.indexOf(it.host!!) < 0);
+
+        AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed);
+
+        // VNC配置
+        const appContext = uiContext.getHostContext()!!.getApplicationContext();
+        const appPref = await preference.getPreferences(appContext, appOption.preferenceName);
+        const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
+        const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
+
+        const vncPort = vncEnabled ? this.getFreeVncPort(60000, 65000) : undefined;
+        if (vncPort) {
+          AppStorage.setOrCreate('vncWebSocketPort', vncPort);
+        }
+
+        startVm({
+          baseDir: vmBaseDir,
+          cpu: item.cpu,
+          memory: item.memory,
+          portMapping: portMapping,
+          kernel: kernelFile,
+          rootVda: item.rootVda,
+          rootFilesystem: item.rootFilesystem,
+          sharedFolder: sharedFolder,
+          serialUnixSocket: appTempDir + '/serial_socket',
+          sharedFolderReadonly: item.sharedFolderReadonly,
+          init: item.init,
+          qmpUnixSocket: appTempDir + '/qmp_socket',
+          qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
+          qgaUnixSocket: appTempDir + '/qga_socket',
+          vncWebSocketPort: vncPort
+        });
+
+        // 更新状态
+        AppStorage.setOrCreate(appOption.currentRunningEmulator, item.id);
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
+
+        // 启动 QMP 监听
+        setTimeout(async () => {
+          try {
+            const qmpSocketPath = appTempDir + '/qmp_socket_ui';
+            await startQmpEventListener(qmpSocketPath, (event, data) => {
+              this.handleQmpEvent(event, data);
+            });
+            AppStorage.setOrCreate(appOption.isVmSwitching, false);
+            
+            // 启动动态端口检查
+            this.startPortCheck(item);
+          } catch (e) {
+            hilog.error(DOMAIN, 'VmController', 'QMP 重连异常: %{public}s', JSON.stringify(e));
+            AppStorage.setOrCreate(appOption.isVmSwitching, false);
+          }
+        }, 3000);
+
+      } catch (e) {
+        hilog.error(DOMAIN, 'VmController', '启动失败: %{public}s', JSON.stringify(e));
+        AppStorage.setOrCreate(appOption.isVmSwitching, false);
+        
+        uiContext.showAlertDialog({
+          title: $r('app.string.msg_start_vm_confirm'), 
+          message: `启动失败: ${JSON.stringify(e)}`,
+          autoCancel: true,
+          alignment: DialogAlignment.Center,
+          buttons: [{ value: $r('app.string.setting_generic_confirm'), action: () => {} }]
+        });
+      }
+    });
   }
 
   /**
@@ -164,6 +224,23 @@ export class VmController {
      hilog.error(DOMAIN, 'VmController', 'Resume failed after 3 attempts');
   }
 
+  /**
+   * 关闭虚拟机 (受锁保护)
+   */
+  async shutdownVM(): Promise<void> {
+    return this.lock.lockAsync(async () => {
+      const appTempDir = AppStorage.get(appOption.appTempDir) as string;
+      if (!appTempDir) return;
+      
+      AppStorage.setOrCreate(appOption.isVmSwitching, true);
+      try {
+        await this.gracefulShutdownAndWait(appTempDir, 30000);
+      } finally {
+        AppStorage.setOrCreate(appOption.isVmSwitching, false);
+      }
+    });
+  }
+
   private handleQmpEvent(event: QmpEventType, data: QmpEventData | undefined): void {
     hilog.info(DOMAIN, 'VmController', 'QMP Event: %{public}s', event);
     switch (event) {
@@ -175,6 +252,9 @@ export class VmController {
         }
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
         AppStorage.setOrCreate(appOption.currentRunningEmulator, '');
+        
+        // 自动清理资源
+        this.dispose();
         break;
       case 'RESET':
         // 重启 App - 仅当 currentUiContext 有效时
@@ -201,6 +281,10 @@ export class VmController {
     }
   }
 
+  /**
+   * 优雅关机并等待进程退出
+   * 注意：此方法通常在 startVM 或 shutdownVM 的锁内部调用
+   */
   private async gracefulShutdownAndWait(appTempDir: string, timeoutMs: number): Promise<boolean> {
     const vmBaseDir: string = AppStorage.get(appOption.vmBaseDir) as string;
     const pidFilePath: string = vmBaseDir + '/qemu.pid';
@@ -317,5 +401,44 @@ export class VmController {
         }
     }
     return undefined;
+  }
+
+  /**
+   * 启动动态端口检查
+   */
+  private startPortCheck(item: Emulator) {
+    this.stopPortCheck();
+    hilog.info(DOMAIN, 'VmController', '启动动态端口冲突检测...');
+    
+    this.portCheckTimer = setInterval(() => {
+      const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string;
+      if (currentStatus !== 'RUNNING') {
+        this.stopPortCheck();
+        return;
+      }
+
+      // 检查映射端口是否被外部抢占
+      // 注意：QEMU 自身占用的端口 checkPortUsed 会返回 true，所以这里需要更细致的逻辑
+      // 但在 HarmonyOS NAPI 实现中，如果 QEMU 已经 bind 了，checkPortUsed 确实会返回 true。
+      // 为了简化，我们只在启动时做强校验，运行中如果发现端口不可用且不是 QEMU 占用的（这很难判断），
+      // 我们可以通过尝试再次 bind 来检测，但 NAPI 目前只提供了 check。
+      // 这里暂时保留逻辑框架，主要用于提醒用户。
+      const portUsed = item.portMapping.map((it: PortMapping) => it.host!!).filter((p: number) => {
+        // 如果端口没被占用，说明映射可能失效了（QEMU 崩溃或被杀）
+        return !napi.checkPortUsed(p);
+      });
+
+      if (portUsed.length > 0) {
+        hilog.warn(DOMAIN, 'VmController', '检测到端口映射可能失效: %{public}s', JSON.stringify(portUsed));
+        // 可以在这里触发 UI 提醒
+      }
+    }, 30000); // 30秒检查一次
+  }
+
+  private stopPortCheck() {
+    if (this.portCheckTimer !== -1) {
+      clearInterval(this.portCheckTimer);
+      this.portCheckTimer = -1;
+    }
   }
 }
