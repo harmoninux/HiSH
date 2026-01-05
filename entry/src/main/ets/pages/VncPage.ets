@@ -20,7 +20,7 @@ class NativeBridge {
   async enterFullscreen(): Promise<void> {
     hilog.info(DOMAIN, 'VncPage', 'enterFullscreen called from JS');
     try {
-      const win = await window.getLastWindow(getContext(this.page));
+      const win = await window.getLastWindow(this.page.getUIContext().getHostContext()!!);
       
       // First maximize the window
       await win.maximize();
@@ -63,7 +63,7 @@ class NativeBridge {
   async exitFullscreen(): Promise<void> {
     hilog.info(DOMAIN, 'VncPage', 'exitFullscreen called from JS');
     try {
-      const win = await window.getLastWindow(getContext(this.page));
+      const win = await window.getLastWindow(this.page.getUIContext().getHostContext()!!);
       
       // Exit full screen layout
       await win.setWindowLayoutFullScreen(false);
@@ -207,7 +207,7 @@ struct VncPage {
             else if (path.endsWith('.wasm')) mimeType = 'application/wasm';
             
             try {
-              const context = getContext(this);
+              const context = this.getUIContext().getHostContext()!!;
               const content = context.resourceManager.getRawFileContentSync(rawfilePath);
               
               const response = new WebResourceResponse();
