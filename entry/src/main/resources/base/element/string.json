@@ -97,14 +97,6 @@
       "value": "The host port of %d in port mapping should larger than 1000"
     },
     {
-      "name": "setting_reset_linux",
-      "value": "Reset Linux"
-    },
-    {
-      "name": "setting_reset_linux_desc",
-      "value": "Reset linux system to initial"
-    },
-    {
       "name": "setting_keep_screen_on",
       "value": "Keep screen on"
     },
@@ -113,12 +105,20 @@
       "value": "To keep screen on"
     },
     {
-      "name": "setting_reset_linux_content",
-      "value": "Data in Linux will be cleared and HiSH will restart, continue?"
+      "name": "setting_reset_linux",
+      "value": "Reset Linux"
+    },
+    {
+      "name": "setting_reset_linux_desc",
+      "value": "Reset linux system to initial"
     },
     {
       "name": "setting_reset_linux_title",
       "value": "Are you sure to reset Linux?"
+    },
+    {
+      "name": "setting_reset_linux_content",
+      "value": "Data in Linux will be cleared and HiSH will restart, continue?"
     },
     {
       "name": "setting_reset_linux_reset",
@@ -139,6 +139,10 @@
     {
       "name": "import_file_to_shared_folder",
       "value": "Import file"
+    },
+    {
+      "name": "export_file_from_shared_folder",
+      "value": "Export file"
     },
     {
       "name": "importing_file_to_shared_folder",
@@ -169,16 +173,20 @@
       "value": "Port mapping saved, will applied after HiSH restarted"
     },
     {
+      "name": "select_all",
+      "value": "Select All"
+    },
+    {
       "name": "copy_text",
       "value": "Copy text"
     },
     {
-      "name": "port_used_prompt",
-      "value": "Port %s used by other APPs, removed in port mapping"
+      "name": "paste_text",
+      "value": "Paste"
     },
     {
-      "name": "root_outdated_prompt",
-      "value": "The current simulator's root path is set to %s, which may prevent Linux from booting properly.\nYou can adjust the root settings in the simulator management, for example, changing it to /dev/sda"
+      "name": "port_used_prompt",
+      "value": "Port %s used by other APPs, removed in port mapping"
     },
     {
       "name": "confirm_remove",
@@ -201,8 +209,8 @@
       "value": "Input folder name"
     },
     {
-      "name": "export_file_from_shared_folder",
-      "value": "Export file"
+      "name": "delete_this",
+      "value": "Delete"
     },
     {
       "name": "copy_guest_path",
@@ -229,10 +237,6 @@
       "value": "Conflict between %s and %d:%d"
     },
     {
-      "name": "delete_this",
-      "value": "Delete"
-    },
-    {
       "name": "copy_this",
       "value": "Copy to"
     },
@@ -253,10 +257,6 @@
       "value": "Dev toolbox"
     },
     {
-      "name": "location_reason",
-      "value": "To keep service in Linux running in background"
-    },
-    {
       "name": "setting_terminal",
       "value": "Terminal"
     },
@@ -271,6 +271,14 @@
     {
       "name": "setting_vnc_restart_hint",
       "value": "Takes effect after restarting the app"
+    },
+    {
+      "name": "root_outdated_prompt",
+      "value": "The current simulator's root path is set to %s, which may prevent Linux from booting properly.\nYou can adjust the root settings in the simulator management, for example, changing it to /dev/sda"
+    },
+    {
+      "name": "location_reason",
+      "value": "To keep service in Linux running in background"
     },
     {
       "name": "failed_to_force_background",
@@ -1658,7 +1666,7 @@
     },
     {
       "name": "setting_terminal_screensaver_desc",
-      "value": "Seconds to wait before enabling screensaver (0 to disable)"
+      "value": "Seconds to wait before enabling \nscreensaver (0 to disable)"
     },
     {
       "name": "setting_terminal_screensaver_unit",
@@ -1667,6 +1675,22 @@
     {
       "name": "setting_terminal_screensaver_error",
       "value": "Please enter an integer between 0 and 3600"
+    },
+    {
+      "name": "setting_terminal_effect_type",
+      "value": "Effect Charset"
+    },
+    {
+      "name": "setting_terminal_effect_type_desc",
+      "value": "Select character set for matrix effect"
+    },
+    {
+      "name": "setting_terminal_effect_type_random",
+      "value": "Random"
+    },
+    {
+      "name": "setting_terminal_effect_type_binary",
+      "value": "Binary"
     }
   ]
 }

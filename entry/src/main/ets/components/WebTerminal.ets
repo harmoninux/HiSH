@@ -41,8 +41,9 @@ export default struct WebTerminal {
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
   @Watch('onTermEffectsChanged') @StorageProp(appOption.terminalEffects) termEffects: boolean = false
-  @Watch('onTermTransparencyChanged') @StorageProp(appOption.terminalTransparency) termTransparency: number = 100
+  @Watch('onTermTransparencyChanged') @StorageProp(appOption.terminalTransparency) termTransparency: number = 50
   @Watch('onTermScreensaverChanged') @StorageProp(appOption.terminalScreensaver) termScreensaver: number = 0
+  @Watch('onTermEffectTypeChanged') @StorageProp(appOption.terminalEffectType) termEffectType: string = 'random'
   @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
@@ -55,40 +56,23 @@ export default struct WebTerminal {
     alignment: DialogAlignment.Center
   })
 
+  // 右键菜单构建器 - 用于 PC 右键点击
   @Builder
-  contextMenu(webController: WebviewController) {
-    Flex({
-      direction: FlexDirection.Column
-    }) {
+  contextMenu() {
+    Menu() {
       MenuItem({ content: $r('app.string.copy_text') })
-        .width('100%')
-        .onClick(async () => {
-          const selection = await webController.runJavaScript('exports.copy()')
-          if (selection !== '""') {
-            let text: string = JSON.parse(selection);
-            const board = pasteboard.getSystemPasteboard()
-            const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
-            board.setData(pasteData)
-          }
+        .onClick(() => {
+          this.handleCopyRequest();
         })
-      MenuItem() {
-        PasteButton({ buttonType: ButtonType.ROUNDED_RECTANGLE })
-          .onClick(async (event: ClickEvent, result: PasteButtonOnClickResult) => {
-            if (PasteButtonOnClickResult.SUCCESS === result) {
-              let board = pasteboard.getSystemPasteboard();
-              const data = await board.getData()
-              const text = data.getPrimaryText()
-              const array = util.TextEncoder.create().encodeInto(text)
-              const base64 = new util.Base64Helper().encodeToStringSync(array)
-              webController.runJavaScript(`exports.paste(atob('${base64}'))`)
-            }
-          })
-          .width('100%')
-          .align(Alignment.Start)
-          .backgroundColor('#292b2e')
-      }
+      MenuItem({ content: $r('app.string.paste_text') })
+        .onClick(() => {
+          this.handlePasteRequest();
+        })
+      MenuItem({ content: $r('app.string.select_all') })
+        .onClick(() => {
+          this.webviewController.runJavaScript('exports.selectAll()');
+        })
     }
-    .width('160vp')
   }
 
   @Builder
@@ -204,7 +188,7 @@ export default struct WebTerminal {
             name: 'native',
             methodList: ['sendInput', 'resize', 'load',
               'getFontSize', 'getCursorShape', 'getCursorBlink',
-              'getTerminalEffects', 'getTerminalTransparency', 'getTerminalScreensaver',
+              'getTerminalEffects', 'getTerminalTransparency', 'getTerminalScreensaver', 'getTerminalEffectType',
               'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift', 'getDeviceType'],
             controller: this.webviewController,
             asyncMethodList: ['pasteFromClipboard'],
@@ -223,7 +207,6 @@ export default struct WebTerminal {
           })
           .backgroundColor('#000')
           .layoutWeight(1)
-          .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
           .onKeyEvent((event: KeyEvent) => {
             // 调试：打印所有键盘事件的 keyCode
             // hilog.info(DOMAIN, 'WebTerminal', 'onKeyEvent: keyCode=%{public}d, type=%{public}d', event.keyCode, event.type);
@@ -244,6 +227,7 @@ export default struct WebTerminal {
               }
             }
           })
+          .bindContextMenu(this.contextMenu(), ResponseType.RightClick)
 
         if (this.currentStatus === 'PAUSED') {
           Column() {
@@ -530,6 +514,10 @@ export default struct WebTerminal {
     return this.termScreensaver
   }
 
+  getTerminalEffectType(): string {
+    return this.termEffectType
+  }
+
   getDeviceType(): string {
     return deviceInfo.deviceType;
   }
@@ -556,6 +544,10 @@ export default struct WebTerminal {
 
   onTermScreensaverChanged() {
     this.webviewController.runJavaScript(`exports.setTerminalScreensaver(${this.termScreensaver})`)
+  }
+
+  onTermEffectTypeChanged() {
+    this.webviewController.runJavaScript(`exports.setTerminalEffectType('${this.termEffectType}')`)
   }
 
   // Ctrl+Insert 复制选中文本到剪贴板

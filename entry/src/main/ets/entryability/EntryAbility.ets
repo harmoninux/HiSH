@@ -468,6 +468,15 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalCursorBlink, terminalCursorBlink);
     const vncEnabled = await appPref.get(appOption.vncEnabled, true) as boolean;
     AppStorage.setOrCreate(appOption.vncEnabled, vncEnabled);
+    // Terminal Effects 相关配置
+    const terminalEffects = await appPref.get(appOption.terminalEffects, false) as boolean;
+    AppStorage.setOrCreate(appOption.terminalEffects, terminalEffects);
+    const terminalTransparency = await appPref.get(appOption.terminalTransparency, 50) as number;
+    AppStorage.setOrCreate(appOption.terminalTransparency, terminalTransparency);
+    const terminalScreensaver = await appPref.get(appOption.terminalScreensaver, 0) as number;
+    AppStorage.setOrCreate(appOption.terminalScreensaver, terminalScreensaver);
+    const terminalEffectType = await appPref.get(appOption.terminalEffectType, 'random') as string;
+    AppStorage.setOrCreate(appOption.terminalEffectType, terminalEffectType);
 
     const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
     AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)

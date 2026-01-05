@@ -173,8 +173,16 @@
       "value": "端口配置已保存，将在HiSH重启后生效"
     },
     {
+      "name": "select_all",
+      "value": "全选"
+    },
+    {
       "name": "copy_text",
       "value": "复制"
+    },
+    {
+      "name": "paste_text",
+      "value": "粘贴"
     },
     {
       "name": "port_used_prompt",
@@ -1658,7 +1666,7 @@
     },
     {
       "name": "setting_terminal_screensaver_desc",
-      "value": "设定终端无操作屏保启用时间，使用终端特效，0为不启用"
+      "value": "设定终端无操作屏保启用时间，\n使用终端特效，0为不启用"
     },
     {
       "name": "setting_terminal_screensaver_unit",
@@ -1667,6 +1675,22 @@
     {
       "name": "setting_terminal_screensaver_error",
       "value": "请输入0到3600之间的整数"
+    },
+    {
+      "name": "setting_terminal_effect_type",
+      "value": "特效字符集"
+    },
+    {
+      "name": "setting_terminal_effect_type_desc",
+      "value": "选择矩阵特效使用的字符集"
+    },
+    {
+      "name": "setting_terminal_effect_type_random",
+      "value": "随机字符"
+    },
+    {
+      "name": "setting_terminal_effect_type_binary",
+      "value": "01序列"
     }
   ]
 }
