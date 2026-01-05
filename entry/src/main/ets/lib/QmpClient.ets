@@ -74,8 +74,8 @@ export class QmpClient {
       
       hilog.info(DOMAIN, 'QmpClient', '已连接到 QMP Socket: %{public}s', this.socketPath)
 
-      // 1. 等待 Greeting (1秒超时)
-      const greeting = await this.waitForResponse(1000)
+      // 1. 等待 Greeting (5秒超时，解决 PC 端启动慢的问题)
+      const greeting = await this.waitForResponse(5000)
       if (!greeting || !greeting.QMP) {
         hilog.error(DOMAIN, 'QmpClient', '未收到 QMP Greeting')
         await this.disconnect()
