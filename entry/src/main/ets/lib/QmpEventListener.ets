@@ -76,7 +76,7 @@ export class QmpEventListener {
   public onEvent: QmpEventCallback | null = null
   
   // 配置参数
-  private reconnectInterval: number = 5000  // 重连间隔（毫秒）
+  private reconnectInterval: number = 10000  // 重连间隔增加到 10 秒，减轻 PC 端压力
   private statusCheckInterval: number = 10000  // 状态检查间隔（毫秒）
   private maxReconnectAttempts: number = -1  // 最大重连次数，-1 表示无限
   private reconnectAttempts: number = 0
@@ -275,8 +275,11 @@ export class QmpEventListener {
     const message: string = decoder.decodeToString(new Uint8Array(value.message))
     this.pendingData += message
     
-    // 处理所有完整的行
-    this.processMessages()
+    // 只有在握手完成后才自动处理消息（事件）
+    // 握手期间的消息由 waitForGreeting 和 sendCommand 手动从 pendingData 中提取
+    if (this.isConnected) {
+      this.processMessages()
+    }
   }
   
   /**
@@ -359,7 +362,7 @@ export class QmpEventListener {
    * 等待 Greeting
    */
   private async waitForGreeting(): Promise<boolean> {
-    const timeout = 3000
+    const timeout = 10000 // 增加到 10 秒，解决 PC 端响应慢的问题
     const startTime = Date.now()
     
     while (Date.now() - startTime < timeout) {

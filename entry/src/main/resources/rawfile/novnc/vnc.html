@@ -368,10 +368,16 @@
             if (screensaverTimer) clearTimeout(screensaverTimer);
 
             if (matrixRain) {
+                const wasScreensaver = matrixRain.isScreensaver;
                 matrixRain.stop();
                 matrixRain.isScreensaver = false;
                 // 停止后允许点击穿透
                 document.getElementById('matrix').style.pointerEvents = 'none';
+
+                // 如果是从屏保状态退出，强制刷新 VNC 画面以清除残留
+                if (wasScreensaver && window.noVNC_UI && noVNC_UI.rfb) {
+                    noVNC_UI.rfb.requestRefresh();
+                }
             }
 
             if (screensaverTimeoutValue > 0) {

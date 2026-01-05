@@ -1828,3 +1828,6 @@ l10n.setup(LINGUAS, "app/locale/")
     .then(UI.prime);
 
 export default UI;
+
+// Expose UI to window for external access (e.g., screensaver refresh)
+window.noVNC_UI = UI;

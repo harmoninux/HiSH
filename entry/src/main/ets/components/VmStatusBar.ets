@@ -253,20 +253,10 @@ export struct VmStatusBar {
   private async initAgent() {
     if (!this.appTempDir) return
     
-    // 使用连接管理器获取连接
-    this.qgaAgent = await QemuAgentManager.acquire('VmStatusBar', AgentPriority.LOW)
-    
-    if (this.qgaAgent) {
-      // 立即获取一次数据
-      await this.refreshStatus()
-      
-      // 释放连接供其他组件使用
-      await QemuAgentManager.release('VmStatusBar')
-      this.qgaAgent = null
-    }
+    // 首次初始化：尝试获取一次数据
+    await this.refreshStatus()
     
     // 始终启动定时刷新，保持 Agent 连接状态同步
-    // 即使用户关闭了监控信息显示，也需要定期检查 Agent 状态
     this.startRefreshTimer()
   }
   
@@ -365,7 +355,7 @@ export struct VmStatusBar {
     }
   }
 
-  async refreshStatus() {
+  async refreshStatus(externalAgent: QemuAgent | null = null) {
     // 电源管理优先级最高，直接返回
     if (this.isPowerManagementOpen) return
     
@@ -381,8 +371,8 @@ export struct VmStatusBar {
     this.isRefreshing = true
     
     try {
-      // 使用连接管理器获取连接（低优先级，可被电源管理抢占）
-      const agent = await QemuAgentManager.acquire('VmStatusBar', AgentPriority.LOW, 3000)
+      // 如果没有传入外部 agent，则尝试 acquire
+      const agent = externalAgent || await QemuAgentManager.acquire('VmStatusBar', AgentPriority.LOW, 3000)
       if (!agent) {
         this.status.agentConnected = false
         return
@@ -480,13 +470,19 @@ export struct VmStatusBar {
         this.status.sshRunning = await agent.isSshRunning()
       }
       
-      // 释放连接
-      await QemuAgentManager.release('VmStatusBar')
+      // 只有在非外部传入 agent 时才释放
+      if (!externalAgent) {
+        await QemuAgentManager.release('VmStatusBar')
+      }
     } catch (e) {
       hilog.error(DOMAIN, 'VmStatusBar', '刷新状态失败: %{public}s', JSON.stringify(e))
       this.status.agentConnected = false
       // 确保释放连接
-      try { await QemuAgentManager.release('VmStatusBar') } catch (e2) {}
+      try { 
+        if (!externalAgent) {
+          await QemuAgentManager.release('VmStatusBar') 
+        }
+      } catch (e2) {}
     } finally {
       this.isRefreshing = false
     }

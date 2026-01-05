@@ -42,6 +42,7 @@ class QemuAgentManagerImpl {
   private currentUser: string | null = null
   private waitQueue: ConnectionRequest[] = []
   private isProcessing: boolean = false
+  private keepAliveTimer: number = -1
   
   private constructor() {}
   
@@ -142,17 +143,10 @@ class QemuAgentManagerImpl {
       return
     }
     
-    hilog.info(DOMAIN, 'AgentManager', '%{public}s 释放连接', userId)
+    hilog.info(DOMAIN, 'AgentManager', '%{public}s 释放连接 (进入空闲复用状态)', userId)
     
-    // 断开当前连接
-    if (this.agent) {
-      try {
-        await this.agent.disconnect()
-      } catch (e) {
-        // 忽略断开错误
-      }
-      this.agent = null
-    }
+    // 软释放：不关闭连接，只清除使用者标识
+    // 这样下次 acquire 可以直接复用
     this.currentUser = null
     
     // 处理等待队列中的下一个请求
@@ -160,10 +154,10 @@ class QemuAgentManagerImpl {
   }
   
   /**
-   * 强制释放当前连接（用于高优先级抢占）
+   * 强制释放当前连接（用于高优先级抢占或彻底清理）
    */
   private async forceRelease(): Promise<void> {
-    hilog.info(DOMAIN, 'AgentManager', '强制释放连接，当前使用者: %{public}s', this.currentUser || 'none')
+    hilog.info(DOMAIN, 'AgentManager', '强制释放并关闭连接，当前使用者: %{public}s', this.currentUser || 'none')
     
     if (this.agent) {
       try {
@@ -174,12 +168,20 @@ class QemuAgentManagerImpl {
       this.agent = null
     }
     this.currentUser = null
+    this.stopKeepAlive()
   }
   
   /**
    * 创建新连接
    */
   private async createConnection(userId: string): Promise<QemuAgent | null> {
+    // 如果已有连接且可用，直接复用
+    if (this.agent && this.agent.isAlive()) {
+      hilog.info(DOMAIN, 'AgentManager', '复用现有空闲连接: %{public}s', userId)
+      this.currentUser = userId
+      return this.agent
+    }
+
     const appTempDir = AppStorage.get(appOption.appTempDir) as string
     if (!appTempDir) {
       hilog.error(DOMAIN, 'AgentManager', 'appTempDir 未设置')
@@ -189,12 +191,21 @@ class QemuAgentManagerImpl {
     const qgaSocket = appTempDir + '/qga_socket'
     
     try {
+      // 彻底清理旧连接
+      if (this.agent) {
+        await this.agent.disconnect()
+      }
+
       this.agent = new QemuAgent(qgaSocket)
       const connected = await this.agent.connect()
       
       if (connected) {
         this.currentUser = userId
         hilog.info(DOMAIN, 'AgentManager', '%{public}s 连接成功', userId)
+        
+        // 启动心跳保活
+        this.startKeepAlive()
+        
         return this.agent
       } else {
         this.agent = null
@@ -205,6 +216,46 @@ class QemuAgentManagerImpl {
       this.agent = null
       hilog.error(DOMAIN, 'AgentManager', '创建连接失败: %{public}s', JSON.stringify(e))
       return null
+    }
+  }
+
+  /**
+   * 启动心跳保活
+   */
+  private startKeepAlive(): void {
+    this.stopKeepAlive()
+    
+    hilog.info(DOMAIN, 'AgentManager', '启动 QGA 心跳保活 (20s)')
+    this.keepAliveTimer = setInterval(async () => {
+      const currentAgent = this.agent
+
+      if (!currentAgent || !currentAgent.isAlive()) {
+        this.stopKeepAlive()
+        return
+      }
+
+      try {
+        hilog.debug(DOMAIN, 'AgentManager', '发送 QGA 心跳 (ping)...')
+        const success = await currentAgent.ping()
+        
+        if (!success) {
+          hilog.warn(DOMAIN, 'AgentManager', 'QGA 心跳失败，清理连接')
+          await this.forceRelease()
+        }
+      } catch (e) {
+        hilog.error(DOMAIN, 'AgentManager', '心跳执行异常: %{public}s', JSON.stringify(e))
+      }
+    }, 20000) // 20秒一次心跳
+  }
+
+  /**
+   * 停止心跳保活
+   */
+  private stopKeepAlive(): void {
+    if (this.keepAliveTimer !== -1) {
+      clearInterval(this.keepAliveTimer)
+      this.keepAliveTimer = -1
+      hilog.info(DOMAIN, 'AgentManager', '停止 QGA 心跳保活')
     }
   }
   
