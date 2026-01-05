@@ -1,6 +1,7 @@
 import { webview } from '@kit.ArkWeb';
 import { router, window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import appOption from '../model/appOption';
 
 const DOMAIN = 0x0000;
 
@@ -91,6 +92,14 @@ class NativeBridge {
     hilog.info(DOMAIN, 'VncPage', 'isFullscreen called, returning: %{public}s', String(result));
     return result;
   }
+
+  getTerminalScreensaver(): number {
+    return this.page.termScreensaver;
+  }
+
+  getTerminalEffectType(): string {
+    return this.page.termEffectType;
+  }
 }
 
 @Entry
@@ -99,7 +108,17 @@ struct VncPage {
   controller: webview.WebviewController = new webview.WebviewController();
   @State vncPort: number = 60000;
   @State isFullscreenState: boolean = false;
+  @Watch('onTermScreensaverChanged') @StorageProp(appOption.terminalScreensaver) termScreensaver: number = 0
+  @Watch('onTermEffectTypeChanged') @StorageProp(appOption.terminalEffectType) termEffectType: string = 'random'
   private nativeBridge: NativeBridge = new NativeBridge(this);
+
+  onTermScreensaverChanged() {
+    this.controller.runJavaScript(`window.setScreensaverTimeout(${this.termScreensaver})`)
+  }
+
+  onTermEffectTypeChanged() {
+    this.controller.runJavaScript(`window.setEffectType('${this.termEffectType}')`)
+  }
 
   setFullscreen(value: boolean): void {
     this.isFullscreenState = value;
@@ -157,7 +176,7 @@ struct VncPage {
         .javaScriptProxy({
           object: this.nativeBridge,
           name: 'native',
-          methodList: ['enterFullscreen', 'exitFullscreen', 'isFullscreen'],
+          methodList: ['enterFullscreen', 'exitFullscreen', 'isFullscreen', 'getTerminalScreensaver', 'getTerminalEffectType'],
           controller: this.controller
         })
         .backgroundColor('#000000')
