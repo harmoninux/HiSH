@@ -541,6 +541,13 @@ export default class RFB extends EventTargetMixin {
         return this._display.toBlob(callback, type, quality);
     }
 
+    requestRefresh() {
+        if (this._rfbConnectionState !== 'connected') { return; }
+        Log.Info("Requesting full framebuffer update");
+        // Send a non-incremental update request for the full screen
+        RFB.messages.fbUpdateRequest(this._sock, false, 0, 0, this._fbWidth, this._fbHeight);
+    }
+
     // ===== PRIVATE METHODS =====
 
     _connect() {
@@ -919,8 +926,8 @@ export default class RFB extends EventTargetMixin {
             case 'disconnected':
                 this.dispatchEvent(new CustomEvent(
                     "disconnect", {
-                        detail:
-                            { clean: this._rfbCleanDisconnect }
+                    detail:
+                        { clean: this._rfbCleanDisconnect }
                 }));
                 break;
         }

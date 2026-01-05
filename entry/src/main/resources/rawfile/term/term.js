@@ -350,13 +350,26 @@ function resetScreensaverTimer() {
     // Default state: If effects enabled, run in background.
     if (terminalEffectsEnabled) {
         if (matrixRain) {
+            const wasScreensaver = matrixRain.isScreensaver;
+            matrixRain.stop();
+            // Force refresh terminal to clear any screensaver remnants ONLY when exiting screensaver
+            if (wasScreensaver) {
+                term.refresh(0, term.rows - 1);
+            }
             matrixRain.isScreensaver = false;
             matrixRain.start();
         }
         if (canvas) canvas.style.zIndex = '0'; // Background
     } else {
         // Effects disabled, stop rain until screensaver
-        if (matrixRain) matrixRain.stop();
+        if (matrixRain) {
+            const wasScreensaver = matrixRain.isScreensaver;
+            matrixRain.stop();
+            if (wasScreensaver) {
+                term.refresh(0, term.rows - 1);
+            }
+            matrixRain.isScreensaver = false;
+        }
     }
 
     // Screensaver Timer
