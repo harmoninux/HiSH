@@ -139,68 +139,186 @@ window.onload = function () {
 };
 
 // Matrix Rain Implementation
+class Trail {
+    constructor(column, fontSize, canvasHeight, chars) {
+        this.column = column;
+        this.fontSize = fontSize;
+        this.canvasHeight = canvasHeight;
+        this.chars = chars;
+        this.rows = Math.ceil(canvasHeight / fontSize) + 2;
+        this.body = [];
+        this.isBinary = false;
+        this.options = {
+            size: Math.floor(Math.random() * 20) + 10, // 轨迹长度 r(10, 30)
+            offset: Math.floor(Math.random() * this.rows) // 初始偏移
+        };
+        this.build();
+    }
+
+    build() {
+        this.body = [];
+        for (let i = 0; i < this.rows; i++) {
+            this.body.push({
+                char: this.getRandomChar(),
+                mutate: Math.random() < 0.5
+            });
+        }
+    }
+
+    getRandomChar() {
+        return this.chars.charAt(Math.floor(Math.random() * this.chars.length));
+    }
+
+    update() {
+        // 模拟参考代码的 move 逻辑：offset 递增并取模
+        this.options.offset = (this.options.offset + 1) % (this.rows + this.options.size);
+
+        // 模拟参考代码的 mutate 逻辑
+        // 01 序列模式下大幅提高切换率 (0.3)，随机字符模式保持自然 (0.02)
+        const mutationRate = this.isBinary ? 0.3 : 0.02;
+
+        this.body.forEach(c => {
+            if (c.mutate && Math.random() < mutationRate) {
+                c.char = this.getRandomChar();
+            }
+        });
+    }
+
+    draw(ctx) {
+        const { offset, size } = this.options;
+        const x = this.column * this.fontSize;
+
+        for (let i = 0; i < size; i++) {
+            const index = offset + i - size + 1;
+
+            if (index >= 0 && index < this.rows) {
+                const c = this.body[index];
+                const charY = index * this.fontSize;
+                const last = (i === size - 1);
+
+                if (last) {
+                    ctx.fillStyle = 'hsl(136, 100%, 85%)';
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#fff';
+                    c.char = this.getRandomChar();
+                } else {
+                    const brightness = (85 / size) * (i + 1);
+                    ctx.fillStyle = `hsl(136, 100%, ${brightness}%)`;
+                    ctx.shadowBlur = 0;
+                    ctx.shadowColor = 'transparent';
+                }
+
+                ctx.fillText(c.char, x, charY);
+            }
+        }
+    }
+}
+
 class MatrixRain {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
-        this.drops = [];
-        this.fontSize = 14;
-        this.columns = 0;
-        this.interval = null;
-        this.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:\'",./<>?';
+        this.trails = [];
+        this.fontSize = 16;
+        this.isBinary = false;
+        this.isScreensaver = false;
+        this.chars = this.getSampleCharSet();
+        this.animationId = null;
         this.resize();
         window.addEventListener('resize', () => this.resize());
     }
 
+    // 模拟参考代码的 getChar 逻辑生成字符集，并根据用户要求调整概率和加入乱码
+    getSampleCharSet() {
+        let chars = '';
+        let prioritized = '';
+        let junk = '';
+
+        // 日文平假名与片假名
+        for (let i = 0x3041; i <= 0x30ff; i++) chars += String.fromCharCode(i);
+
+        // 优先字符：大小写英文字母 + 数字及数字行符号
+        for (let i = 0x0041; i <= 0x005a; i++) prioritized += String.fromCharCode(i); // A-Z
+        for (let i = 0x0061; i <= 0x007a; i++) prioritized += String.fromCharCode(i); // a-z
+        prioritized += '0123456789!@#$%^&*()_+-=[]{}|;:\'",.<>?/\\';
+
+        // 乱码字符：方块、特殊符号、数学符号等
+        junk += '█▓▒░√×÷±≠≈∞∑∏π∫∆∇√∝∞∟∠∡∢∣∤∥∦∧∨∩∪∫∬∭∮∯∰∱∲∳';
+        for (let i = 0x2500; i <= 0x257f; i++) junk += String.fromCharCode(i); // Box Drawing
+
+        // 通用标点符号
+        for (let i = 0x2000; i <= 0x206f; i++) chars += String.fromCharCode(i);
+
+        // 组合字符集
+        // prioritized 重复 6 次以保持约 66% 的高概率
+        // junk 重复 2 次以占据约 28% 的比例
+        return chars + prioritized.repeat(6) + junk.repeat(2);
+    }
+
     setCharSet(type) {
-        if (type === 'binary') {
+        this.isBinary = (type === 'binary');
+        if (this.isBinary) {
             this.chars = '01';
         } else {
-            // Random/default character set
-            this.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:\'",.<>?';
+            this.chars = this.getSampleCharSet();
         }
+        this.trails.forEach(t => {
+            t.chars = this.chars;
+            t.isBinary = this.isBinary;
+        });
     }
 
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        this.columns = this.canvas.width / this.fontSize;
-        this.drops = [];
-        for (let x = 0; x < this.columns; x++) {
-            // Randomize start position above the screen to stagger entry
-            this.drops[x] = Math.floor(Math.random() * -(this.canvas.height / this.fontSize));
+        const columns = Math.floor(this.canvas.width / this.fontSize);
+        this.trails = [];
+        for (let i = 0; i < columns; i++) {
+            const trail = new Trail(i, this.fontSize, this.canvas.height, this.chars);
+            trail.isBinary = this.isBinary;
+            this.trails.push(trail);
         }
     }
 
     draw() {
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        const now = Date.now();
+        const delay = 50; // 约 20fps，匹配参考代码的节奏感
 
-        this.ctx.fillStyle = '#0F0'; // Green text
-        this.ctx.font = this.fontSize + 'px monospace';
-
-        for (let i = 0; i < this.drops.length; i++) {
-            const text = this.chars.charAt(Math.floor(Math.random() * this.chars.length));
-            this.ctx.fillText(text, i * this.fontSize, this.drops[i] * this.fontSize);
-
-            if (this.drops[i] * this.fontSize > this.canvas.height && Math.random() > 0.975) {
-                this.drops[i] = 0;
+        if (!this.lastFrameTime || now - this.lastFrameTime >= delay) {
+            // 屏保模式下填充黑色背景以遮挡终端，背景特效模式下保持透明
+            if (this.isScreensaver) {
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            } else {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             }
-            this.drops[i]++;
+
+            this.ctx.font = `bold ${this.fontSize}px monospace`;
+            this.ctx.textAlign = 'center';
+            this.ctx.shadowBlur = 0;
+            this.ctx.shadowColor = 'transparent';
+
+            this.trails.forEach(trail => {
+                trail.update();
+                trail.draw(this.ctx);
+            });
+            this.lastFrameTime = now;
         }
+
+        this.animationId = requestAnimationFrame(() => this.draw());
     }
 
     start() {
-        if (!this.interval) {
+        if (!this.animationId) {
             this.canvas.style.display = 'block';
-            this.interval = setInterval(() => this.draw(), 33);
+            this.draw();
         }
     }
 
     stop() {
-        if (this.interval) {
-            clearInterval(this.interval);
-            this.interval = null;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
             this.canvas.style.display = 'none';
         }
     }
@@ -231,7 +349,10 @@ function resetScreensaverTimer() {
 
     // Default state: If effects enabled, run in background.
     if (terminalEffectsEnabled) {
-        if (matrixRain) matrixRain.start();
+        if (matrixRain) {
+            matrixRain.isScreensaver = false;
+            matrixRain.start();
+        }
         if (canvas) canvas.style.zIndex = '0'; // Background
     } else {
         // Effects disabled, stop rain until screensaver
@@ -242,6 +363,7 @@ function resetScreensaverTimer() {
     if (screensaverTimeoutValue > 0) {
         screensaverTimer = setTimeout(() => {
             if (matrixRain) {
+                matrixRain.isScreensaver = true;
                 matrixRain.start();
                 // Bring to front when screensaver activates
                 if (canvas) canvas.style.zIndex = '2'; // Foreground

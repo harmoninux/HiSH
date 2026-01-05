@@ -354,6 +354,71 @@
         <source src="app/sounds/bell.oga" type="audio/ogg">
         <source src="app/sounds/bell.mp3" type="audio/mpeg">
     </audio>
+
+    <!-- Matrix Rain Screensaver -->
+    <canvas id="matrix"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: none; pointer-events: none;"></canvas>
+    <script src="matrix.js"></script>
+    <script>
+        let matrixRain = null;
+        let screensaverTimer = null;
+        let screensaverTimeoutValue = 0; // 秒
+
+        function resetScreensaverTimer() {
+            if (screensaverTimer) clearTimeout(screensaverTimer);
+
+            if (matrixRain) {
+                matrixRain.stop();
+                matrixRain.isScreensaver = false;
+                // 停止后允许点击穿透
+                document.getElementById('matrix').style.pointerEvents = 'none';
+            }
+
+            if (screensaverTimeoutValue > 0) {
+                screensaverTimer = setTimeout(() => {
+                    if (matrixRain) {
+                        matrixRain.isScreensaver = true;
+                        matrixRain.start();
+                        // 激活后拦截事件以退出
+                        document.getElementById('matrix').style.pointerEvents = 'auto';
+                    }
+                }, screensaverTimeoutValue * 1000);
+            }
+        }
+
+        // 初始化屏保
+        window.addEventListener('load', () => {
+            matrixRain = new MatrixRain('matrix');
+
+            // 监听用户活动 - 使用捕获阶段 (true) 以防止被 noVNC 拦截
+            ['mousedown', 'mousemove', 'keydown', 'touchstart'].forEach(event => {
+                window.addEventListener(event, resetScreensaverTimer, true);
+            });
+
+            // 从 Native 获取初始设置
+            setTimeout(() => {
+                if (window.native) {
+                    if (native.getTerminalScreensaver) {
+                        screensaverTimeoutValue = native.getTerminalScreensaver();
+                    }
+                    if (native.getTerminalEffectType) {
+                        const type = native.getTerminalEffectType();
+                        matrixRain.setCharSet(type);
+                    }
+                    resetScreensaverTimer();
+                }
+            }, 1000);
+        });
+
+        // 供 Native 调用更新设置
+        window.setScreensaverTimeout = (timeout) => {
+            screensaverTimeoutValue = timeout;
+            resetScreensaverTimer();
+        };
+        window.setEffectType = (type) => {
+            if (matrixRain) matrixRain.setCharSet(type);
+        };
+    </script>
 </body>
 
 </html>
