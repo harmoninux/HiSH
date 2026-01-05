@@ -431,9 +431,8 @@ export default struct WebTerminal {
       const text = data.getPrimaryText()
       // hilog.info(DOMAIN, 'WebTerminal', 'handlePasteRequest text length: %{public}d', text ? text.length : 0);
       if (text) {
-        const array = util.TextEncoder.create().encodeInto(text)
-        const base64 = new util.Base64Helper().encodeToStringSync(array)
-        this.webviewController.runJavaScript(`exports.paste(atob('${base64}'))`)
+        const escapedText = JSON.stringify(text);
+        this.webviewController.runJavaScript(`exports.paste(${escapedText})`)
         hilog.info(DOMAIN, 'WebTerminal', 'handlePasteRequest completed');
       }
     } catch (error) {

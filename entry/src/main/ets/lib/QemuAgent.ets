@@ -20,11 +20,12 @@ interface QGAArguments {
   arg?: string[]
   'capture-output'?: boolean
   pid?: number
+  signal?: number
 }
 
 // QGA JSON-RPC 响应接口  
 interface QGAResponse {
-  return?: ESObject
+  return?: QGAResponseData
   error?: QGAError
   id?: number
 }
@@ -32,6 +33,61 @@ interface QGAResponse {
 interface QGAError {
   class: string
   desc: string
+}
+
+// 基础响应类型
+type QGAResponseData = Object;
+
+// 具体业务接口定义
+export interface QGANetworkAddress {
+  'ip-address': string
+  'ip-address-type': string
+  prefix: number
+}
+
+export interface QGANetworkInterface {
+  name: string
+  'hardware-address'?: string
+  'ip-addresses'?: QGANetworkAddress[]
+  statistics?: Record<string, number>
+}
+
+export interface QGADiskInfo {
+  name: string
+  partition?: boolean
+  dependencies?: string[]
+  address?: Record<string, string>
+  alias?: string
+}
+
+export interface QGAFilesystemInfo {
+  name: string
+  mountpoint: string
+  type: string
+  'used-bytes'?: number
+  'total-bytes'?: number
+  disk?: QGADiskInfo[]
+}
+
+export interface QGAVcpuInfo {
+  'logical-id': number
+  online: boolean
+  'can-offline'?: boolean
+}
+
+export interface QGAExecStatus {
+  exited: boolean
+  'exit-code'?: number
+  signal?: number
+  'out-data'?: string
+  'err-data'?: string
+  'out-truncated'?: boolean
+  'err-truncated'?: boolean
+}
+
+export interface QGAGuestInfo {
+  version: string
+  supported_commands: Record<string, boolean>[]
 }
 
 /**
@@ -84,7 +140,7 @@ export class QemuAgent {
       })
 
       // [修复] 监听错误事件
-      this.client.on('error', (err: ESObject): void => {
+      this.client.on('error', (err: Error): void => {
         hilog.error(DOMAIN, 'QemuAgent', 'Socket 错误: %{public}s', JSON.stringify(err))
         this.isConnected = false
       })
@@ -103,7 +159,7 @@ export class QemuAgent {
       
       return true
     } catch (e) {
-      hilog.error(DOMAIN, 'QemuAgent', '连接 QGA 失败: %{public}s', JSON.stringify(e as ESObject))
+      hilog.error(DOMAIN, 'QemuAgent', '连接 QGA 失败: %{public}s', JSON.stringify(e))
       await this.disconnect()
       return false
     }
@@ -152,7 +208,7 @@ export class QemuAgent {
       hilog.warn(DOMAIN, 'QemuAgent', 'QGA 流同步超时')
       return false
     } catch (e) {
-      hilog.error(DOMAIN, 'QemuAgent', 'QGA 流同步异常: %{public}s', JSON.stringify(e as ESObject))
+      hilog.error(DOMAIN, 'QemuAgent', 'QGA 流同步异常: %{public}s', JSON.stringify(e))
       return false
     }
   }
@@ -191,7 +247,7 @@ export class QemuAgent {
    * 向 QGA 发送 JSON-RPC 命令
    * [修复1.3] 改进响应等待逻辑
    */
-  private async sendCommand(command: string, args?: QGAArguments, waitForResponse: boolean = true): Promise<ESObject | null> {
+  private async sendCommand<T extends QGAResponseData>(command: string, args?: QGAArguments, waitForResponse: boolean = true, timeoutMs: number = 10000): Promise<T | null> {
     if (!this.client || !this.isConnected) {
       hilog.error(DOMAIN, 'QemuAgent', '发送命令失败：未连接到 QGA (命令: %{public}s)', command)
       return null
@@ -222,14 +278,13 @@ export class QemuAgent {
       hilog.info(DOMAIN, 'QemuAgent', '发送命令: %{public}s (id=%{public}d)', command, currentId)
 
       if (!waitForResponse) {
-        return {}
+        return new Object() as T
       }
 
       // 等待响应，使用更合理的超时和间隔
       const startTime: number = Date.now()
-      const timeout: number = 10000  // 增加到 10 秒超时，解决 PC 端响应慢的问题
       
-      while (Date.now() - startTime < timeout) {
+      while (Date.now() - startTime < timeoutMs) {
         // 检查连接状态
         if (!this.isConnected) {
           hilog.error(DOMAIN, 'QemuAgent', '等待响应期间连接断开 (命令: %{public}s)', command)
@@ -257,7 +312,7 @@ export class QemuAgent {
                 return null
               }
               
-              return result.return || {}
+              return (result.return as T) || (new Object() as T)
             } catch (e) {
               hilog.warn(DOMAIN, 'QemuAgent', 'JSON 解析失败: %{public}s (命令: %{public}s)', line, command)
               continue
@@ -272,7 +327,7 @@ export class QemuAgent {
       hilog.error(DOMAIN, 'QemuAgent', '等待响应超时 (命令: %{public}s, 已等待 %{public}d ms)', command, Date.now() - startTime)
       return null
     } catch (e) {
-      hilog.error(DOMAIN, 'QemuAgent', '执行命令异常: %{public}s (命令: %{public}s)', JSON.stringify(e as ESObject), command)
+      hilog.error(DOMAIN, 'QemuAgent', '执行命令异常: %{public}s (命令: %{public}s)', JSON.stringify(e), command)
       this.isConnected = false  // 标记连接已断开
       return null
     }
@@ -283,7 +338,7 @@ export class QemuAgent {
    */
   async shutdown(): Promise<boolean> {
     const args: QGAArguments = { mode: 'powerdown' }
-    const result: ESObject | null = await this.sendCommand('guest-shutdown', args, false)
+    const result = await this.sendCommand<Record<string, Object>>('guest-shutdown', args, false)
     return result !== null
   }
 
@@ -292,7 +347,7 @@ export class QemuAgent {
    */
   async reboot(): Promise<boolean> {
     const args: QGAArguments = { mode: 'reboot' }
-    const result: ESObject | null = await this.sendCommand('guest-shutdown', args, false)
+    const result = await this.sendCommand<Record<string, Object>>('guest-shutdown', args, false)
     return result !== null
   }
 
@@ -300,7 +355,7 @@ export class QemuAgent {
    * 暂停（挂起到 RAM）
    */
   async suspend(): Promise<boolean> {
-    const result: ESObject | null = await this.sendCommand('guest-suspend-ram', undefined, false)
+    const result = await this.sendCommand<Record<string, Object>>('guest-suspend-ram', undefined, false)
     return result !== null
   }
 
@@ -308,24 +363,24 @@ export class QemuAgent {
    * Ping 检查 QGA 是否响应
    */
   async ping(): Promise<boolean> {
-    const result: ESObject | null = await this.sendCommand('guest-ping')
+    const result = await this.sendCommand<Record<string, Object>>('guest-ping')
     return result !== null
   }
 
   /**
    * 获取虚拟机信息
    */
-  async getInfo(): Promise<ESObject | null> {
-    return await this.sendCommand('guest-info')
+  async getInfo(): Promise<QGAGuestInfo | null> {
+    return await this.sendCommand<QGAGuestInfo>('guest-info')
   }
 
   /**
    * 获取主机名
    */
   async getHostName(): Promise<string | null> {
-    const result: ESObject | null = await this.sendCommand('guest-get-host-name')
+    const result = await this.sendCommand<Record<string, string>>('guest-get-host-name')
     if (result && typeof result === 'object') {
-      return (result as Record<string, string>)['host-name'] || null
+      return result['host-name'] || null
     }
     return null
   }
@@ -333,10 +388,10 @@ export class QemuAgent {
   /**
    * 获取网络接口信息
    */
-  async getNetworkInterfaces(): Promise<ESObject[] | null> {
-    const result: ESObject | null = await this.sendCommand('guest-network-get-interfaces')
+  async getNetworkInterfaces(): Promise<QGANetworkInterface[] | null> {
+    const result = await this.sendCommand<QGANetworkInterface[]>('guest-network-get-interfaces')
     if (result && Array.isArray(result)) {
-      return result as ESObject[]
+      return result
     }
     return null
   }
@@ -344,10 +399,10 @@ export class QemuAgent {
   /**
    * 获取文件系统信息
    */
-  async getFilesystemInfo(): Promise<ESObject[] | null> {
-    const result: ESObject | null = await this.sendCommand('guest-get-fsinfo')
+  async getFilesystemInfo(): Promise<QGAFilesystemInfo[] | null> {
+    const result = await this.sendCommand<QGAFilesystemInfo[]>('guest-get-fsinfo')
     if (result && Array.isArray(result)) {
-      return result as ESObject[]
+      return result
     }
     return null
   }
@@ -355,10 +410,10 @@ export class QemuAgent {
   /**
    * 获取 vCPU 信息
    */
-  async getVcpus(): Promise<ESObject[] | null> {
-    const result: ESObject | null = await this.sendCommand('guest-get-vcpus')
+  async getVcpus(): Promise<QGAVcpuInfo[] | null> {
+    const result = await this.sendCommand<QGAVcpuInfo[]>('guest-get-vcpus')
     if (result && Array.isArray(result)) {
-      return result as ESObject[]
+      return result
     }
     return null
   }
@@ -367,21 +422,16 @@ export class QemuAgent {
    * 在虚拟机内执行命令
    */
   async exec(path: string, args?: string[]): Promise<number | null> {
-    interface ExecArgs {
-      path: string
-      arg?: string[]
-      'capture-output'?: boolean
-    }
-    const execArgs: ExecArgs = {
+    const execArgs: QGAArguments = {
       path: path,
       'capture-output': true
     }
     if (args) {
       execArgs.arg = args
     }
-    const result: ESObject | null = await this.sendCommand('guest-exec', execArgs as ESObject)
+    const result = await this.sendCommand<Record<string, number>>('guest-exec', execArgs)
     if (result && typeof result === 'object') {
-      return (result as Record<string, number>)['pid'] || null
+      return result['pid'] || null
     }
     return null
   }
@@ -389,27 +439,27 @@ export class QemuAgent {
   /**
    * 获取执行结果
    */
-  async execStatus(pid: number): Promise<ESObject | null> {
-    interface ExecStatusArgs {
-      pid: number
-    }
-    const args: ExecStatusArgs = { pid }
-    return await this.sendCommand('guest-exec-status', args as ESObject)
+  async execStatus(pid: number): Promise<QGAExecStatus | null> {
+    const args: QGAArguments = { pid }
+    return await this.sendCommand<QGAExecStatus>('guest-exec-status', args)
   }
 
   /**
    * 执行命令并获取输出（便捷方法）
+   * [优化] 增加超时清理逻辑，防止进程堆积
    */
-  async execAndGetOutput(path: string, args?: string[]): Promise<string | null> {
+  async execAndGetOutput(path: string, args?: string[], timeoutMs: number = 5000): Promise<string | null> {
     const pid = await this.exec(path, args)
     if (!pid) return null
 
     // 等待命令执行完成
-    for (let i = 0; i < 20; i++) {
-      await new Promise<void>((resolve: () => void) => setTimeout(resolve, 100))
-      const status: ESObject | null = await this.execStatus(pid)
-      if (status && (status as Record<string, boolean>)['exited']) {
-        const outData = (status as Record<string, string>)['out-data']
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeoutMs) {
+      await new Promise<void>((resolve: () => void) => setTimeout(resolve, 200))
+      const status = await this.execStatus(pid)
+      
+      if (status && status.exited) {
+        const outData = (status as Object as Record<string, Object>)['out-data'] as string
         if (outData) {
           // Base64 解码
           try {
@@ -418,13 +468,27 @@ export class QemuAgent {
             const decoded = base64Helper.decodeSync(outData)
             return decoder.decodeToString(decoded)
           } catch (e) {
-            hilog.error(DOMAIN, 'QemuAgent', '解码输出失败: %{public}s', JSON.stringify(e as ESObject))
+            hilog.error(DOMAIN, 'QemuAgent', '解码输出失败: %{public}s', JSON.stringify(e))
           }
         }
         return ''
       }
     }
+    
+    // 超时清理：尝试杀死该进程
+    hilog.warn(DOMAIN, 'QemuAgent', '命令执行超时 (PID: %{public}d)，尝试清理...', pid)
+    await this.kill(pid)
+    
     return null
+  }
+
+  /**
+   * 杀死虚拟机内的进程
+   */
+  async kill(pid: number, signal: number = 15): Promise<boolean> {
+    const args: QGAArguments = { pid, signal }
+    const result = await this.sendCommand<Record<string, Object>>('guest-process-signal', args)
+    return result !== null
   }
 
   /**

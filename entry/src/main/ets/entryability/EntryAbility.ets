@@ -15,6 +15,7 @@ import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
 import { startQmpEventListener, stopQmpEventListener, QmpEventType, QmpEventData } from '../lib/QmpEventListener';
 import QemuAgent from '../lib/QemuAgent';
+import { VmController } from '../lib/VmController';
 
 const DOMAIN = 0x0000;
 
@@ -62,26 +63,25 @@ export default class EntryAbility extends UIAbility {
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
     
-    // 清理窗口大小变化防抖定时器
+    // 1. 调用 VmController 统一销毁资源（停止监听器、清理定时器、断开 Agent）
+    VmController.getInstance().dispose().catch((e: Error) => {
+      hilog.warn(DOMAIN, 'testTag', 'VmController dispose failed: %{public}s', e.message);
+    });
+
+    // 2. 清理窗口大小变化防抖定时器
     if (windowResizeTimer !== -1) {
       clearTimeout(windowResizeTimer);
       windowResizeTimer = -1;
     }
     
-    // 断开 resizeAgent 连接
+    // 3. 断开 resizeAgent 连接
     if (resizeAgent) {
       resizeAgent.disconnect().catch(() => { /* 忽略错误 */ });
       resizeAgent = null;
     }
     
-    // 停止 QMP 事件监听器
-    stopQmpEventListener().catch((e: Error): void => {
-      hilog.warn(DOMAIN, 'testTag', 'Failed to stop QMP event listener: %{public}s', e.message);
-    });
-    
-    // 杀死 QEMU 子进程
+    // 4. 杀死 QEMU 子进程
     try {
-      // 修正路径：pid 文件位于 filesDir/vm/qemu.pid
       const pidFilePath = this.context.filesDir + '/vm/qemu.pid';
       napi.killQemuProcess(pidFilePath);
     } catch (e) {
@@ -279,6 +279,9 @@ export default class EntryAbility extends UIAbility {
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
         // 清除当前运行的模拟器 ID，这样模拟器管理界面会显示为"未运行"
         AppStorage.setOrCreate(appOption.currentRunningEmulator, '')
+        
+        // 自动清理资源
+        VmController.getInstance().dispose();
         break
         
       case 'POWERDOWN':
