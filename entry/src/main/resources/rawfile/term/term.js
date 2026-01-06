@@ -72,7 +72,17 @@ window.onload = function () {
 
         // Initial fit with a slight delay to ensure container is ready
         setTimeout(() => {
-            // 1. Fit Terminal
+            // 1. Setup event listeners and sync preferences FIRST
+            //    确保 term.onResize 在 fitAddon.fit() 之前设置好，
+            //    这样首次 fit 的 resize 事件才能触发 native.resize() 发送给 VM 内核
+            try {
+                syncPrefs();
+                setupEventListeners();
+            } catch (e) {
+                console.error("Error during setup", e);
+            }
+
+            // 2. Fit Terminal (now onResize listener is ready to capture this)
             try {
                 fitAddon.fit();
                 console.log(`Terminal size after fit: ${term.cols}x${term.rows}`);
@@ -87,7 +97,7 @@ window.onload = function () {
                 term.resize(80, 24); // Fallback
             }
 
-            // 2. Load WebGL
+            // 3. Load WebGL
             if (shouldEnableWebGL) {
                 try {
                     webglAddon.onContextLoss(e => {
@@ -100,14 +110,8 @@ window.onload = function () {
                 }
             }
 
-            // 3. Initialize and Start Shell
+            // 4. Initialize and Start Shell
             try {
-                // Sync preferences from native
-                syncPrefs();
-
-                // Event Listeners
-                setupEventListeners();
-
                 // Restore HiSH Startup Logo
                 term.writeln(
                     'HiSH is starting...\r\n\r\n' +
@@ -127,7 +131,7 @@ window.onload = function () {
                 console.error("Error during init/load", e);
             }
 
-        }, 300); // Increased delay to 300ms
+        }, 300); // 300ms delay to ensure container is ready
 
         // Initialize Matrix Rain
         matrixRain = new MatrixRain('matrix');
