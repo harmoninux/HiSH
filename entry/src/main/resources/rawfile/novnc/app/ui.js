@@ -1539,6 +1539,10 @@ const UI = {
         if (UI.rfb) {
             UI.rfb.focusOnClick = true;
         }
+        // 键盘收起时强制更新视口尺寸
+        if (window.forceViewportUpdate) {
+            window.forceViewportUpdate();
+        }
     },
 
     keepVirtualKeyboard(event) {

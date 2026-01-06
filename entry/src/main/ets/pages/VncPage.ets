@@ -165,7 +165,9 @@ struct VncPage {
                   hilog.warn(DOMAIN, 'VncPage', 'forceViewportUpdate failed: %{public}s', JSON.stringify(e));
                 }
               };
-              // 多次延迟触发，与全屏切换保持一致
+              // 立即触发一次，并多次延迟触发，确保在动画不同阶段都能捕捉到正确尺寸
+              callForceViewportUpdate();
+              setTimeout(callForceViewportUpdate, 100);
               setTimeout(callForceViewportUpdate, 300);
               setTimeout(callForceViewportUpdate, 600);
               setTimeout(callForceViewportUpdate, 1000);
