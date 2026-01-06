@@ -25,6 +25,8 @@
 #include <setjmp.h>
 #include <libgen.h>
 #include <sys/auxv.h>
+#include <atomic>
+
 
 #include "hilog/log.h"
 #undef LOG_DOMAIN
@@ -40,19 +42,40 @@ static thread_local int qemu_exit_code = 0;
 // 标识当前线程是否是 QEMU 线程
 static thread_local bool is_qemu_thread = false;
 
+// P1-01修复: 保存 dlopen 句柄以便后续释放
+static void *libQemuHandle = nullptr;
+static void *libQemuImgHandle = nullptr;
+
+// 自动释放句柄
+__attribute__((destructor)) static void cleanup_handles()
+{
+    if (libQemuHandle)
+    {
+        dlclose(libQemuHandle);
+        libQemuHandle = nullptr;
+    }
+    if (libQemuImgHandle)
+    {
+        dlclose(libQemuImgHandle);
+        libQemuImgHandle = nullptr;
+    }
+}
+
 // 覆盖 exit 函数
 extern "C" void exit(int status)
 {
     if (is_qemu_thread && qemu_exit_jmp_set)
     {
-        OH_LOG_INFO(LOG_APP, "QEMU called exit(%{public}d), using longjmp to return", status);
+        // P1-06 & P1-13修复: 记录详细日志，并提醒 longjmp 风险
+        // 注意：longjmp 会跳过当前栈帧的析构函数，QEMU 线程中应避免使用复杂的 C++ 对象
+        OH_LOG_INFO(LOG_APP, "QEMU called exit(%{public}d), using longjmp to return to jump point", status);
         qemu_exit_code = status;
         longjmp(qemu_exit_jmp, 1);
     }
     else
     {
         // 调用真正的 exit
-        OH_LOG_INFO(LOG_APP, "Normal exit(%{public}d) called", status);
+        OH_LOG_INFO(LOG_APP, "Normal exit(%{public}d) called, process will terminate", status);
         _exit(status);
     }
 }
@@ -66,7 +89,8 @@ struct data_buffer
 // QEMU 子进程 PID (PC 模式下使用)
 static pid_t qemu_child_pid = -1;
 
-int serial_input_fd = -1;
+// P0-08修复: 使用std::atomic避免多线程竞争
+std::atomic<int> serial_input_fd{-1};
 napi_threadsafe_function on_data_callback = nullptr;
 napi_threadsafe_function on_shutdown_callback = nullptr;
 
@@ -137,7 +161,15 @@ static QemuSystemEntry getQemuSystemEntry()
 
     const char *libQemuPath = "libqemu-system-aarch64.so";
 
-    void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
+    libQemuHandle = dlopen(selectedPath.c_str(), RTLD_LAZY);
+
+    if (!libQemuHandle)
+    {
+        OH_LOG_ERROR(LOG_APP, "Failed to load libqemu.so from %{public}s, errno: %{public}d, trying default path",
+                     selectedPath.c_str(), errno);
+        // 回退到默认路径
+        libQemuHandle = dlopen("libqemu-system-aarch64.so", RTLD_LAZY);
+    }
 
     if (!libQemuHandle)
     {
@@ -159,7 +191,6 @@ typedef int (*QemuImgEntry)(int, const char **);
 static QemuImgEntry getQemuImgEntry()
 {
     static QemuImgEntry qemuImgEntry = nullptr;
-    static void *libQemuImgHandle = nullptr;
 
     if (qemuImgEntry != nullptr)
     {
@@ -226,9 +257,11 @@ static std::string getQcow2Info(const std::string &imagePath)
     int fd = open(imagePath.c_str(), O_RDONLY);
     if (fd < 0)
     {
-        OH_LOG_ERROR(LOG_APP, "Failed to open image file: %{public}s, errno: %{public}d",
-                     imagePath.c_str(), errno);
-        return "{\"error\": \"Failed to open image file\"}";
+        // P1-11修复: 返回详细的错误信息
+        int err = errno;
+        OH_LOG_ERROR(LOG_APP, "Failed to open image file: %{public}s, errno: %{public}d (%{public}s)",
+                     imagePath.c_str(), err, strerror(err));
+        return "{\"error\": \"Failed to open image file\", \"errno\": " + std::to_string(err) + ", \"message\": \"" + strerror(err) + "\"}";
     }
 
     // 获取文件大小（实际磁盘占用）
@@ -261,7 +294,13 @@ static std::string getQcow2Info(const std::string &imagePath)
     uint32_t version = be32toh_manual(header.version);
     uint64_t virtual_size = be64toh_manual(header.size);
     uint32_t cluster_bits = be32toh_manual(header.cluster_bits);
-    uint32_t cluster_size = 1 << cluster_bits;
+    // P0-07修复: QCOW2规范要求 cluster_bits 在 9-21 范围内 (512B - 2MB clusters)
+    if (cluster_bits < 9 || cluster_bits > 21)
+    {
+        return "{\"error\": \"Invalid cluster_bits value\", \"cluster_bits\": " + std::to_string(cluster_bits) + "}";
+    }
+    // P1-09修复: 使用 64 位无符号整数计算 cluster_size，防止中间过程溢出
+    uint64_t cluster_size = 1ULL << cluster_bits;
     uint32_t nb_snapshots = be32toh_manual(header.nb_snapshots);
 
     // QCOW2 v3 特有字段
@@ -427,13 +466,34 @@ static std::string getSnapshotsFromFile(const std::string &imagePath)
             lseek(fd, extra_data_size, SEEK_CUR);
         }
 
+        // P0-04修复: 限制快照名称最大长度，防止OOM攻击
+        const size_t MAX_SNAPSHOT_NAME_SIZE = 4096;
+
         // 读取 ID 字符串
+        if (id_str_size > MAX_SNAPSHOT_NAME_SIZE)
+        {
+            OH_LOG_ERROR(LOG_APP, "Snapshot id_str_size too large: %{public}u", id_str_size);
+            break;
+        }
         std::string id_str(id_str_size, '\0');
-        read(fd, &id_str[0], id_str_size);
+        if (id_str_size > 0 && read(fd, &id_str[0], id_str_size) != id_str_size)
+        {
+            OH_LOG_ERROR(LOG_APP, "Failed to read snapshot id");
+            break;
+        }
 
         // 读取名称
+        if (name_size > MAX_SNAPSHOT_NAME_SIZE)
+        {
+            OH_LOG_ERROR(LOG_APP, "Snapshot name_size too large: %{public}u", name_size);
+            break;
+        }
         std::string name(name_size, '\0');
-        read(fd, &name[0], name_size);
+        if (name_size > 0 && read(fd, &name[0], name_size) != name_size)
+        {
+            OH_LOG_ERROR(LOG_APP, "Failed to read snapshot name");
+            break;
+        }
 
         // 跳过 padding（对齐到 8 字节）
         size_t header_size = sizeof(QcowSnapshotHeader) + extra_data_size + id_str_size + name_size;
@@ -946,6 +1006,15 @@ void serial_output_worker(const char *unix_socket_path)
     // Connect to server
     memset(&server_addr, 0, sizeof(struct sockaddr_un));
     server_addr.sun_family = AF_UNIX;
+    // P0-03修复: 验证路径长度，防止缓冲区溢出
+    size_t path_len = strlen(unix_socket_path);
+    if (path_len >= sizeof(server_addr.sun_path))
+    {
+        OH_LOG_ERROR(LOG_APP, "Unix socket path too long: %{public}zu >= %{public}zu",
+                     path_len, sizeof(server_addr.sun_path));
+        close(client_fd);
+        return;
+    }
     strncpy(server_addr.sun_path, unix_socket_path, sizeof(server_addr.sun_path) - 1);
 
     if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_un)) == -1)
@@ -955,9 +1024,9 @@ void serial_output_worker(const char *unix_socket_path)
         return;
     }
 
-    serial_input_fd = client_fd;
+    serial_input_fd.store(client_fd);
 
-    OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd);
+    OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd.load());
 
     while (true)
     {
@@ -1003,7 +1072,7 @@ void serial_output_worker(const char *unix_socket_path)
 
     // 清理 socket 资源，但保留回调以便新的 worker 线程使用
     close(client_fd);
-    serial_input_fd = -1;
+    serial_input_fd.store(-1);
     OH_LOG_INFO(LOG_APP, "Closed serial socket fd: %{public}d", client_fd);
 
     // 注意：不释放 on_data_callback，因为 VM 切换时新的 serial_output_worker 仍需使用它
@@ -1266,7 +1335,7 @@ static napi_value startVM(napi_env env, napi_callback_info info)
 static napi_value sendInput(napi_env env, napi_callback_info info)
 {
 
-    if (serial_input_fd < 0)
+    if (serial_input_fd.load() < 0)
     {
         return nullptr;
     }
@@ -1277,17 +1346,28 @@ static napi_value sendInput(napi_env env, napi_callback_info info)
 
     uint8_t *data;
     size_t length;
+    // P0-01修复: 移除assert，使用显式错误处理
     napi_status ret = napi_get_arraybuffer_info(env, args[0], (void **)&data, &length);
-    assert(ret == napi_ok);
+    if (ret != napi_ok)
+    {
+        OH_LOG_ERROR(LOG_APP, "Failed to get arraybuffer info: %{public}d", ret);
+        return nullptr;
+    }
 
-    std::string hex = convert_to_hex(data, ret);
+    // P0-06修复: 将ret改为length
+    std::string hex = convert_to_hex(data, length);
     OH_LOG_INFO(LOG_APP, "Send, data: %{public}s", hex.c_str());
 
     int written = 0;
-    while (written < length)
+    while (written < (int)length)
     {
-        int size = write(serial_input_fd, (uint8_t *)data + written, length - written);
-        assert(size >= 0);
+        // P0-02修复: 移除assert，使用显式错误处理
+        int size = write(serial_input_fd.load(), (uint8_t *)data + written, length - written);
+        if (size < 0)
+        {
+            OH_LOG_ERROR(LOG_APP, "Serial write failed: errno=%{public}d", errno);
+            break;
+        }
         written += size;
     }
 
@@ -1315,6 +1395,7 @@ static napi_value onData(napi_env env, napi_callback_info info)
             send_data_to_callback(temp_buffer, data_callback);
             temp_buffer.clear();
         }
+        // P1-14修复: 将设置移入锁保护范围内
         on_data_callback = data_callback;
     }
 
@@ -1476,6 +1557,28 @@ static napi_value killQemuProcess(napi_env env, napi_callback_info info)
 
     if (pid_to_kill > 0)
     {
+        // P1-05修复: 发送信号前验证进程名称，防止杀错重用 PID 的进程
+        char cmdPath[64];
+        snprintf(cmdPath, sizeof(cmdPath), "/proc/%d/cmdline", pid_to_kill);
+        FILE *cmdFile = fopen(cmdPath, "r");
+        if (cmdFile)
+        {
+            char cmdline[256] = {0};
+            fread(cmdline, 1, sizeof(cmdline) - 1, cmdFile);
+            fclose(cmdFile);
+            if (strstr(cmdline, "qemu") == nullptr)
+            {
+                OH_LOG_WARN(LOG_APP, "PID %{public}d exists but is not a QEMU process (cmdline: %{public}s). Skipping kill.", pid_to_kill, cmdline);
+                return nullptr;
+            }
+        }
+        else
+        {
+            OH_LOG_WARN(LOG_APP, "Failed to open %{public}s to verify PID %{public}d, errno: %{public}d", cmdPath, pid_to_kill, errno);
+            // 如果无法打开 cmdline（可能是权限问题或进程刚退出），为了安全起见，不执行 kill
+            return nullptr;
+        }
+
         OH_LOG_INFO(LOG_APP, "===== Start cleanup QEMU process (PID: %{public}d) =====", pid_to_kill);
 
         // 发送 SIGTERM，等待进程优雅退出

@@ -127,6 +127,12 @@ export class VmController {
         // 尝试优雅关闭当前运行的虚拟机
         await this.gracefulShutdownAndWait(appTempDir, 30000);
 
+        // P1-08修复: 增加端口范围验证 (1-65535)
+        const invalidPorts = item.portMapping.filter((it: PortMapping) => it.host!! < 1 || it.host!! > 65535);
+        if (invalidPorts.length > 0) {
+          throw new Error(`无效的端口配置: ${invalidPorts.map(it => it.host).join(', ')}。端口必须在 1-65535 范围内。`);
+        }
+
         // 检查端口占用
         const portUsed = item.portMapping.map((it: PortMapping) => it.host!!).filter((p: number) => napi.checkPortUsed(p));
         const portMapping = item.portMapping.filter((it: PortMapping) => portUsed.indexOf(it.host!!) < 0);
@@ -184,12 +190,16 @@ export class VmController {
         }, 3000);
 
       } catch (e) {
+        // P1-07 & P1-12修复: 启动失败时清理状态，并优化错误提示
         hilog.error(DOMAIN, 'VmController', '启动失败: %{public}s', JSON.stringify(e));
         AppStorage.setOrCreate(appOption.isVmSwitching, false);
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
+        AppStorage.setOrCreate(appOption.currentRunningEmulator, '');
         
+        const errorMsg = (e instanceof Error) ? e.message : JSON.stringify(e);
         uiContext.showAlertDialog({
           title: $r('app.string.msg_start_vm_confirm'), 
-          message: `启动失败: ${JSON.stringify(e)}`,
+          message: `启动失败: ${errorMsg}`,
           autoCancel: true,
           alignment: DialogAlignment.Center,
           buttons: [{ value: $r('app.string.setting_generic_confirm'), action: () => {} }]
@@ -296,11 +306,11 @@ export class VmController {
     // 检查是否有正在运行的 QEMU 进程
     const isRunning: boolean = napi.checkQemuAlive(pidFilePath);
     if (!isRunning) {
-      hilog.info(DOMAIN, 'EmulatorListGrid', '没有正在运行的 QEMU 进程，无需关机');
+      hilog.info(DOMAIN, 'VmController', '没有正在运行的 QEMU 进程，无需关机');
       return true;
     }
     
-    hilog.info(DOMAIN, 'EmulatorListGrid', '尝试优雅关机...');
+    hilog.info(DOMAIN, 'VmController', '尝试优雅关机...');
     
     let shutdownSent = false;
     const qgaSocketPath = appTempDir + '/qga_socket';
@@ -357,30 +367,30 @@ export class VmController {
     // 步骤 3: 如果 QGA 方法都失败，使用 QMP ACPI 信号
     if (!shutdownSent) {
       try {
-        hilog.info(DOMAIN, 'EmulatorListGrid', 'QGA 方法失败，尝试 QMP system_powerdown...');
+        hilog.info(DOMAIN, 'VmController', 'QGA 方法失败，尝试 QMP system_powerdown...');
         const qmpClient = new QmpClient(qmpSocketPath);
         const connected = await qmpClient.connect();
         
         if (connected) {
           const result = await qmpClient.sendCommand('system_powerdown');
           shutdownSent = result !== null;
-          hilog.info(DOMAIN, 'EmulatorListGrid', 'system_powerdown 发送结果: %{public}s', shutdownSent ? '成功' : '失败');
+          hilog.info(DOMAIN, 'VmController', 'system_powerdown 发送结果: %{public}s', shutdownSent ? '成功' : '失败');
           await qmpClient.disconnect();
         } else {
-          hilog.warn(DOMAIN, 'EmulatorListGrid', 'QMP 连接失败');
+          hilog.warn(DOMAIN, 'VmController', 'QMP 连接失败');
         }
       } catch (e) {
-        hilog.warn(DOMAIN, 'EmulatorListGrid', 'QMP 异常: %{public}s', JSON.stringify(e));
+        hilog.warn(DOMAIN, 'VmController', 'QMP 异常: %{public}s', JSON.stringify(e));
       }
     }
     
     if (!shutdownSent) {
-      hilog.warn(DOMAIN, 'EmulatorListGrid', '所有优雅关机方法都失败，将使用强制终止');
+      hilog.warn(DOMAIN, 'VmController', '所有优雅关机方法都失败，将使用强制终止');
       try {
         napi.killQemuProcess(pidFilePath);
         return true;
       } catch (e) {
-        hilog.error(DOMAIN, 'EmulatorListGrid', '强制终止失败: %{public}s', JSON.stringify(e));
+        hilog.error(DOMAIN, 'VmController', '强制终止失败: %{public}s', JSON.stringify(e));
         return false;
       }
     }
@@ -392,7 +402,7 @@ export class VmController {
     while (Date.now() - startTime < timeoutMs) {
       const stillRunning: boolean = napi.checkQemuAlive(pidFilePath);
       if (!stillRunning) {
-        hilog.info(DOMAIN, 'EmulatorListGrid', '✓ QEMU 进程已正常退出（等待 %{public}d ms）', Date.now() - startTime);
+        hilog.info(DOMAIN, 'VmController', '✓ QEMU 进程已正常退出（等待 %{public}d ms）', Date.now() - startTime);
         return true;
       }
       
@@ -400,12 +410,12 @@ export class VmController {
       await new Promise<void>((resolve: () => void) => setTimeout(resolve, pollInterval));
     }
     
-    hilog.warn(DOMAIN, 'EmulatorListGrid', '优雅关机超时（%{public}d ms），将使用强制终止', timeoutMs);
+    hilog.warn(DOMAIN, 'VmController', '优雅关机超时（%{public}d ms），将使用强制终止', timeoutMs);
     try {
       napi.killQemuProcess(pidFilePath);
       return true;
     } catch (e) {
-      hilog.error(DOMAIN, 'EmulatorListGrid', '超时后强制终止失败: %{public}s', JSON.stringify(e));
+      hilog.error(DOMAIN, 'VmController', '超时后强制终止失败: %{public}s', JSON.stringify(e));
       return false;
     }
   }

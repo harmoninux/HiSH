@@ -239,8 +239,15 @@ class QemuAgentManagerImpl {
         const success = await currentAgent.ping()
         
         if (!success) {
-          hilog.warn(DOMAIN, 'AgentManager', 'QGA 心跳失败，清理连接')
-          await this.forceRelease()
+          hilog.warn(DOMAIN, 'AgentManager', 'QGA 心跳失败，尝试自动重连...')
+          // P1-10修复: 心跳失败后尝试自动重连一次
+          const reconnected = await currentAgent.connect()
+          if (reconnected) {
+            hilog.info(DOMAIN, 'AgentManager', 'QGA 自动重连成功')
+          } else {
+            hilog.error(DOMAIN, 'AgentManager', 'QGA 自动重连失败，清理连接')
+            await this.forceRelease()
+          }
         }
       } catch (e) {
         hilog.error(DOMAIN, 'AgentManager', '心跳执行异常: %{public}s', JSON.stringify(e))
