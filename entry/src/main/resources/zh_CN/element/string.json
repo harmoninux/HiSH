@@ -1691,6 +1691,18 @@
     {
       "name": "setting_terminal_effect_type_binary",
       "value": "01序列"
+    },
+    {
+      "name": "msg_snapshot_exists_warning",
+      "value": "当前镜像存在快照，为了数据安全，请清理快照后再执行操作！"
+    },
+    {
+      "name": "msg_snapshot_max_limit",
+      "value": "（最多10个）"
+    },
+    {
+      "name": "msg_snapshot_limit_exceeded",
+      "value": "超出10个快照数量的最大限制！"
     }
   ]
 }
