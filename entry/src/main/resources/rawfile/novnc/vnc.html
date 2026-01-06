@@ -424,6 +424,20 @@
         window.setEffectType = (type) => {
             if (matrixRain) matrixRain.setCharSet(type);
         };
+
+        // 供 Native 调用强制视口更新 (复用全屏切换时验证有效的逻辑)
+        window.forceViewportUpdate = () => {
+            if (window.noVNC_UI && noVNC_UI.rfb && noVNC_UI.rfb._display) {
+                // 重置预期尺寸缓存为 0，绕过 _clientHasExpectedSize 检查
+                noVNC_UI.rfb._expectedClientWidth = 0;
+                noVNC_UI.rfb._expectedClientHeight = 0;
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                console.log('forceViewportUpdate: autoscaling to', w, 'x', h);
+                noVNC_UI.rfb._display.autoscale(w, h);
+            }
+            window.dispatchEvent(new Event('resize'));
+        };
     </script>
 </body>
 

@@ -145,11 +145,48 @@ struct VncPage {
 
   onPageShow() {
     try {
-      hilog.info(DOMAIN, 'VncPage', 'onPageShow: refreshing VNC WebView');
+      hilog.info(DOMAIN, 'VncPage', 'onPageShow: refreshing VNC WebView and registering avoidAreaChange listener');
       this.controller.refresh();
+      
+      // 监听窗口避让区域变化（如软键盘弹出/收起）
+      window.getLastWindow(this.getUIContext().getHostContext()!!).then((win) => {
+        win.on('avoidAreaChange', (data: window.AvoidAreaOptions) => {
+          if (data.type === window.AvoidAreaType.TYPE_KEYBOARD) {
+            const height = data.area.bottomRect.height;
+            hilog.info(DOMAIN, 'VncPage', 'Keyboard avoid area changed, height: %{public}d', height);
+            if (height === 0) {
+              // 复用全屏切换时验证有效的 forceViewportUpdate 逻辑
+              // 多次延迟触发以确保布局稳定后正确刷新
+              hilog.info(DOMAIN, 'VncPage', 'Keyboard closed, triggering forceViewportUpdate');
+              const callForceViewportUpdate = () => {
+                try {
+                  this.controller.runJavaScript('window.forceViewportUpdate && window.forceViewportUpdate()');
+                } catch (e) {
+                  hilog.warn(DOMAIN, 'VncPage', 'forceViewportUpdate failed: %{public}s', JSON.stringify(e));
+                }
+              };
+              // 多次延迟触发，与全屏切换保持一致
+              setTimeout(callForceViewportUpdate, 300);
+              setTimeout(callForceViewportUpdate, 600);
+              setTimeout(callForceViewportUpdate, 1000);
+            }
+          }
+        });
+      });
     } catch (error) {
       // 捕获 "The WebviewController must be associated with a Web component" 错误
-      hilog.warn(DOMAIN, 'VncPage', 'onPageShow refresh failed: %{public}s', JSON.stringify(error));
+      hilog.warn(DOMAIN, 'VncPage', 'onPageShow failed: %{public}s', JSON.stringify(error));
+    }
+  }
+
+  onPageHide() {
+    try {
+      hilog.info(DOMAIN, 'VncPage', 'onPageHide: unregistering avoidAreaChange listener');
+      window.getLastWindow(this.getUIContext().getHostContext()!!).then((win) => {
+        win.off('avoidAreaChange');
+      });
+    } catch (error) {
+      hilog.warn(DOMAIN, 'VncPage', 'onPageHide failed: %{public}s', JSON.stringify(error));
     }
   }
 
