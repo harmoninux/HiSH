@@ -113,11 +113,19 @@ struct VncPage {
   private nativeBridge: NativeBridge = new NativeBridge(this);
 
   onTermScreensaverChanged() {
-    this.controller.runJavaScript(`window.setScreensaverTimeout(${this.termScreensaver})`)
+    try {
+      this.controller.runJavaScript(`window.setScreensaverTimeout(${this.termScreensaver})`)
+    } catch (error) {
+      hilog.warn(DOMAIN, 'VncPage', 'onTermScreensaverChanged failed: %{public}s', JSON.stringify(error));
+    }
   }
 
   onTermEffectTypeChanged() {
-    this.controller.runJavaScript(`window.setEffectType('${this.termEffectType}')`)
+    try {
+      this.controller.runJavaScript(`window.setEffectType('${this.termEffectType}')`)
+    } catch (error) {
+      hilog.warn(DOMAIN, 'VncPage', 'onTermEffectTypeChanged failed: %{public}s', JSON.stringify(error));
+    }
   }
 
   setFullscreen(value: boolean): void {
@@ -132,6 +140,16 @@ struct VncPage {
     const params = router.getParams() as VncPageParams;
     if (params && params.vncPort) {
       this.vncPort = params.vncPort;
+    }
+  }
+
+  onPageShow() {
+    try {
+      hilog.info(DOMAIN, 'VncPage', 'onPageShow: refreshing VNC WebView');
+      this.controller.refresh();
+    } catch (error) {
+      // 捕获 "The WebviewController must be associated with a Web component" 错误
+      hilog.warn(DOMAIN, 'VncPage', 'onPageShow refresh failed: %{public}s', JSON.stringify(error));
     }
   }
 

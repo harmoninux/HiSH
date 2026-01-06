@@ -45,6 +45,7 @@ export default struct WebTerminal {
   @Watch('onTermScreensaverChanged') @StorageProp(appOption.terminalScreensaver) termScreensaver: number = 0
   @Watch('onTermEffectTypeChanged') @StorageProp(appOption.terminalEffectType) termEffectType: string = 'random'
   @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
+  @Watch('onRefreshSignal') @StorageProp('terminalRefreshSignal') refreshSignal: number = 0
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
@@ -547,6 +548,20 @@ export default struct WebTerminal {
 
   onTermEffectTypeChanged() {
     this.webviewController.runJavaScript(`exports.setTerminalEffectType('${this.termEffectType}')`)
+  }
+
+  onRefreshSignal() {
+    try {
+      hilog.info(DOMAIN, 'WebTerminal', 'onRefreshSignal: triggering terminal refresh and resize');
+      // 刷新终端显示
+      this.webviewController.runJavaScript('term.refresh(0, term.rows - 1)');
+      // 触发重新计算尺寸并触发 resize 事件
+      this.webviewController.runJavaScript('fitAddon.fit()');
+    } catch (error) {
+      // 捕获 "The WebviewController must be associated with a Web component" 错误
+      // 这通常发生在应用冷启动时，Web 组件尚未完全就绪
+      hilog.warn(DOMAIN, 'WebTerminal', 'onRefreshSignal failed (likely not associated yet): %{public}s', JSON.stringify(error));
+    }
   }
 
   // Ctrl+Insert 复制选中文本到剪贴板
