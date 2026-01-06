@@ -17,6 +17,7 @@ export default struct EmulatorItem {
   @Require onPowerManage: (item: Emulator) => void
   @Require onImageManage: (item: Emulator) => void
   @StorageProp(appOption.currentEmulatorStatus) currentStatus: string = 'RUNNING'
+  @StorageProp(appOption.isVmSwitching) isVmSwitching: boolean = false
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
 
@@ -61,6 +62,7 @@ export default struct EmulatorItem {
             .height(20)
           Button($r('app.string.btn_run'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
+            .enabled(!this.isVmSwitching)
             .onClick(() => {
               if (this.currentStatus === 'PAUSED') {
                 this.getUIContext().getPromptAction().showToast({
@@ -79,6 +81,7 @@ export default struct EmulatorItem {
           // 非当前运行模拟器：显示运行 + 镜像管理
           Button($r('app.string.btn_run'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
             .fontSize($r('sys.float.Body_M'))
+            .enabled(!this.isVmSwitching)
             .onClick(() => {
               if (this.currentStatus === 'PAUSED') {
                 this.getUIContext().getPromptAction().showToast({

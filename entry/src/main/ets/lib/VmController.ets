@@ -11,7 +11,7 @@ import preference from '@ohos.data.preferences'
 import { UIContext } from '@kit.ArkUI'
 import { QemuAgent } from './QemuAgent'
 import { common, Want } from '@kit.AbilityKit'
-import { QemuAgentManager } from './QemuAgentManager'
+import { QemuAgentManager, AgentPriority } from './QemuAgentManager'
 
 class Mutex {
   private queue: Promise<void> = Promise.resolve();
@@ -313,42 +313,45 @@ export class VmController {
     }
     
     // 步骤 1: 尝试 QGA 执行 /sbin/poweroff（最兼容）
+    // 使用 QemuAgentManager 复用已有连接，避免每次新建连接的 8 秒延迟
     try {
-      const qgaAgent = new QemuAgent(qgaSocketPath);
-      const qgaConnected = await qgaAgent.connect();
+      const qgaAgent = await QemuAgentManager.acquire('VmController', AgentPriority.HIGH, 3000);
       
-      if (qgaConnected) {
-        hilog.info(DOMAIN, 'EmulatorListGrid', 'QGA 已连接，尝试执行 /sbin/poweroff...');
+      if (qgaAgent) {
+        hilog.info(DOMAIN, 'VmController', 'QGA 已连接（复用 Manager），尝试执行 /sbin/poweroff...');
         try {
           const pid = await qgaAgent.exec('/sbin/poweroff', []);
           if (pid !== null) {
             shutdownSent = true;
-            hilog.info(DOMAIN, 'EmulatorListGrid', '✓ /sbin/poweroff 执行成功');
+            hilog.info(DOMAIN, 'VmController', '✓ /sbin/poweroff 执行成功');
           }
         } catch (e) {
-          hilog.warn(DOMAIN, 'EmulatorListGrid', '/sbin/poweroff 失败: %{public}s', JSON.stringify(e));
+          hilog.warn(DOMAIN, 'VmController', '/sbin/poweroff 失败: %{public}s', JSON.stringify(e));
         }
         
         // 步骤 2: 如果 poweroff 失败，尝试 guest-shutdown
         if (!shutdownSent) {
           try {
-            hilog.info(DOMAIN, 'EmulatorListGrid', '尝试 guest-shutdown...');
+            hilog.info(DOMAIN, 'VmController', '尝试 guest-shutdown...');
             const result = await qgaAgent.shutdown();
             if (result) {
               shutdownSent = true;
-              hilog.info(DOMAIN, 'EmulatorListGrid', '✓ guest-shutdown 执行成功');
+              hilog.info(DOMAIN, 'VmController', '✓ guest-shutdown 执行成功');
             }
           } catch (e) {
-            hilog.warn(DOMAIN, 'EmulatorListGrid', 'guest-shutdown 失败: %{public}s', JSON.stringify(e));
+            hilog.warn(DOMAIN, 'VmController', 'guest-shutdown 失败: %{public}s', JSON.stringify(e));
           }
         }
         
-        await qgaAgent.disconnect();
+        // 释放连接给 Manager 管理
+        await QemuAgentManager.release('VmController');
       } else {
-        hilog.warn(DOMAIN, 'EmulatorListGrid', 'QGA 连接失败');
+        hilog.warn(DOMAIN, 'VmController', 'QGA 连接失败（Manager acquire 超时）');
       }
     } catch (e) {
-      hilog.warn(DOMAIN, 'EmulatorListGrid', 'QGA 异常: %{public}s', JSON.stringify(e));
+      hilog.warn(DOMAIN, 'VmController', 'QGA 异常: %{public}s', JSON.stringify(e));
+      // 确保释放连接
+      try { await QemuAgentManager.release('VmController'); } catch (releaseErr) { /* 忽略 */ }
     }
     
     // 步骤 3: 如果 QGA 方法都失败，使用 QMP ACPI 信号
