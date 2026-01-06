@@ -885,6 +885,15 @@ export default struct ImageManagementContent {
     if (this.checkNeedShutdown()) return
     if (this.checkNeedRestart()) return
     
+    // 检查是否存在快照
+    if (this.snapshots.length > 0) {
+      this.promptAction.showToast({
+        message: $r('app.string.msg_snapshot_exists_warning'),
+        duration: 3000
+      })
+      return
+    }
+    
     this.optimizeModeDialogController.open()
   }
   
@@ -1252,6 +1261,11 @@ export default struct ImageManagementContent {
             Text($r('app.string.snapshot_management'))
               .fontSize(14)
               .fontWeight(FontWeight.Bold)
+            
+            Text($r('app.string.msg_snapshot_max_limit'))
+              .fontSize(11)
+              .fontColor($r('sys.color.ohos_id_color_text_tertiary'))
+              .margin({ left: 8 })
               .layoutWeight(1)
             
             // 刷新按钮
@@ -1361,14 +1375,14 @@ export default struct ImageManagementContent {
                   Button($r('app.string.btn_restore'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
                     .fontSize(10)
                     .onClick(() => this.applySnapshot(snapshot.name))
-                    .enabled(!this.isVmRunning && !this.needRestart && !this.globalTaskRunning)
+                    .enabled(!this.isVmRunning && !this.needRestart && !this.globalTaskRunning && this.selectedSnapshots.size <= 1)
                   
                   // 删除按钮
                   Button($r('app.string.delete_this'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
                     .fontSize(10)
                     .fontColor('#E74C3C')
                     .onClick(() => this.deleteSnapshot(snapshot.name))
-                    .enabled(!this.isVmRunning && !this.needRestart && !this.globalTaskRunning)
+                    .enabled(!this.isVmRunning && !this.needRestart && !this.globalTaskRunning && this.selectedSnapshots.size <= 1)
                 }
                 .width('100%')
                 .padding({ top: 8, bottom: 8 })
@@ -1392,6 +1406,15 @@ export default struct ImageManagementContent {
                 if (!this.checkPC()) return
                 if (this.checkNeedShutdown()) return
                 if (this.checkNeedRestart()) return
+                
+                // 检查快照数量上限
+                if (this.snapshots.length >= 10) {
+                  this.promptAction.showToast({
+                    message: $r('app.string.msg_snapshot_limit_exceeded'),
+                    duration: 3000
+                  })
+                  return
+                }
                 
                 this.snapshotNameInput = ''
                 this.createSnapshotDialogController.open()

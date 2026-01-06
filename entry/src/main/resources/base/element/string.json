@@ -1691,6 +1691,18 @@
     {
       "name": "setting_terminal_effect_type_binary",
       "value": "Binary"
+    },
+    {
+      "name": "msg_snapshot_exists_warning",
+      "value": "Snapshots exist for this image. For data safety, please delete all snapshots before optimizing!"
+    },
+    {
+      "name": "msg_snapshot_max_limit",
+      "value": "(Max 10)"
+    },
+    {
+      "name": "msg_snapshot_limit_exceeded",
+      "value": "Maximum limit of 10 snapshots exceeded!"
     }
   ]
 }
