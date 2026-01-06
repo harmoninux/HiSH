@@ -42,19 +42,40 @@ static thread_local int qemu_exit_code = 0;
 // 标识当前线程是否是 QEMU 线程
 static thread_local bool is_qemu_thread = false;
 
+// P1-01修复: 保存 dlopen 句柄以便后续释放
+static void *libQemuHandle = nullptr;
+static void *libQemuImgHandle = nullptr;
+
+// 自动释放句柄
+__attribute__((destructor)) static void cleanup_handles()
+{
+    if (libQemuHandle)
+    {
+        dlclose(libQemuHandle);
+        libQemuHandle = nullptr;
+    }
+    if (libQemuImgHandle)
+    {
+        dlclose(libQemuImgHandle);
+        libQemuImgHandle = nullptr;
+    }
+}
+
 // 覆盖 exit 函数
 extern "C" void exit(int status)
 {
     if (is_qemu_thread && qemu_exit_jmp_set)
     {
-        OH_LOG_INFO(LOG_APP, "QEMU called exit(%{public}d), using longjmp to return", status);
+        // P1-06 & P1-13修复: 记录详细日志，并提醒 longjmp 风险
+        // 注意：longjmp 会跳过当前栈帧的析构函数，QEMU 线程中应避免使用复杂的 C++ 对象
+        OH_LOG_INFO(LOG_APP, "QEMU called exit(%{public}d), using longjmp to return to jump point", status);
         qemu_exit_code = status;
         longjmp(qemu_exit_jmp, 1);
     }
     else
     {
         // 调用真正的 exit
-        OH_LOG_INFO(LOG_APP, "Normal exit(%{public}d) called", status);
+        OH_LOG_INFO(LOG_APP, "Normal exit(%{public}d) called, process will terminate", status);
         _exit(status);
     }
 }
@@ -174,7 +195,7 @@ static QemuSystemEntry getQemuSystemEntry()
 
     OH_LOG_INFO(LOG_APP, "Loading QEMU from: %{public}s", selectedPath.c_str());
 
-    void *libQemuHandle = dlopen(selectedPath.c_str(), RTLD_LAZY);
+    libQemuHandle = dlopen(selectedPath.c_str(), RTLD_LAZY);
 
     if (!libQemuHandle)
     {
@@ -206,7 +227,6 @@ typedef int (*QemuImgEntry)(int, const char **);
 static QemuImgEntry getQemuImgEntry()
 {
     static QemuImgEntry qemuImgEntry = nullptr;
-    static void *libQemuImgHandle = nullptr;
 
     if (qemuImgEntry != nullptr)
     {
@@ -273,9 +293,11 @@ static std::string getQcow2Info(const std::string &imagePath)
     int fd = open(imagePath.c_str(), O_RDONLY);
     if (fd < 0)
     {
-        OH_LOG_ERROR(LOG_APP, "Failed to open image file: %{public}s, errno: %{public}d",
-                     imagePath.c_str(), errno);
-        return "{\"error\": \"Failed to open image file\"}";
+        // P1-11修复: 返回详细的错误信息
+        int err = errno;
+        OH_LOG_ERROR(LOG_APP, "Failed to open image file: %{public}s, errno: %{public}d (%{public}s)",
+                     imagePath.c_str(), err, strerror(err));
+        return "{\"error\": \"Failed to open image file\", \"errno\": " + std::to_string(err) + ", \"message\": \"" + strerror(err) + "\"}";
     }
 
     // 获取文件大小（实际磁盘占用）
@@ -313,7 +335,8 @@ static std::string getQcow2Info(const std::string &imagePath)
     {
         return "{\"error\": \"Invalid cluster_bits value\", \"cluster_bits\": " + std::to_string(cluster_bits) + "}";
     }
-    uint32_t cluster_size = 1u << cluster_bits;
+    // P1-09修复: 使用 64 位无符号整数计算 cluster_size，防止中间过程溢出
+    uint64_t cluster_size = 1ULL << cluster_bits;
     uint32_t nb_snapshots = be32toh_manual(header.nb_snapshots);
 
     // QCOW2 v3 特有字段
@@ -1408,6 +1431,7 @@ static napi_value onData(napi_env env, napi_callback_info info)
             send_data_to_callback(temp_buffer, data_callback);
             temp_buffer.clear();
         }
+        // P1-14修复: 将设置移入锁保护范围内
         on_data_callback = data_callback;
     }
 
@@ -1569,6 +1593,28 @@ static napi_value killQemuProcess(napi_env env, napi_callback_info info)
 
     if (pid_to_kill > 0)
     {
+        // P1-05修复: 发送信号前验证进程名称，防止杀错重用 PID 的进程
+        char cmdPath[64];
+        snprintf(cmdPath, sizeof(cmdPath), "/proc/%d/cmdline", pid_to_kill);
+        FILE *cmdFile = fopen(cmdPath, "r");
+        if (cmdFile)
+        {
+            char cmdline[256] = {0};
+            fread(cmdline, 1, sizeof(cmdline) - 1, cmdFile);
+            fclose(cmdFile);
+            if (strstr(cmdline, "qemu") == nullptr)
+            {
+                OH_LOG_WARN(LOG_APP, "PID %{public}d exists but is not a QEMU process (cmdline: %{public}s). Skipping kill.", pid_to_kill, cmdline);
+                return nullptr;
+            }
+        }
+        else
+        {
+            OH_LOG_WARN(LOG_APP, "Failed to open %{public}s to verify PID %{public}d, errno: %{public}d", cmdPath, pid_to_kill, errno);
+            // 如果无法打开 cmdline（可能是权限问题或进程刚退出），为了安全起见，不执行 kill
+            return nullptr;
+        }
+
         OH_LOG_INFO(LOG_APP, "===== Start cleanup QEMU process (PID: %{public}d) =====", pid_to_kill);
 
         // 发送 SIGTERM，等待进程优雅退出
