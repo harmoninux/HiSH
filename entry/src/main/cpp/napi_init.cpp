@@ -159,21 +159,16 @@ static QemuSystemEntry getQemuSystemEntry()
         return qemuSystemEntry;
     }
 
+    // A 分支逻辑：直接加载默认库
     const char *libQemuPath = "libqemu-system-aarch64.so";
+    OH_LOG_INFO(LOG_APP, "Loading QEMU from default path: %{public}s", libQemuPath);
 
-    libQemuHandle = dlopen(selectedPath.c_str(), RTLD_LAZY);
-
-    if (!libQemuHandle)
-    {
-        OH_LOG_ERROR(LOG_APP, "Failed to load libqemu.so from %{public}s, errno: %{public}d, trying default path",
-                     selectedPath.c_str(), errno);
-        // 回退到默认路径
-        libQemuHandle = dlopen("libqemu-system-aarch64.so", RTLD_LAZY);
-    }
+    libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
 
     if (!libQemuHandle)
     {
         OH_LOG_ERROR(LOG_APP, "Failed to load libqemu.so errno: %{public}d", errno);
+        return nullptr;
     }
 
     qemuSystemEntry = (QemuSystemEntry)dlsym(libQemuHandle, "qemu_system_entry");
