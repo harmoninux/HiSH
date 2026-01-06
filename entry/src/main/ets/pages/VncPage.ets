@@ -113,11 +113,19 @@ struct VncPage {
   private nativeBridge: NativeBridge = new NativeBridge(this);
 
   onTermScreensaverChanged() {
-    this.controller.runJavaScript(`window.setScreensaverTimeout(${this.termScreensaver})`)
+    try {
+      this.controller.runJavaScript(`window.setScreensaverTimeout(${this.termScreensaver})`)
+    } catch (error) {
+      hilog.warn(DOMAIN, 'VncPage', 'onTermScreensaverChanged failed: %{public}s', JSON.stringify(error));
+    }
   }
 
   onTermEffectTypeChanged() {
-    this.controller.runJavaScript(`window.setEffectType('${this.termEffectType}')`)
+    try {
+      this.controller.runJavaScript(`window.setEffectType('${this.termEffectType}')`)
+    } catch (error) {
+      hilog.warn(DOMAIN, 'VncPage', 'onTermEffectTypeChanged failed: %{public}s', JSON.stringify(error));
+    }
   }
 
   setFullscreen(value: boolean): void {
@@ -132,6 +140,55 @@ struct VncPage {
     const params = router.getParams() as VncPageParams;
     if (params && params.vncPort) {
       this.vncPort = params.vncPort;
+    }
+  }
+
+  onPageShow() {
+    try {
+      hilog.info(DOMAIN, 'VncPage', 'onPageShow: refreshing VNC WebView and registering avoidAreaChange listener');
+      this.controller.refresh();
+      
+      // 监听窗口避让区域变化（如软键盘弹出/收起）
+      window.getLastWindow(this.getUIContext().getHostContext()!!).then((win) => {
+        win.on('avoidAreaChange', (data: window.AvoidAreaOptions) => {
+          if (data.type === window.AvoidAreaType.TYPE_KEYBOARD) {
+            const height = data.area.bottomRect.height;
+            hilog.info(DOMAIN, 'VncPage', 'Keyboard avoid area changed, height: %{public}d', height);
+            if (height === 0) {
+              // 复用全屏切换时验证有效的 forceViewportUpdate 逻辑
+              // 多次延迟触发以确保布局稳定后正确刷新
+              hilog.info(DOMAIN, 'VncPage', 'Keyboard closed, triggering forceViewportUpdate');
+              const callForceViewportUpdate = () => {
+                try {
+                  this.controller.runJavaScript('window.forceViewportUpdate && window.forceViewportUpdate()');
+                } catch (e) {
+                  hilog.warn(DOMAIN, 'VncPage', 'forceViewportUpdate failed: %{public}s', JSON.stringify(e));
+                }
+              };
+              // 立即触发一次，并多次延迟触发，确保在动画不同阶段都能捕捉到正确尺寸
+              callForceViewportUpdate();
+              setTimeout(callForceViewportUpdate, 100);
+              setTimeout(callForceViewportUpdate, 300);
+              setTimeout(callForceViewportUpdate, 600);
+              setTimeout(callForceViewportUpdate, 1000);
+            }
+          }
+        });
+      });
+    } catch (error) {
+      // 捕获 "The WebviewController must be associated with a Web component" 错误
+      hilog.warn(DOMAIN, 'VncPage', 'onPageShow failed: %{public}s', JSON.stringify(error));
+    }
+  }
+
+  onPageHide() {
+    try {
+      hilog.info(DOMAIN, 'VncPage', 'onPageHide: unregistering avoidAreaChange listener');
+      window.getLastWindow(this.getUIContext().getHostContext()!!).then((win) => {
+        win.off('avoidAreaChange');
+      });
+    } catch (error) {
+      hilog.warn(DOMAIN, 'VncPage', 'onPageHide failed: %{public}s', JSON.stringify(error));
     }
   }
 

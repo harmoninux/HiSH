@@ -378,6 +378,12 @@ struct Index {
     // webview.WebviewController.setWebDebuggingAccess(true)
   }
 
+  onPageShow(): void {
+    // 当页面显示时（如从 VNC 返回），触发 Terminal 刷新信号
+    const currentSignal = AppStorage.get<number>('terminalRefreshSignal') || 0;
+    AppStorage.setOrCreate('terminalRefreshSignal', currentSignal + 1);
+  }
+
   build() {
     Column() {
       if (this.isPc) {
