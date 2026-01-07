@@ -24,7 +24,8 @@ struct EditEmulator {
         portMapping: [],
         rootVda: '/dev/sda',
         rootFilesystem: '',
-        sharedFolderReadonly: false
+        sharedFolderReadonly: false,
+        mountDataDisk: false
       }
     } else {
       this.emulator = {
@@ -36,7 +37,9 @@ struct EditEmulator {
         portMapping: found.portMapping,
         rootVda: found.rootVda,
         rootFilesystem: found.rootFilesystem,
-        sharedFolderReadonly: found.sharedFolderReadonly
+        sharedFolderReadonly: found.sharedFolderReadonly,
+        mountDataDisk: found.mountDataDisk,
+        dataDiskId: found.dataDiskId
       }
     }
   }

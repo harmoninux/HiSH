@@ -1,6 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import napi from 'libentry.so'
-import { Emulator, PortMapping } from '../model/Emulator'
+import { Emulator, PortMapping, DataDisk } from '../model/Emulator'
 import deviceInfo from '@ohos.deviceInfo'
 import { startVm, VmOptions } from './startVm'
 import { startQmpEventListener, stopQmpEventListener, QmpEventType, QmpEventData } from './QmpEventListener'
@@ -150,6 +150,16 @@ export class VmController {
           AppStorage.setOrCreate('vncWebSocketPort', vncPort);
         }
 
+        // 获取数据盘路径（如果开启了挂载）
+        let dataDiskPath: string | undefined = undefined;
+        if (item.dataDiskId && item.mountDataDisk) {
+          const dataDisks = (AppStorage.get(appOption.dataDisks) as DataDisk[]) || [];
+          const selectedDisk = dataDisks.find(d => d.id === item.dataDiskId);
+          if (selectedDisk) {
+            dataDiskPath = selectedDisk.path;
+          }
+        }
+
         startVm({
           baseDir: vmBaseDir,
           cpu: item.cpu,
@@ -165,7 +175,8 @@ export class VmController {
           qmpUnixSocket: appTempDir + '/qmp_socket',
           qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
           qgaUnixSocket: appTempDir + '/qga_socket',
-          vncWebSocketPort: vncPort
+          vncWebSocketPort: vncPort,
+          dataDiskPath: dataDiskPath
         });
 
         // 更新状态

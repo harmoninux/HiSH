@@ -14,6 +14,7 @@ import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
 import PowerManagementContent from '../components/PowerManagementContent';
 import VmStatusBar from '../components/VmStatusBar';
+import DataDiskManagementContent from '../components/DataDiskManagementContent';
 
 @Component
 struct PcIndex {
@@ -32,6 +33,14 @@ struct PcIndex {
       primaryTitle: $r('app.string.image_management_title'),
       contentBuilder: () => {
         this.buildRootfsManagement();
+      }
+    })
+  })
+  dataDiskManagementController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.data_disk_management'),
+      contentBuilder: () => {
+        this.buildDataDiskManagement();
       }
     })
   })
@@ -228,7 +237,8 @@ struct PcIndex {
             portMapping: [],
             rootVda: '/dev/sda',
             rootFilesystem: '',
-            sharedFolderReadonly: false
+            sharedFolderReadonly: false,
+            mountDataDisk: false
           }
           this.openEditEmulatorDialog(emulatorToEdit, true)
         })
@@ -245,7 +255,9 @@ struct PcIndex {
       portMapping: item.portMapping,
       rootVda: item.rootVda,
       rootFilesystem: item.rootFilesystem,
-      sharedFolderReadonly: item.sharedFolderReadonly
+      sharedFolderReadonly: item.sharedFolderReadonly,
+      mountDataDisk: item.mountDataDisk,
+      dataDiskId: item.dataDiskId
     };
     const controller = new CustomDialogController({
       builder: CustomContentDialog({
@@ -263,6 +275,19 @@ struct PcIndex {
     Column() {
       RootfsManagementContent({
         toolBar: false,
+        specifiedBreak: 'xs',
+        onOpenDataDiskManagement: () => {
+          this.dataDiskManagementController.open()
+        }
+      })
+    }
+  }
+
+  @Builder
+  buildDataDiskManagement() {
+    Column() {
+      DataDiskManagementContent({
+        titleBar: false,
         specifiedBreak: 'xs'
       })
     }
@@ -349,16 +374,59 @@ struct PcIndex {
 
 @Component
 struct PhoneOrTablet {
+  dataDiskManagementController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.data_disk_management'),
+      contentBuilder: () => {
+        this.buildDataDiskManagement();
+      }
+    })
+  })
+
   build() {
     Column() {
       // 虚拟机状态监控条
       Row() {
         VmStatusBar()
           .layoutWeight(1)
+
+        SymbolGlyph($r('sys.symbol.dot_grid_2x2'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.icon_secondary')])
+          .padding(6)
+          .onClick(() => {
+            this.getUIContext().getPromptAction().showActionMenu({
+              title: $r('app.string.module_desc'),
+              buttons: [
+                { text: $r('app.string.emulator_management_title'), color: '#007DFF' },
+                { text: $r('app.string.image_management_title'), color: '#007DFF' },
+                { text: $r('app.string.data_disk_management'), color: '#007DFF' },
+                { text: $r('app.string.setting_shared_folder'), color: '#007DFF' },
+                { text: $r('app.string.Setting_title'), color: '#007DFF' },
+                { text: $r('app.string.user_guide_title'), color: '#007DFF' }
+              ]
+            }).then((data) => {
+              const index = data.index
+              if (index === 0) {
+                this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagement' })
+              } else if (index === 1) {
+                this.getUIContext().getRouter().pushUrl({ url: 'pages/RootfsManagement' })
+              } else if (index === 2) {
+                // this.getUIContext().getRouter().pushUrl({ url: 'pages/DataDiskManagementPage' })
+                this.dataDiskManagementController.open()
+              } else if (index === 3) {
+                this.getUIContext().getRouter().pushUrl({ url: 'pages/SharedFolderPage' })
+              } else if (index === 4) {
+                this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
+              } else if (index === 5) {
+                this.getUIContext().getRouter().pushUrl({ url: 'pages/UserGuidePage' })
+              }
+            })
+          })
       }
       .width('100%')
       .height(32)
-      .padding({ left: 12, right: 12 })
+      .padding({ left: 12, right: 6 })
       .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
 
       WebTerminal({ virtKeyEnabled: true })
@@ -366,6 +434,16 @@ struct PhoneOrTablet {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  buildDataDiskManagement() {
+    Column() {
+      DataDiskManagementContent({
+        titleBar: false,
+        specifiedBreak: 'xs'
+      })
+    }
   }
 }
 

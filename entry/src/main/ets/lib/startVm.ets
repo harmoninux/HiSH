@@ -19,6 +19,7 @@ interface VmOptions {
   sharedFolderReadonly: boolean
   init: string
   vncWebSocketPort?: number // VNC WebSocket 端口 (可选，由外部传入)
+  dataDiskPath?: string     // 数据盘路径 (可选，当 mountDataDisk 为 true 时设置)
 }
 
 function startVm(options: VmOptions) {
@@ -49,7 +50,14 @@ function startVm(options: VmOptions) {
     + ",id=hd0,cache=writeback,aio=threads,discard=unmap", "-object", "iothread,id=iothread0,poll-max-ns=2000000",
     "-device", "virtio-scsi-pci-non-transitional,id=scsi0,num_queues=" + options.cpu.toString() +
     ",virtqueue_size=256,iothread=iothread0",
-    "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1"]
+    "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1,bootindex=1"]
+
+  // 数据盘挂载 (无 bootindex，作为第二块磁盘)
+  const dataDisk: string[] = options.dataDiskPath ? [
+    "-drive", "if=none,format=qcow2,file=" + options.dataDiskPath +
+    ",id=hd1,cache=writeback,aio=threads,discard=unmap",
+    "-device", "scsi-hd,drive=hd1,bus=scsi0.0,scsi-id=1,logical_block_size=4096,physical_block_size=4096,rotation_rate=1"
+  ] : []
   const kernelParam = ["-append",
     "root=" + root + " rw rootfstype=ext4 rootwait console=tty0 console=ttyAMA0 consoleblank=0 " +
     "elevator=noop skew_tick=1 acpi=off " +
@@ -90,6 +98,7 @@ function startVm(options: VmOptions) {
     ...shared,
     ...sharedUserFolder,
     ...drive,
+    ...dataDisk,
     ...kernelParam,
     ...monitor,
     ...qga,

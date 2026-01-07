@@ -1455,10 +1455,11 @@ export default struct ImageManagementContent {
         .width('100%')
         .margin({ top: 24 })
       }
-      .padding(16)
+      .padding({ left: 16, right: 16, top: 8, bottom: 16 })
     }
     .width('100%')
-    .height('100%')
+    .constraintSize({ maxHeight: 600 })
+    .backgroundColor($r('sys.color.ohos_id_color_dialog_bg'))
     .align(Alignment.TopStart)
   }
 

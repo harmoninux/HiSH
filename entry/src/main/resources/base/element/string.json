@@ -1290,7 +1290,7 @@
     },
     {
       "name": "label_virtual_disk",
-      "value": "Disk"
+      "value": "OS Disk"
     },
     {
       "name": "label_port_mapping",
@@ -1498,7 +1498,7 @@
     },
     {
       "name": "label_disk",
-      "value": "Disk"
+      "value": "OS Disk"
     },
     {
       "name": "label_swap",
@@ -1703,6 +1703,103 @@
     {
       "name": "msg_snapshot_limit_exceeded",
       "value": "Maximum limit of 10 snapshots exceeded!"
+    },
+    {
+      "name": "data_disk_management",
+      "value": "Data Disk Management"
+    },
+    {
+      "name": "btn_new_data_disk",
+      "value": "New"
+    },
+    {
+      "name": "msg_data_disk_name_empty",
+      "value": "Data disk name cannot be empty"
+    },
+    {
+      "name": "msg_data_disk_name_exists",
+      "value": "Data disk name already exists"
+    },
+    {
+      "name": "msg_data_disk_size_invalid",
+      "value": "Please enter a valid size"
+    },
+    {
+      "name": "msg_create_data_disk_success",
+      "value": "Data disk created successfully"
+    },
+    {
+      "name": "msg_create_data_disk_fail",
+      "value": "Failed to create data disk"
+    },
+    {
+      "name": "setting_data_disk_title",
+      "value": "Data Disk Management"
+    },
+    {
+      "name": "setting_data_disk_select",
+      "value": "Data Disk"
+    },
+    {
+      "name": "setting_data_disk_select_desc",
+      "value": "Select a virtual disk to mount"
+    },
+    {
+      "name": "setting_data_disk_mount",
+      "value": "Mount Data Disk"
+    },
+    {
+      "name": "label_none",
+      "value": "None"
+    },
+    {
+      "name": "msg_pc_only_feature",
+      "value": "This feature is only available on PC/Tablet"
+    },
+    {
+      "name": "label_data_disk",
+      "value": "Data Disk"
+    },
+    {
+      "name": "msg_no_data_disk",
+      "value": "No data disk yet"
+    },
+    {
+      "name": "dialog_delete_disk_msg",
+      "value": "Are you sure you want to delete this data disk?"
+    },
+    {
+      "name": "msg_export_success",
+      "value": "Export successful"
+    },
+    {
+      "name": "dialog_new_data_disk_title",
+      "value": "New Data Disk"
+    },
+    {
+      "name": "label_data_disk_name",
+      "value": "Name"
+    },
+    {
+      "name": "label_data_disk_size",
+      "value": "Size"
+    },
+    {
+      "name": "label_data_disk_size_unit",
+      "value": "MB"
+    },
+    {
+      "name": "placeholder_data_disk_name",
+      "value": "Enter data disk name"
+    },
+    {
+      "name": "msg_creating_data_disk",
+      "value": "Creating data disk..."
+    },
+    {
+      "name": "data_disk_image_management_title",
+      "value": "Data Disk Image Management"
     }
   ]
 }
+

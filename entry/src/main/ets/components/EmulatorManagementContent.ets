@@ -71,7 +71,9 @@ export default struct EmulatorManagementContent {
       portMapping: item.portMapping,
       rootVda: item.rootVda,
       rootFilesystem: item.rootFilesystem,
-      sharedFolderReadonly: item.sharedFolderReadonly
+      sharedFolderReadonly: item.sharedFolderReadonly,
+      mountDataDisk: item.mountDataDisk,
+      dataDiskId: item.dataDiskId
     };
     const controller = new CustomDialogController({
       builder: CustomContentDialog({

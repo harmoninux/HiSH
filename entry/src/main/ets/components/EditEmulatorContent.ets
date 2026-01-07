@@ -1,5 +1,5 @@
 import { cpuOptions, getCpuCount, getMemSize, memOptions } from "../lib/systemProfile"
-import { defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
+import { defaultRootfs, Emulator, RootFilesystem, DataDisk } from "../model/Emulator"
 import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
@@ -26,6 +26,11 @@ export default struct EditEmulatorContent {
   @Prop editing: boolean = true
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   private promptAction: PromptAction = this.getUIContext().getPromptAction();
+  
+  // 数据盘相关状态
+  @State dataDiskOptions: SelectOption[] = []
+  @State selectedDataDisk: string = ''
+  private noneLabel: string = ''
 
   aboutToAppear(): void {
 
@@ -43,6 +48,23 @@ export default struct EditEmulatorContent {
 
     const emulators = AppStorage.get(appOption.emulators) as Emulator[]
     this.isCreate = emulators.findIndex(it => it.id === this.emulator.id) < 0
+    
+    // 初始化数据盘选项
+    const dataDisks = (AppStorage.get(appOption.dataDisks) as DataDisk[]) || []
+    this.noneLabel = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.label_none').id)
+    this.dataDiskOptions = [
+      { value: this.noneLabel }
+    ]
+    dataDisks.forEach(disk => {
+      this.dataDiskOptions.push({ value: disk.name })
+    })
+    // 初始化选中值
+    if (this.emulator.dataDiskId) {
+      const selectedDisk = dataDisks.find(d => d.id === this.emulator.dataDiskId)
+      this.selectedDataDisk = selectedDisk?.name || this.dataDiskOptions[0].value as string
+    } else {
+      this.selectedDataDisk = this.dataDiskOptions[0].value as string
+    }
   }
 
   @Builder
@@ -191,6 +213,25 @@ export default struct EditEmulatorContent {
         })
       }
       .attributeModifier(this.blockStyle)
+
+      // 数据盘管理设置
+      BlockTitle({ content: $r('app.string.setting_data_disk_title') })
+      Column() {
+        SettingItem({
+          title: $r('app.string.setting_data_disk_select'),
+          subTitle: $r('app.string.setting_data_disk_select_desc'),
+          content: () => {
+            this.dataDiskSetting()
+          }
+        })
+        SettingItem({
+          title: $r('app.string.setting_data_disk_mount'),
+          content: () => {
+            this.dataDiskMountToggle()
+          }
+        })
+      }
+      .attributeModifier(this.blockStyle)
     }
     .enabled(this.editing)
     .width('100%')
@@ -202,6 +243,36 @@ export default struct EditEmulatorContent {
       .select(this.emulator.sharedFolderReadonly)
       .onChange((value: boolean) => {
         this.emulator.sharedFolderReadonly = value
+      })
+  }
+
+  // 数据盘选择器
+  @Builder
+  private dataDiskSetting() {
+    Select(this.dataDiskOptions)
+      .width(150)
+      .value(this.selectedDataDisk)
+      .onSelect((_i, value) => {
+        this.selectedDataDisk = value
+        const dataDisks = (AppStorage.get(appOption.dataDisks) as DataDisk[]) || []
+        const selected = dataDisks.find(d => d.name === value)
+        if (selected) {
+          this.emulator.dataDiskId = selected.id
+        } else {
+          // 选择"无"
+          this.emulator.dataDiskId = undefined
+          this.emulator.mountDataDisk = false
+        }
+      })
+  }
+
+  // 挂载数据盘开关
+  @Builder
+  private dataDiskMountToggle() {
+    Toggle({ type: ToggleType.Switch, isOn: this.emulator.mountDataDisk })
+      .enabled(this.selectedDataDisk !== this.noneLabel)
+      .onChange((isOn: boolean) => {
+        this.emulator.mountDataDisk = isOn
       })
   }
 

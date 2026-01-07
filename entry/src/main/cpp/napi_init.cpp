@@ -707,15 +707,25 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args)
                     std::string escaped;
                     for (char c : output)
                     {
-                        if (c == '"')
-                            escaped += "\\\"";
-                        else if (c == '\n')
-                            escaped += "\\n";
-                        else if (c == '\r')
-                        {
+                        switch (c) {
+                            case '"':  escaped += "\\\""; break;
+                            case '\\': escaped += "\\\\"; break;
+                            case '\n': escaped += "\\n";  break;
+                            case '\r': escaped += "\\r";  break;
+                            case '\t': escaped += "\\t";  break;
+                            case '\b': escaped += "\\b";  break;
+                            case '\f': escaped += "\\f";  break;
+                            default:
+                                if ((unsigned char)c < 32) {
+                                    // 其他不可见控制字符，转义为 \u00xx 格式
+                                    char temp[8];
+                                    snprintf(temp, sizeof(temp), "\\u%04x", (unsigned char)c);
+                                    escaped += temp;
+                                } else {
+                                    escaped += c;
+                                }
+                                break;
                         }
-                        else
-                            escaped += c;
                     }
                     if (escaped.empty())
                         escaped = "Unknown error (exit code " + std::to_string(exit_code) + ")";
@@ -895,6 +905,57 @@ static napi_value needRestart(napi_env env, napi_callback_info info)
     napi_get_boolean(env, false, &result);
     return result;
 }
+
+// NAPI 函数：执行任意 qemu-img 命令（用于创建数据盘等操作）
+// 参数: args[] - 命令参数数组 (不包含 "qemu-img" 本身)
+// 例如: ["create", "-f", "qcow2", "-o", "lazy_refcounts=on,extended_l2=on", "/path/to/disk.qcow2", "1024M"]
+static napi_value executeQemuImg(napi_env env, napi_callback_info info)
+{
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    if (argc < 1)
+    {
+        napi_value result;
+        napi_create_string_utf8(env, "{\"error\": \"Missing arguments array\"}", NAPI_AUTO_LENGTH, &result);
+        return result;
+    }
+
+    // 检查参数是否为数组
+    bool isArray = false;
+    napi_is_array(env, args[0], &isArray);
+    if (!isArray)
+    {
+        napi_value result;
+        napi_create_string_utf8(env, "{\"error\": \"Argument must be an array\"}", NAPI_AUTO_LENGTH, &result);
+        return result;
+    }
+
+    // 获取数组长度
+    uint32_t arrayLength = 0;
+    napi_get_array_length(env, args[0], &arrayLength);
+
+    // 构建命令参数
+    std::vector<std::string> cmdArgs;
+    cmdArgs.push_back("qemu-img");
+
+    for (uint32_t i = 0; i < arrayLength; i++)
+    {
+        napi_value element;
+        napi_get_element(env, args[0], i, &element);
+        cmdArgs.push_back(getString(env, element));
+    }
+
+    OH_LOG_INFO(LOG_APP, "executeQemuImg: executing command with %{public}zu args", cmdArgs.size());
+
+    std::string output = executeQemuImgCommand(cmdArgs);
+
+    napi_value result;
+    napi_create_string_utf8(env, output.c_str(), NAPI_AUTO_LENGTH, &result);
+    return result;
+}
+
 
 static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void *context, void *data)
 {
@@ -1754,6 +1815,8 @@ static napi_value Init(napi_env env, napi_value exports)
         {"needRestart", nullptr, needRestart, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"killQemuProcess", nullptr, killQemuProcess, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"checkQemuAlive", nullptr, checkQemuAlive, nullptr, nullptr, nullptr, napi_default, nullptr},
+        // 数据盘管理
+        {"executeQemuImg", nullptr, executeQemuImg, nullptr, nullptr, nullptr, napi_default, nullptr},      
         // ARM 架构版本检测
         {"getCpuArchVersion", nullptr, getCpuArchVersion, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
