@@ -42,6 +42,9 @@ class appOption {
   static terminalTransparency = 'terminalTransparency'
   static terminalScreensaver = 'terminalScreensaver'
   static terminalEffectType = 'terminalEffectType'
+
+  // 数据盘管理
+  static dataDisks = 'dataDisks'           // 数据盘列表
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

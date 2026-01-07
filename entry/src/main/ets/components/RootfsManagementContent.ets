@@ -11,6 +11,11 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
 import { BackButton } from './BackButton';
 import napi from 'libentry.so';
+import { router } from '@kit.ArkUI';
+
+import { deviceInfo } from '@kit.BasicServicesKit';
+import ImageManagementContent from './ImageManagementContent';
+import { Emulator } from '../model/Emulator';
 
 interface RootfsItem {
   model: RootFilesystem
@@ -39,6 +44,7 @@ export default struct RootfsManagementContent {
   @State tempSrcUri?: string = undefined
   @Prop specifiedBreak?: string = undefined
   @Prop toolBar: boolean = true
+  onOpenDataDiskManagement?: () => void = undefined
   @State detailInfo?: DetailInfo = undefined
   filesDir: string = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   actionAfterNameInput: () => Promise<void> = (): Promise<void> => this.createNewRootfs()
@@ -76,8 +82,7 @@ export default struct RootfsManagementContent {
         }
       }]
     }),
-    autoCancel: true,
-    alignment: DialogAlignment.Center
+    autoCancel: true
   })
   promptAction = this.getUIContext().getPromptAction()
 
@@ -114,6 +119,15 @@ export default struct RootfsManagementContent {
           Text($r('app.string.image_management_title'))
             .fontSize(18)
 
+          // 数据盘管理入口
+          Text($r('app.string.data_disk_management'))
+            .fontSize(14)
+            .fontColor('#007DFF')
+            .margin({ left: 16 })
+            .onClick(() => {
+              router.pushUrl({ url: 'pages/DataDiskManagementPage' })
+            })
+
           Blank().layoutWeight(1)
 
           Button($r('app.string.btn_import'), { buttonStyle: ButtonStyleMode.TEXTUAL })
@@ -141,11 +155,26 @@ export default struct RootfsManagementContent {
       .align(Alignment.Top)
 
       if (!this.toolBar) {
-        Button($r('app.string.btn_import'))
-          .width('100%')
-          .onClick(() => {
-            this.importRootFilesystem()
-          })
+        Row() {
+          Button($r('app.string.data_disk_management'))
+            .layoutWeight(1)
+            .margin({ right: 12 })
+            .onClick(() => {
+              if (this.onOpenDataDiskManagement) {
+                this.onOpenDataDiskManagement()
+              } else {
+                router.pushUrl({ url: 'pages/DataDiskManagementPage' })
+              }
+            })
+
+          Button($r('app.string.btn_import'))
+            .layoutWeight(1)
+            .onClick(() => {
+              this.importRootFilesystem()
+            })
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, bottom: 24, top: 16 })
       }
     }
   }

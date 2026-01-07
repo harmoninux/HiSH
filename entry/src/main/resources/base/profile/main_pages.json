@@ -8,6 +8,7 @@
     "pages/SharedFolderPage",
     "pages/UserGuidePage",
     "pages/GuideWebPage",
-    "pages/VncPage"
+    "pages/VncPage",
+    "pages/DataDiskManagementPage"
   ]
 }

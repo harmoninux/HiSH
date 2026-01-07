@@ -9,6 +9,13 @@ interface RootFilesystem {
   path: string
 }
 
+// 数据盘接口
+interface DataDisk {
+  id: string       // UUID，文件名前缀
+  name: string     // 用户定义的名称
+  path: string     // 完整文件路径
+}
+
 interface Emulator {
   id: string
   name: string,
@@ -19,6 +26,9 @@ interface Emulator {
   rootVda: string,
   rootFilesystem: string
   sharedFolderReadonly: boolean
+  // 数据盘相关字段
+  dataDiskId?: string     // 关联的数据盘 ID（可选）
+  mountDataDisk: boolean  // 是否在启动时挂载数据盘
 }
 
 const defaultRootfs: RootFilesystem = {
@@ -36,7 +46,8 @@ const defaultEmulator: Emulator = {
   portMapping: [],
   rootVda: '/dev/sda',
   rootFilesystem: 'vm/rootfs_aarch64.qcow2',
-  sharedFolderReadonly: false
+  sharedFolderReadonly: false,
+  mountDataDisk: false
 }
 
-export { Emulator, PortMapping, RootFilesystem, defaultEmulator, defaultRootfs }
+export { Emulator, PortMapping, RootFilesystem, DataDisk, defaultEmulator, defaultRootfs }

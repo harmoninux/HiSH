@@ -1539,7 +1539,7 @@ const UI = {
         if (UI.rfb) {
             UI.rfb.focusOnClick = true;
         }
-        // ¼üÅÌÊÕÆğÊ±Ç¿ÖÆ¸üĞÂÊÓ¿Ú³ß´ç
+        // é”®ç›˜æ”¶èµ·æ—¶å¼ºåˆ¶æ›´æ–°è§†å£å°ºå¯¸
         if (window.forceViewportUpdate) {
             window.forceViewportUpdate();
         }

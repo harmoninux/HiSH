@@ -38,12 +38,12 @@ body {
     transform: scaleY(-1);
 }
 
-/* Enable native text selection for DOM renderer */
+/* CRITICAL FIX: Disable pointer events on xterm-rows to allow viewport scrolling */
 .xterm-rows {
     user-select: text !important;
     -webkit-user-select: text !important;
-    pointer-events: auto !important;
-    /* Ensure text receives events */
+    pointer-events: none !important;
+    /* Let events pass through to .xterm-viewport for smooth scrolling */
 }
 
 /* Let clicks pass through overlays to the text */
@@ -57,6 +57,12 @@ body {
 .xterm-screen {
     user-select: text !important;
     -webkit-user-select: text !important;
+}
+
+/* Optimize viewport for touch scrolling */
+.xterm-viewport {
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y pan-x !important;
 }
 
 /* VISIBILITY FIX: Make selection visible */
