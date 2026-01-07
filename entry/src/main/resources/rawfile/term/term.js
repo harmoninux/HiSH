@@ -11,7 +11,7 @@ var term = new Terminal({
         foreground: '#cccccc',
         cursor: '#cccccc'
     },
-    screenReaderMode: true, // Force DOM-friendly rendering for native selection
+    screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
 });
 
 // Initialize Addons

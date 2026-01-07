@@ -9,7 +9,7 @@ import bundleManager from '@ohos.bundle.bundleManager';
 import napi from 'libentry.so';
 import appOption, { CursorShape } from '../model/appOption'
 import { startVm } from '../lib/startVm';
-import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem, PortMapping } from '../model/Emulator';
+import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem, PortMapping, DataDisk } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
@@ -112,7 +112,6 @@ export default class EntryAbility extends UIAbility {
     }
 
     await this.loadPreferences(appContext);
-
     await this.extractKernelAndRootFilesystem(appContext);
 
     windowStage.loadContent('pages/Index', async (err) => {
@@ -211,6 +210,16 @@ export default class EntryAbility extends UIAbility {
       hilog.warn(DOMAIN, 'testTag', 'No free VNC port found, VNC will be disabled');
     }
 
+    // 获取数据盘路径（如果开启了挂载）
+    let dataDiskPath: string | undefined = undefined;
+    if (emulatorToStart.dataDiskId && emulatorToStart.mountDataDisk) {
+      const dataDisks = (AppStorage.get(appOption.dataDisks) as DataDisk[]) || [];
+      const selectedDisk = dataDisks.find(d => d.id === emulatorToStart.dataDiskId);
+      if (selectedDisk) {
+        dataDiskPath = selectedDisk.path;
+      }
+    }
+
     startVm({
       baseDir: vmBaseDir,
       cpu: cpuCount,
@@ -226,7 +235,8 @@ export default class EntryAbility extends UIAbility {
       qmpUnixSocket,
       qmpUnixSocketUI,
       qgaUnixSocket,
-      vncWebSocketPort: vncPort
+      vncWebSocketPort: vncPort,
+      dataDiskPath: dataDiskPath
     })
 
     // 启动 QMP 事件监听器，监控虚拟机状态变化
@@ -512,6 +522,13 @@ export default class EntryAbility extends UIAbility {
       JSON.parse(await appPref.get(appOption.rootFilesystems,
         JSON.stringify([defaultRootfs])) as string) as RootFilesystem[]
     AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
+
+    // 加载数据盘配置
+    const dataDisksRaw = await appPref.get(appOption.dataDisks, '[]') as string
+    const dataDisks = JSON.parse(dataDisksRaw) as DataDisk[]
+    AppStorage.setOrCreate(appOption.dataDisks, dataDisks)
+    // 确保数据盘基础目录（roots）在 AppStorage 中可用，供组件使用
+    AppStorage.setOrCreate(appOption.rootfsBaseDir, appFilesDir + '/roots')
   }
 
   private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext): Promise<void> {

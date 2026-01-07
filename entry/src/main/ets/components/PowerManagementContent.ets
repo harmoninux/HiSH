@@ -6,7 +6,7 @@ import QmpClient from '../lib/QmpClient'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { startVm } from '../lib/startVm'
 import { VmController } from '../lib/VmController'
-import { Emulator, PortMapping } from '../model/Emulator'
+import { Emulator, PortMapping, DataDisk } from '../model/Emulator'
 import napi from 'libentry.so'
 import preference from '@ohos.data.preferences'
 
@@ -609,6 +609,16 @@ export default struct PowerManagementContent {
         AppStorage.setOrCreate('vncWebSocketPort', vncPort);
       }
 
+      // 获取数据盘路径（如果开启了挂载）
+      let dataDiskPath: string | undefined = undefined;
+      if (emulator.dataDiskId && emulator.mountDataDisk) {
+        const dataDisks = (AppStorage.get(appOption.dataDisks) as DataDisk[]) || [];
+        const selectedDisk = dataDisks.find(d => d.id === emulator.dataDiskId);
+        if (selectedDisk) {
+          dataDiskPath = selectedDisk.path;
+        }
+      }
+
       startVm({
         baseDir: vmBaseDir,
         cpu: emulator.cpu,
@@ -624,7 +634,8 @@ export default struct PowerManagementContent {
         qmpUnixSocket: appTempDir + '/qmp_socket',
         qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
         qgaUnixSocket: appTempDir + '/qga_socket',
-        vncWebSocketPort: vncPort
+        vncWebSocketPort: vncPort,
+        dataDiskPath: dataDiskPath
       })
       
       this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_running').id)

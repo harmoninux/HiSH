@@ -90,3 +90,13 @@ export const checkQemuAlive: (pidFilePath?: string) => boolean;
  * @returns 'v85' 表示支持 ARMv8.5 所有特性，'generic' 表示 ARMv8.2 兼容模式
  */
 export const getCpuArchVersion: () => string;
+
+// ================== 数据盘管理功能 ==================
+
+/**
+ * 执行 qemu-img 命令（用于创建数据盘等操作）
+ * @param args 命令参数数组（不包含 "qemu-img" 本身）
+ * @example executeQemuImg(["create", "-f", "qcow2", "-o", "lazy_refcounts=on,extended_l2=on", "/path/disk.qcow2", "1024M"])
+ * @returns JSON 格式的结果 {success: true} 或 {error: string}
+ */
+export const executeQemuImg: (args: string[]) => string;

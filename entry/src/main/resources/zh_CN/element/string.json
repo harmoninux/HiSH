@@ -1290,7 +1290,7 @@
     },
     {
       "name": "label_virtual_disk",
-      "value": "虚拟盘"
+      "value": "OS磁盘"
     },
     {
       "name": "label_port_mapping",
@@ -1703,6 +1703,103 @@
     {
       "name": "msg_snapshot_limit_exceeded",
       "value": "超出10个快照数量的最大限制！"
+    },
+    {
+      "name": "data_disk_management",
+      "value": "数据盘管理"
+    },
+    {
+      "name": "btn_new_data_disk",
+      "value": "新建"
+    },
+    {
+      "name": "msg_data_disk_name_empty",
+      "value": "数据盘名称不能为空"
+    },
+    {
+      "name": "msg_data_disk_name_exists",
+      "value": "数据盘名称已存在"
+    },
+    {
+      "name": "msg_data_disk_size_invalid",
+      "value": "请输入有效的大小"
+    },
+    {
+      "name": "msg_create_data_disk_success",
+      "value": "数据盘创建成功"
+    },
+    {
+      "name": "msg_create_data_disk_fail",
+      "value": "创建数据盘失败"
+    },
+    {
+      "name": "setting_data_disk_title",
+      "value": "数据盘管理"
+    },
+    {
+      "name": "setting_data_disk_select",
+      "value": "数据磁盘"
+    },
+    {
+      "name": "setting_data_disk_select_desc",
+      "value": "选择需要挂载的虚拟磁盘"
+    },
+    {
+      "name": "setting_data_disk_mount",
+      "value": "挂载数据磁盘"
+    },
+    {
+      "name": "label_none",
+      "value": "无"
+    },
+    {
+      "name": "msg_pc_only_feature",
+      "value": "此功能仅在PC/平板端可用"
+    },
+    {
+      "name": "label_data_disk",
+      "value": "数据盘"
+    },
+    {
+      "name": "msg_no_data_disk",
+      "value": "暂无数据盘"
+    },
+    {
+      "name": "dialog_delete_disk_msg",
+      "value": "确定要删除此数据盘吗？"
+    },
+    {
+      "name": "msg_export_success",
+      "value": "导出成功"
+    },
+    {
+      "name": "dialog_new_data_disk_title",
+      "value": "新建数据盘"
+    },
+    {
+      "name": "label_data_disk_name",
+      "value": "名称"
+    },
+    {
+      "name": "label_data_disk_size",
+      "value": "大小"
+    },
+    {
+      "name": "label_data_disk_size_unit",
+      "value": "MB"
+    },
+    {
+      "name": "placeholder_data_disk_name",
+      "value": "请输入数据盘名称"
+    },
+    {
+      "name": "msg_creating_data_disk",
+      "value": "正在创建数据盘..."
+    },
+    {
+      "name": "data_disk_image_management_title",
+      "value": "数据盘镜像管理"
     }
   ]
 }
+
