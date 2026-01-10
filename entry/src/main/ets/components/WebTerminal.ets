@@ -1,4 +1,5 @@
 import util from '@ohos.util';
+import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
@@ -358,6 +359,10 @@ export default struct WebTerminal {
 
   getCursorBlink(): boolean | null {
     return this.cursorBlink
+  }
+
+  getDeviceType(): string {
+    return deviceInfo.deviceType;
   }
 
   onFontSizeChanged() {

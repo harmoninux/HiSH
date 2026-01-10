@@ -1,11 +1,77 @@
 body {
     margin: 0;
-    background: transparent;
+    background: #000;
     overflow: hidden;
 }
 
-#terminal {
+#terminal-container {
     position: absolute;
-    top: 0; bottom: 0;
-    left: 0; right: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+#terminal {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 1;
+    /* Text above matrix by default */
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+#matrix {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 0;
+    /* Background by default */
+    pointer-events: none;
+}
+
+/* Fix for WebGL mirroring on some mobile devices */
+.webgl-mobile-fix .xterm-screen {
+    transform: scaleY(-1);
+}
+
+/* CRITICAL FIX: Disable pointer events on xterm-rows to allow viewport scrolling */
+.xterm-rows {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    pointer-events: none !important;
+    /* Let events pass through to .xterm-viewport for smooth scrolling */
+}
+
+/* Let clicks pass through overlays to the text */
+.xterm-selection-layer,
+.xterm-cursor-layer,
+.xterm-link-layer {
+    pointer-events: none !important;
+}
+
+/* Ensure the screen allows interaction */
+.xterm-screen {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+/* Optimize viewport for touch scrolling */
+.xterm-viewport {
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y pan-x !important;
+}
+
+/* VISIBILITY FIX: Make selection visible */
+::selection {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    color: #ffffff !important;
+}
+
+.xterm-rows span {
+    user-select: text !important;
+    -webkit-user-select: text !important;
 }
