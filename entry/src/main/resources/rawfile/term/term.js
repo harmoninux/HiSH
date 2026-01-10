@@ -9,11 +9,11 @@ hterm.Keyboard.prototype.onTextInput_ = function (e) {
 };
 
 hterm.Terminal.IO.prototype.sendString = function (data) {
-    console.log('sendString', data)
+    // console.log('sendString', data)
     native.sendInput(data);
 };
 hterm.Terminal.IO.prototype.onVTKeystroke = function (data) {
-    console.log('onVTKeystroke', data)
+    // console.log('onVTKeystroke', data)
     native.sendInput(data);
 };
 hterm.Terminal.IO.prototype.onTerminalResize = function (width, height) {
@@ -61,8 +61,12 @@ function onTerminalReady() {
     term.reset();
 
     let decoder = new TextDecoder();
-    exports.write = (data) => {
+    exports.write = (data, applicationMode) => {
         term.io.writeUTF16(decoder.decode(lib.codec.stringToCodeUnitArray(data), { stream: true }));
+        if (applicationMode !== term.keyboard.applicationCursor) {
+            //  application cursor mode has changed
+            native.setApplicationMode(term.keyboard.applicationCursor)
+        }
     };
     exports.paste = (data) => {
         term.io.sendString(decoder.decode(lib.codec.stringToCodeUnitArray(data), { stream: true }));

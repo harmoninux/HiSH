@@ -32,6 +32,7 @@ export default struct WebTerminal {
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
+  applicationMode: boolean = false
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -69,8 +70,11 @@ export default struct WebTerminal {
     .width('160vp')
   }
 
+  /**
+   * @param appCode code used in application mode
+   */
   @Builder
-  buildVKey(name: string, value: string) {
+  buildVKey(name: string, value: string, appCode?: string) {
     Button(name, { buttonStyle: ButtonStyleMode.TEXTUAL })
       .height(VKeyHeight)
       .width(VKeyWidth)
@@ -80,7 +84,11 @@ export default struct WebTerminal {
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
       .onClick(() => {
-        this.sendInput(value);
+        if (this.applicationMode && appCode) {
+          this.sendInput(appCode);
+        } else {
+          this.sendInput(value)
+        }
       })
   }
 
@@ -180,7 +188,8 @@ export default struct WebTerminal {
           object: this,
           name: 'native',
           methodList: ['sendInput', 'resize', 'load',
-            'getFontSize', 'getCursorShape', 'getCursorBlink'],
+            'getFontSize', 'getCursorShape', 'getCursorBlink',
+            'setApplicationMode'],
           controller: this.webviewController,
           asyncMethodList: [],
           permission: `{
@@ -238,7 +247,7 @@ export default struct WebTerminal {
 
         this.buildVKey('PGUP', '\x1b[5~');
         this.buildVKey('HOME', '\x1b[H');
-        this.buildVKey('↑', '\x1b[A');
+        this.buildVKey('↑', '\x1b[A', '\x1bOA');
         this.buildVKey('END', '\x1b[F');
 
         this.settingsButton();
@@ -252,9 +261,9 @@ export default struct WebTerminal {
         Row().layoutWeight(1);
 
         this.buildVKey('PGDN', '\x1b[6~');
-        this.buildVKey('←', '\x1b[D');
-        this.buildVKey('↓', '\x1b[B');
-        this.buildVKey('→', '\x1b[C');
+        this.buildVKey('←', '\x1b[D', '\x1bOD');
+        this.buildVKey('↓', '\x1b[B', '\x1bOB');
+        this.buildVKey('→', '\x1b[C', '\x1bOC');
         this.hideVKeyButton();
       }
       .margin({ left: 5, right: 5 })
@@ -330,7 +339,7 @@ export default struct WebTerminal {
     if (s.startsWith('\\x1b[H\\x1b[J')) {
       this.webviewController.runJavaScript('exports.clearScrollback()');
     }
-    this.webviewController.runJavaScript('exports.write("' + s + '")');
+    this.webviewController.runJavaScript(`exports.write("${s}", ${this.applicationMode})`);
   }
 
   private async onShutdown() {
@@ -361,5 +370,10 @@ export default struct WebTerminal {
 
   onCursorBlinkChanged() {
     this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
+  }
+
+  setApplicationMode(mode: boolean) {
+    this.applicationMode = mode
+    hilog.info(DOMAIN, 'WebTerminal', 'set applicationMode to %{public}s', this.applicationMode);
   }
 }
