@@ -8,8 +8,8 @@ var term = new Terminal({
     fontSize: 14, // Default, will be overridden by native.getFontSize()
     theme: {
         background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
-        foreground: '#cccccc',
-        cursor: '#cccccc'
+        foreground: '#ffffff',
+        cursor: '#ffffff'
     },
     screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
 });
@@ -525,11 +525,36 @@ function setupMirroredInputFix(termEl) {
 // --- Implementation of exports matching term.js.bak ---
 
 // exports.write(data) - Write data from VM to terminal
-exports.write = (data) => {
+exports.write = (data, applicationMode) => {
     // legacy hterm code imply data is Binary String (UTF-8/Latin1 bytes)
     try {
         const uint8 = strToUint8Array(data);
         term.write(uint8);
+
+        // Sync Application Cursor Mode using xterm.js state
+        // term.modes.applicationCursorKeysMode is available in xterm.js v5+
+        if (term.modes && term.modes.applicationCursorKeysMode !== undefined) {
+            if (term.modes.applicationCursorKeysMode !== applicationMode) {
+                if (native && native.setApplicationMode) {
+                    native.setApplicationMode(term.modes.applicationCursorKeysMode);
+                }
+            }
+        } else {
+            // Fallback for older xterm.js or if modes is undefined
+            // Detect Application Cursor Mode changes (DECCKM)
+            let newMode = null;
+            if (data.includes('\x1b[?1h')) {
+                newMode = true;
+            } else if (data.includes('\x1b[?1l')) {
+                newMode = false;
+            }
+
+            if (newMode !== null && newMode !== applicationMode) {
+                if (native && native.setApplicationMode) {
+                    native.setApplicationMode(newMode);
+                }
+            }
+        }
     } catch (e) {
         console.error("exports.write failed", e);
     }

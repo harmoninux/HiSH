@@ -286,6 +286,13 @@ export class VmController {
     hilog.info(DOMAIN, 'VmController', 'QMP Event: %{public}s', event);
     switch (event) {
       case 'SHUTDOWN':
+        // 检查是否正在切换 VM，如果是则跳过状态更新
+        const isVmSwitching = AppStorage.get(appOption.isVmSwitching) as boolean;
+        if (isVmSwitching) {
+            hilog.info(DOMAIN, 'VmController', '检测到 VM 切换/重置进行中，跳过 SHUTDOWN 状态清理');
+            return;
+        }
+
         // 保存 Last ID
         const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
         if (currentRunning) {
@@ -299,7 +306,9 @@ export class VmController {
         break;
       case 'RESET':
         // 重启 App - 仅当 currentUiContext 有效时
-        if (this.currentUiContext) {
+        // [修复] 仅在手机端执行此逻辑，PC/平板端保持应用运行
+        const isPhone = deviceInfo.deviceType === 'phone' || deviceInfo.deviceType === 'default';
+        if (this.currentUiContext && isPhone) {
             const context = this.currentUiContext.getHostContext() as common.UIAbilityContext;
             const want: Want = {
                 bundleName: context.abilityInfo.bundleName,
@@ -310,6 +319,11 @@ export class VmController {
             } catch(e) {
                hilog.error(DOMAIN, 'VmController', 'Restart App failed: %{public}s', JSON.stringify(e));
             }
+        } else {
+             hilog.info(DOMAIN, 'VmController', 'PC/平板端检测到 RESET 事件，保持应用运行');
+             AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING');
+             // 启动后台监控，等待 VM 恢复运行
+             this.monitorReboot();
         }
         break;
       case 'STOP':
@@ -499,5 +513,51 @@ export class VmController {
       clearInterval(this.portCheckTimer);
       this.portCheckTimer = -1;
     }
+  }
+
+  /**
+   * 监控重启过程
+   * 在后台轮询 QGA，直到连接成功或超时
+   */
+  private async monitorReboot() {
+    hilog.info(DOMAIN, 'VmController', '启动重启监控 (monitorReboot)...');
+    
+    // 1. 等待 10 秒，让 OS 有时间启动
+    await new Promise<void>(resolve => setTimeout(resolve, 10000));
+    
+    const maxRetries = 20; // 20 * 3s = 60s
+    for (let i = 0; i < maxRetries; i++) {
+        // 检查状态是否仍为 REBOOTING (如果用户手动关机了，就停止监控)
+        const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string;
+        if (currentStatus !== 'REBOOTING') {
+            hilog.info(DOMAIN, 'VmController', '重启监控停止，状态已变为: %{public}s', currentStatus);
+            return;
+        }
+
+        try {
+            // 尝试连接 Agent
+            const agent = await QemuAgentManager.acquire('VmController', AgentPriority.HIGH, 2000);
+            if (agent) {
+                const pong = await agent.ping();
+                await QemuAgentManager.release('VmController');
+                
+                if (pong) {
+                    hilog.info(DOMAIN, 'VmController', 'VM 已恢复在线，更新状态为 RUNNING');
+                    AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
+                    return;
+                }
+            }
+        } catch (e) {
+            // 忽略连接错误，继续重试
+        }
+        
+        // 等待 3 秒后重试
+        await new Promise<void>(resolve => setTimeout(resolve, 3000));
+    }
+    
+    hilog.warn(DOMAIN, 'VmController', '重启监控超时，未能检测到 VM 恢复');
+    // 超时后可以考虑设置为 ABNORMAL 或者保持 REBOOTING 让用户处理
+    // 这里选择保持 REBOOTING，或者设置为 RUNNING (假设 QGA 没启动但系统起来了)
+    // 为了安全，暂时保持 REBOOTING，用户可以手动关机
   }
 }
