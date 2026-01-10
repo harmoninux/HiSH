@@ -19,7 +19,7 @@ export LTO_FLAG := -flto
 else
 export ARCH_FLAGS := 
 export OPT_LEVEL := -O2
-export LTO_FLAG := 
+export LTO_FLAG :=
 endif
 export LD := $(OHOS_SDK_HOME)/native/llvm/bin/ld.lld
 export AR := $(OHOS_SDK_HOME)/native/llvm/bin/llvm-ar
