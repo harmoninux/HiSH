@@ -239,11 +239,14 @@ function setupMirroredInputFix(termEl) {
 // --- Implementation of exports matching term.js.bak ---
 
 // exports.write(data) - Write data from VM to terminal
-exports.write = (data) => {
+exports.write = (data, applicationMode) => {
     // legacy hterm code imply data is Binary String (UTF-8/Latin1 bytes)
     try {
         const uint8 = strToUint8Array(data);
         term.write(uint8);
+        if (term.modes.applicationCursorKeysMode !== applicationMode) {
+            native.setApplicationMode(term.modes.applicationCursorKeysMode)
+        }
     } catch (e) {
         console.error("exports.write failed", e);
     }

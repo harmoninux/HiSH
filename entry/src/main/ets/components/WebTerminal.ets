@@ -338,7 +338,7 @@ export default struct WebTerminal {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
     if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript('exports.clearScrollback()');
+      this.webviewController.runJavaScript(`exports.write("\\x1b[3J", ${this.applicationMode})`);
     }
     this.webviewController.runJavaScript(`exports.write("${s}", ${this.applicationMode})`);
   }
