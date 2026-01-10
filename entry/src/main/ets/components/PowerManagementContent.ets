@@ -705,6 +705,12 @@ export default struct PowerManagementContent {
       }
     } catch (e) {}
     
+    // 显式保存 Last ID (确保重启按钮可用)
+    const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
+    if (currentRunning) {
+       AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
+    }
+
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
     this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
     this.isOperating = false

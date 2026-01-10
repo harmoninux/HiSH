@@ -260,6 +260,19 @@ export default class EntryAbility extends UIAbility {
           (event: QmpEventType, data: QmpEventData | undefined): void => {
             hilog.info(DOMAIN, 'testTag', '===== QMP 事件回调触发 =====')
             this.handleQmpEvent(event, data)
+          },
+          // 添加断开连接回调，用于检测 VM 意外退出或关机
+          () => {
+            hilog.warn(DOMAIN, 'testTag', 'QMP 连接断开，检查 VM 存活状态...')
+            const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
+            if (vmBaseDir) {
+              const pidFile = vmBaseDir + '/qemu.pid'
+              // 如果 QMP 断开且进程不存在，说明 VM 已意外退出或关机
+              if (!napi.checkQemuAlive(pidFile)) {
+                hilog.info(DOMAIN, 'testTag', '检测到 VM 进程已退出，更新状态为 SHUTDOWN')
+                this.handleQmpEvent('SHUTDOWN', { guest: false, reason: 'process-exit' })
+              }
+            }
           }
         )
         
@@ -286,6 +299,20 @@ export default class EntryAbility extends UIAbility {
         // 虚拟机关机
         hilog.info(DOMAIN, 'testTag', '虚拟机已关机 (来源: %{public}s)', 
                    data?.guest ? 'guest' : 'host')
+
+        // 检查是否正在切换 VM，如果是则跳过状态更新
+        const isVmSwitching = AppStorage.get(appOption.isVmSwitching) as boolean;
+        if (isVmSwitching) {
+            hilog.info(DOMAIN, 'testTag', '检测到 VM 切换/重置进行中，跳过 SHUTDOWN 状态清理');
+            return;
+        }
+
+        // 保存 Last ID (确保重启按钮可用)
+        const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
+        if (currentRunning) {
+             AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
+        }
+
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
         // 清除当前运行的模拟器 ID，这样模拟器管理界面会显示为"未运行"
         AppStorage.setOrCreate(appOption.currentRunningEmulator, '')

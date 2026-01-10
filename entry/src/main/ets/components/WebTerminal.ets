@@ -9,6 +9,7 @@ import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier, LoadingDialog } from '@kit.ArkUI';
 import { VmController } from '../lib/VmController';
 import { Emulator } from '../model/Emulator';
+import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 
 
 const DOMAIN = 0x0000;
@@ -21,11 +22,6 @@ const VKeyHeight = 28;
 const VKeyWidth = isPhone ? 48 : 60;
 const VKeyFontSize = isPhone ? 11 : 14;
 const VKeyRadius = 5;
-
-function stringToArrayBuffer(str: string, encoding: buffer.BufferEncoding = 'utf-8'): ArrayBuffer {
-  const buf = buffer.from(str, encoding);
-  return buf.buffer;
-}
 
 @Component
 export default struct WebTerminal {
@@ -49,6 +45,7 @@ export default struct WebTerminal {
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
+  applicationMode: boolean = false
   private resumeDialog: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
       content: $r('app.string.pm_status_resuming')
@@ -77,7 +74,8 @@ export default struct WebTerminal {
   }
 
   @Builder
-  buildVKey(name: string, value: string) {
+  @Builder
+  buildVKey(name: string, value: string, appCode?: string) {
     Button(name, { buttonStyle: ButtonStyleMode.TEXTUAL })
       .height(VKeyHeight)
       .width(VKeyWidth)
@@ -87,7 +85,11 @@ export default struct WebTerminal {
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
       .onClick(() => {
-        this.sendInput(value);
+        if (this.applicationMode && appCode) {
+          this.sendInput(appCode);
+        } else {
+          this.sendInput(value);
+        }
       })
   }
 
@@ -190,7 +192,7 @@ export default struct WebTerminal {
             methodList: ['sendInput', 'resize', 'load',
               'getFontSize', 'getCursorShape', 'getCursorBlink',
               'getTerminalEffects', 'getTerminalTransparency', 'getTerminalScreensaver', 'getTerminalEffectType',
-              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift', 'getDeviceType'],
+              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift', 'getDeviceType', 'setApplicationMode'],
             controller: this.webviewController,
             asyncMethodList: ['pasteFromClipboard'],
             permission: `{
@@ -316,14 +318,14 @@ export default struct WebTerminal {
   buildVirtualKeys() {
     Column() {
       Row() {
-        this.buildVKey('TAB', '\t');
         this.buildVKey('ESC', '\x1b');
+        this.toggleShiftKey('SHIFT', () => this.toggleShift());
 
         Row().layoutWeight(1);
 
         this.buildVKey('PGUP', '\x1b[5~');
         this.buildVKey('HOME', '\x1b[H');
-        this.buildVKey('↑', '\x1b[A');
+        this.buildVKey('↑', '\x1b[A', '\x1bOA');
         this.buildVKey('END', '\x1b[F');
 
         this.settingsButton();
@@ -331,15 +333,15 @@ export default struct WebTerminal {
       .margin({ left: 5, right: 5 })
 
       Row() {
+        this.buildVKey('TAB', '\t');
         this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
-        this.toggleShiftKey('SHIFT', () => this.toggleShift());
 
         Row().layoutWeight(1);
 
         this.buildVKey('PGDN', '\x1b[6~');
-        this.buildVKey('←', '\x1b[D');
-        this.buildVKey('↓', '\x1b[B');
-        this.buildVKey('→', '\x1b[C');
+        this.buildVKey('←', '\x1b[D', '\x1bOD');
+        this.buildVKey('↓', '\x1b[B', '\x1bOB');
+        this.buildVKey('→', '\x1b[C', '\x1bOC');
         this.hideVKeyButton();
       }
       .margin({ left: 5, right: 5 })
@@ -459,9 +461,10 @@ export default struct WebTerminal {
   private onData(ab: ArrayBuffer) {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript('exports.clearScrollback()');
+      this.webviewController.runJavaScript(`exports.write("\\x1b[3J", ${this.applicationMode})`);
     }
-    this.webviewController.runJavaScript('exports.write("' + s + '")');
+    // Revert to using string interpolation to allow JS to unescape literal control sequences (e.g. \x1b)
+    this.webviewController.runJavaScript(`exports.write("${s}", ${this.applicationMode})`);
   }
 
   private async onShutdown() {
@@ -538,6 +541,11 @@ export default struct WebTerminal {
 
   onCursorBlinkChanged() {
     this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
+  }
+
+  setApplicationMode(mode: boolean) {
+    this.applicationMode = mode
+    hilog.info(DOMAIN, 'WebTerminal', 'set applicationMode to %{public}s', this.applicationMode);
   }
 
   onTermEffectsChanged() {
