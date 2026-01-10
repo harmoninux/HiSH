@@ -240,8 +240,8 @@ export default struct WebTerminal {
   buildVirtualKeys() {
     Column() {
       Row() {
-        this.buildVKey('TAB', '\t');
         this.buildVKey('ESC', '\x1b');
+        this.toggleShiftKey('SHIFT', () => this.toggleShift());
 
         Row().layoutWeight(1);
 
@@ -255,8 +255,8 @@ export default struct WebTerminal {
       .margin({ left: 5, right: 5 })
 
       Row() {
+        this.buildVKey('TAB', '\t');
         this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
-        this.toggleShiftKey('SHIFT', () => this.toggleShift());
 
         Row().layoutWeight(1);
 
