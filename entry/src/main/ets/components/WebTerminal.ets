@@ -475,6 +475,12 @@ export default struct WebTerminal {
       return;
     }
 
+    // 保存 Last ID (确保重启按钮可用)
+    const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
+    if (currentRunning) {
+       AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
+    }
+
     // 更新虚拟机状态为已关机
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
     hilog.info(DOMAIN, 'WebTerminal', '虚拟机状态已更新为 SHUTDOWN');

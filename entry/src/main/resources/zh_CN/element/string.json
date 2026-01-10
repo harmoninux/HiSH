@@ -590,7 +590,15 @@
     },
     {
       "name": "pm_btn_force_reconnect",
-      "value": "强制重连 Agent"
+      "value": "重置 QMP/QGA 连接"
+    },
+    {
+      "name": "pm_status_resetting_connections",
+      "value": "正在重置连接..."
+    },
+    {
+      "name": "pm_status_reset_connections_success",
+      "value": "连接重置成功"
     },
     {
       "name": "pm_title",
@@ -1802,4 +1810,3 @@
     }
   ]
 }
-
