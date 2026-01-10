@@ -3,6 +3,7 @@ import appOption from '../model/appOption'
 import QemuAgent from '../lib/QemuAgent'
 import { QemuAgentManager, AgentPriority } from '../lib/QemuAgentManager'
 import QmpClient from '../lib/QmpClient'
+import { getQmpEventListener } from '../lib/QmpEventListener'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { startVm } from '../lib/startVm'
 import { VmController } from '../lib/VmController'
@@ -199,28 +200,46 @@ export default struct PowerManagementContent {
   }
 
   /**
-   * 强制重连 Agent
-   * 清除所有历史阻塞，强制断开并重新建立干净的通信接口
-   * @param silent 静默模式，不显示提示消息（用于自动重连）
+   * 执行全局重置
+   * 重置 QGA/QMP 连接，清空队列，并等待状态恢复
    */
-  async forceReconnectAgent(silent: boolean = false) {
-    if (!silent) {
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connecting_short').id)
+  async performGlobalReset() {
+    if (this.isOperating) return
+    this.isOperating = true
+    
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resetting_connections').id)
+    this.processingMessage = this.statusMessage
+    this.processingDialog.open()
+    
+    try {
+      // 1. 重置 QGA 管理器 (清空队列，断开连接，恢复状态)
+      await QemuAgentManager.reset()
+      
+      // 2. 重置 QMP 监听器
+      const qmpListener = getQmpEventListener()
+      if (qmpListener) {
+        await qmpListener.reset()
+      }
+      
+      // 3. 等待一小段时间让底层释放资源
+      await new Promise<void>((resolve: () => void) => setTimeout(resolve, 1000))
+      
+      // 4. 尝试重新连接 QGA (带重试)
+      // 注意：QemuAgentManager.reset() 内部已经尝试恢复了 RUNNING 状态(如果进程存活)
+      // 这里调用 connectToQGA 会根据恢复后的状态决定是否连接
+      await this.connectToQGA(5, 2000)
+      
+      if (this.isConnected) {
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_connections_success').id)
+      }
+      
+    } catch (e) {
+      hilog.error(DOMAIN, 'PowerManagement', '全局重置失败: %{public}s', JSON.stringify(e))
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, JSON.stringify(e))
+    } finally {
+      this.isOperating = false
+      this.processingDialog.close()
     }
-    
-    // 1. 强制重置所有状态
-    this.isConnecting = false
-    this.isConnected = false
-    
-    // 2. 释放连接管理器中的连接
-    await QemuAgentManager.release('PowerManagement')
-    this.qgaAgent = null
-    
-    // 3. 等待一小段时间让资源释放
-    await new Promise<void>((resolve: () => void) => setTimeout(resolve, 500))
-    
-    // 4. 重新连接（更多重试，更长等待）
-    await this.connectToQGA(5, 3000)
   }
 
   async performAction(action: string, actionFn: () => Promise<boolean>) {
@@ -340,6 +359,10 @@ export default struct PowerManagementContent {
       if (this.qgaAgent && this.isConnected) {
         try {
           this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_exec_poweroff').id)
+          
+          // 广播关机消息
+          await this.qgaAgent.exec('wall', ['System is shutting down by HiSH Manager...'])
+          
           const pid = await this.qgaAgent.exec('/sbin/poweroff', [])
           if (pid !== null) {
             this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
@@ -350,7 +373,8 @@ export default struct PowerManagementContent {
             if (currentRunning) {
                AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
             }
-            AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
+            // 移除过早的状态设置，等待 QMP SHUTDOWN 事件
+            // AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
             
             // 正确释放 Agent
             await QemuAgentManager.release('PowerManagement')
@@ -374,7 +398,8 @@ export default struct PowerManagementContent {
             if (currentRunning) {
                AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
             }
-            AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
+            // 移除过早的状态设置，等待 QMP SHUTDOWN 事件
+            // AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
             
             // 正确释放 Agent
             await QemuAgentManager.release('PowerManagement')
@@ -394,12 +419,13 @@ export default struct PowerManagementContent {
           await qmpClient.sendCommand('system_powerdown')
           this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
           
-          // 显式保存 Last ID
-          const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
-          if (currentRunning) {
-             AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
-          }
-          AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
+           // 显式保存 Last ID
+           const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
+           if (currentRunning) {
+              AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
+           }
+           // 移除过早的状态设置，等待 QMP SHUTDOWN 事件
+           // AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
         } finally {
           await qmpClient.disconnect()
         }
@@ -472,7 +498,9 @@ export default struct PowerManagementContent {
         
         // 延迟连接
         setTimeout((): void => { 
-          if (this.isComponentActive) this.forceReconnectAgent(true) 
+        setTimeout((): void => { 
+          if (this.isComponentActive) this.connectToQGA(5, 2000) 
+        }, 10000) // 重启稍微久一点
         }, 10000) // 重启稍微久一点
     } else {
         this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_failed').id)
@@ -510,7 +538,7 @@ export default struct PowerManagementContent {
       
       // 如果组件仍活跃，尝试重连
       if (this.isComponentActive) {
-        this.forceReconnectAgent(true)
+        this.connectToQGA(3, 2000)
       }
     }, timeout)
   }
@@ -642,7 +670,7 @@ export default struct PowerManagementContent {
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
       // 延迟后连接 Agent
       setTimeout((): void => { 
-        if (this.isComponentActive) this.forceReconnectAgent(true) 
+        if (this.isComponentActive) this.connectToQGA(5, 2000) 
       }, 3000)
     } catch (e) {
       this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, JSON.stringify(e))
@@ -734,7 +762,7 @@ export default struct PowerManagementContent {
 
       // 使用强制重连
       setTimeout((): void => { 
-        if (this.isComponentActive) this.forceReconnectAgent(true) 
+        if (this.isComponentActive) this.connectToQGA(5, 2000) 
       }, 3000)
     } catch (e) {
       this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_poweron_failed').id, JSON.stringify(e))
@@ -778,9 +806,9 @@ export default struct PowerManagementContent {
           Button($r('app.string.pm_btn_force_reconnect'))
             .width('100%')
             .margin({ bottom: 16 })
-            .enabled(!this.isConnecting) // 连接中禁用，防止重复点击
+            .enabled(!this.isOperating) // 操作中禁用
             .onClick(() => {
-              this.forceReconnectAgent()
+              this.performGlobalReset()
             })
         }
 

@@ -187,9 +187,25 @@ export class VmController {
         setTimeout(async () => {
           try {
             const qmpSocketPath = appTempDir + '/qmp_socket_ui';
-            await startQmpEventListener(qmpSocketPath, (event, data) => {
-              this.handleQmpEvent(event, data);
-            });
+            await startQmpEventListener(qmpSocketPath, 
+              // 1. 事件回调
+              (event, data) => {
+                this.handleQmpEvent(event, data);
+              },
+              // 2. 断开连接回调
+              () => {
+                hilog.warn(DOMAIN, 'VmController', 'QMP 连接断开，检查 VM 存活状态...');
+                const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string;
+                if (vmBaseDir) {
+                  const pidFile = vmBaseDir + '/qemu.pid';
+                  // 如果 QMP 断开且进程不存在，说明 VM 已意外退出或关机
+                  if (!napi.checkQemuAlive(pidFile)) {
+                    hilog.info(DOMAIN, 'VmController', '检测到 VM 进程已退出，更新状态为 SHUTDOWN');
+                    this.handleQmpEvent('SHUTDOWN', undefined);
+                  }
+                }
+              }
+            );
             AppStorage.setOrCreate(appOption.isVmSwitching, false);
             
             // 启动动态端口检查
@@ -341,6 +357,9 @@ export class VmController {
       if (qgaAgent) {
         hilog.info(DOMAIN, 'VmController', 'QGA 已连接（复用 Manager），尝试执行 /sbin/poweroff...');
         try {
+          // 广播关机消息
+          await qgaAgent.exec('wall', ['System is shutting down by HiSH Manager...'])
+          
           const pid = await qgaAgent.exec('/sbin/poweroff', []);
           if (pid !== null) {
             shutdownSent = true;

@@ -282,70 +282,65 @@ export struct VmStatusBar {
 
   /**
    * 强制重连 Agent
-   * 清除所有历史阻塞，强制断开并重新建立干净的通信接口
+   * 使用 QemuAgentManager 进行高优先级重连，保持全局管理统一
    */
   private async forceReconnectAgent() {
     // 防止重复点击
     if (this.isForceReconnecting) return
     this.isForceReconnecting = true
     
-    hilog.info(DOMAIN, 'VmStatusBar', '开始强制重连 Agent...')
+    hilog.info(DOMAIN, 'VmStatusBar', '开始强制重连 Agent (通过 Manager)...')
     
     try {
       // 1. 停止定时器，避免冲突
       this.stopRefreshTimer()
       
-      // 2. 彻底销毁旧连接
-      if (this.qgaAgent) {
-        try {
-          await this.qgaAgent.disconnect()
-        } catch (e) {
-          hilog.warn(DOMAIN, 'VmStatusBar', '断开旧连接时出错')
-        }
-        this.qgaAgent = null
-      }
+      // 2. 释放可能存在的旧占用
+      await QemuAgentManager.release('VmStatusBar')
       
       // 3. 重置状态
       this.status.agentConnected = false
       this.lastCpuStats = null
       
-      // 4. 等待资源释放
-      await new Promise<void>((resolve: () => void) => setTimeout(resolve, 500))
-      
-      // 5. 重新创建 Agent 实例
-      if (!this.appTempDir) return
-      const qgaSocket = this.appTempDir + '/qga_socket'
-      this.qgaAgent = new QemuAgent(qgaSocket)
-      
-      // 6. 尝试连接（最多 3 次重试，间隔 3 秒）
+      // 4. 尝试连接（使用 NORMAL 优先级，最多 3 次重试，间隔 2 秒）
       for (let attempt = 0; attempt < 3; attempt++) {
         if (!this.isComponentActive) return
         
         try {
-          const connected = await this.qgaAgent.connect()
-          if (connected) {
-            const ping = await this.qgaAgent.ping()
+          // 使用 NORMAL 优先级请求连接 (高于自动刷新的 LOW，但低于电源管理的 HIGH)
+          const agent = await QemuAgentManager.acquire('VmStatusBar', AgentPriority.NORMAL, 3000)
+          
+          if (agent) {
+            const ping = await agent.ping()
             if (ping) {
               this.status.agentConnected = true
               hilog.info(DOMAIN, 'VmStatusBar', 'Agent 强制重连成功')
               
-              // 获取数据
-              await this.refreshStatus()
+              // 获取数据 (传入 agent 避免重复 acquire)
+              await this.refreshStatus(agent)
+              
+              // 关键修复：refreshStatus 不会释放外部传入的 agent，必须手动释放
+              await QemuAgentManager.release('VmStatusBar')
               
               // 如果启用了监控，重新启动定时器
               if (this.settings.masterSwitch) {
                 this.startRefreshTimer()
               }
               return
+            } else {
+              // Ping 失败，释放连接
+              await QemuAgentManager.release('VmStatusBar')
             }
           }
         } catch (e) {
-          hilog.warn(DOMAIN, 'VmStatusBar', '重连尝试 %{public}d 失败', attempt + 1)
+          hilog.warn(DOMAIN, 'VmStatusBar', '重连尝试 %{public}d 失败: %{public}s', attempt + 1, JSON.stringify(e))
+          // 确保释放
+          await QemuAgentManager.release('VmStatusBar')
         }
         
         // 等待后重试
         if (attempt < 2) {
-          await new Promise<void>((resolve: () => void) => setTimeout(resolve, 3000))
+          await new Promise<void>((resolve: () => void) => setTimeout(resolve, 2000))
         }
       }
       

@@ -1,6 +1,7 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import QemuAgent from './QemuAgent'
 import appOption from '../model/appOption'
+import napi from 'libentry.so'
 
 const DOMAIN = 0x0000
 
@@ -315,6 +316,53 @@ class QemuAgentManagerImpl {
       isConnected: this.agent !== null && this.agent.isAlive()
     }
     return status
+  }
+
+  /**
+   * 全局重置
+   * 清空队列，断开连接，并执行存活检查以恢复状态
+   */
+  async reset(): Promise<void> {
+    hilog.warn(DOMAIN, 'AgentManager', '执行全局重置...')
+    
+    // 1. 清空等待队列并拒绝所有请求
+    while (this.waitQueue.length > 0) {
+      const request = this.waitQueue.shift()
+      if (request) {
+        request.reject(new Error('Global Reset'))
+      }
+    }
+    
+    // 2. 强制断开当前连接
+    await this.forceRelease()
+    
+    // 3. 重置处理标志
+    this.isProcessing = false
+    
+    // 4. 清理 AppStorage 状态 (暂时)
+    AppStorage.setOrCreate(appOption.currentEmulatorStatus, '')
+    
+    // 5. 存活检查与状态恢复
+    const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
+    if (vmBaseDir) {
+      const pidFile = vmBaseDir + '/qemu.pid'
+      if (napi.checkQemuAlive(pidFile)) {
+        hilog.info(DOMAIN, 'AgentManager', '重置后检测到 VM 存活，恢复状态为 RUNNING')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+        
+        // 尝试恢复 currentRunningEmulator (如果为空)
+        const currentId = AppStorage.get(appOption.currentRunningEmulator) as string
+        if (!currentId) {
+           const lastId = AppStorage.get('lastRunningEmulatorId') as string
+           if (lastId) {
+             AppStorage.setOrCreate(appOption.currentRunningEmulator, lastId)
+           }
+        }
+      } else {
+        hilog.info(DOMAIN, 'AgentManager', '重置后检测到 VM 未运行')
+        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
+      }
+    }
   }
 }
 
