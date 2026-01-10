@@ -590,7 +590,15 @@
     },
     {
       "name": "pm_btn_force_reconnect",
-      "value": "Force Reconnect Agent"
+      "value": "Reset QMP/QGA Connections"
+    },
+    {
+      "name": "pm_status_resetting_connections",
+      "value": "Resetting connections..."
+    },
+    {
+      "name": "pm_status_reset_connections_success",
+      "value": "Connections reset successfully"
     },
     {
       "name": "pm_title",

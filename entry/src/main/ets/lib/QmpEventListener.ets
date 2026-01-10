@@ -74,6 +74,8 @@ export class QmpEventListener {
   
   // 事件回调
   public onEvent: QmpEventCallback | null = null
+  // 断开连接回调
+  public onDisconnect: (() => void) | null = null
   
   // 配置参数
   private reconnectInterval: number = 10000  // 重连间隔增加到 10 秒，减轻 PC 端压力
@@ -227,6 +229,12 @@ export class QmpEventListener {
    */
   private handleDisconnect(): void {
     this.isConnected = false
+    
+    // 触发断开回调
+    if (this.onDisconnect) {
+      this.onDisconnect()
+    }
+
     if (this.isRunning) {
       hilog.info(DOMAIN, TAG, '连接断开，准备重连...')
       this.scheduleReconnect()
@@ -561,6 +569,33 @@ export class QmpEventListener {
   isAlive(): boolean {
     return this.isConnected
   }
+
+  /**
+   * 全局重置
+   * 停止监听，清空缓冲区，重置重连计数，并重新启动
+   */
+  async reset(): Promise<void> {
+    hilog.warn(DOMAIN, TAG, '执行全局重置...')
+    
+    // 1. 停止监听
+    await this.stop()
+    
+    // 2. 清空状态
+    this.pendingData = ''
+    this.reconnectAttempts = 0
+    
+    // 3. 重新启动
+    await this.start()
+    
+    // 4. 立即查询一次状态以同步
+    if (this.isConnected) {
+      const status = await this.queryStatus()
+      if (status && status.running) {
+        hilog.info(DOMAIN, TAG, '重置后 QMP 状态确认: RUNNING')
+        // 这里可以触发一个事件或直接更新 AppStorage，但通常由 PowerManagement 或 VmStatusBar 处理
+      }
+    }
+  }
 }
 
 // 全局单例实例
@@ -580,7 +615,8 @@ export function getQmpEventListener(): QmpEventListener | null {
  */
 export async function startQmpEventListener(
   socketPath: string, 
-  onEvent: QmpEventCallback
+  onEvent: QmpEventCallback,
+  onDisconnect?: () => void
 ): Promise<boolean> {
   // 如果已有监听器在运行，先停止
   if (globalListener) {
@@ -589,6 +625,9 @@ export async function startQmpEventListener(
   
   globalListener = new QmpEventListener(socketPath)
   globalListener.onEvent = onEvent
+  if (onDisconnect) {
+    globalListener.onDisconnect = onDisconnect
+  }
   
   return await globalListener.start()
 }
