@@ -1,1 +1,1 @@
-Armv8.2
+Armv8.2:main.rc
