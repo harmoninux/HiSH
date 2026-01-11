@@ -601,6 +601,18 @@
       "value": "连接重置成功"
     },
     {
+      "name": "pm_label_qmp_status",
+      "value": "QMP 状态:"
+    },
+    {
+      "name": "pm_status_qmp_connected",
+      "value": "已连接"
+    },
+    {
+      "name": "pm_status_qmp_disconnected",
+      "value": "未连接"
+    },
+    {
       "name": "pm_title",
       "value": "电源管理"
     },
