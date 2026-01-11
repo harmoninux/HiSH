@@ -424,8 +424,6 @@ export default struct PowerManagementContent {
            if (currentRunning) {
               AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
            }
-           // 移除过早的状态设置，等待 QMP SHUTDOWN 事件
-           // AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
         } finally {
           await qmpClient.disconnect()
         }
@@ -718,8 +716,8 @@ export default struct PowerManagementContent {
     if (this.isOperating) return  // 添加操作锁
     this.isOperating = true
     
-    // 设置 VM 切换标志
-    AppStorage.setOrCreate(appOption.isVmSwitching, true)
+    // [修复] 移除 isVmSwitching 设置，交给 VmController 统一管理
+    // AppStorage.setOrCreate(appOption.isVmSwitching, true)
     
     this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_starting').id)
     try {
@@ -773,10 +771,10 @@ export default struct PowerManagementContent {
       hilog.error(DOMAIN, 'PowerManagement', '开机失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
-      // 延迟释放 switch 标志
-      setTimeout(() => {
-        AppStorage.setOrCreate(appOption.isVmSwitching, false)
-      }, 1500)
+      // [修复] 移除延迟释放 switch 标志，交给 VmController 统一管理
+      // setTimeout(() => {
+      //   AppStorage.setOrCreate(appOption.isVmSwitching, false)
+      // }, 1500)
     }
   }
 
