@@ -273,11 +273,13 @@ export class VmController {
       const appTempDir = AppStorage.get(appOption.appTempDir) as string;
       if (!appTempDir) return;
       
-      AppStorage.setOrCreate(appOption.isVmSwitching, true);
+      // [修复] 移除 isVmSwitching 设置，允许 QMP SHUTDOWN 事件正常通过 handleQmpEvent 处理
+      // 这样可以确保 UI 正确接收到 SHUTDOWN 状态更新
+      // AppStorage.setOrCreate(appOption.isVmSwitching, true);
       try {
         await this.gracefulShutdownAndWait(appTempDir, 30000);
       } finally {
-        AppStorage.setOrCreate(appOption.isVmSwitching, false);
+        // AppStorage.setOrCreate(appOption.isVmSwitching, false);
       }
     });
   }
@@ -536,7 +538,8 @@ export class VmController {
 
         try {
             // 尝试连接 Agent
-            const agent = await QemuAgentManager.acquire('VmController', AgentPriority.HIGH, 2000);
+            // [修复] 使用 LOW 优先级，避免阻塞 UI 层的高优先级操作（如用户手动点击重连）
+            const agent = await QemuAgentManager.acquire('VmController', AgentPriority.LOW, 2000);
             if (agent) {
                 const pong = await agent.ping();
                 await QemuAgentManager.release('VmController');
@@ -556,8 +559,21 @@ export class VmController {
     }
     
     hilog.warn(DOMAIN, 'VmController', '重启监控超时，未能检测到 VM 恢复');
-    // 超时后可以考虑设置为 ABNORMAL 或者保持 REBOOTING 让用户处理
-    // 这里选择保持 REBOOTING，或者设置为 RUNNING (假设 QGA 没启动但系统起来了)
-    // 为了安全，暂时保持 REBOOTING，用户可以手动关机
+    
+    // [修复] 超时处理逻辑
+    const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string;
+    const pidFile = vmBaseDir + '/qemu.pid';
+    
+    // 如果超时但进程仍在运行，乐观地认为系统已启动但 QGA 慢，恢复为 RUNNING
+    // 这样用户至少可以尝试连接或操作，而不是一直卡在 REBOOTING
+    if (napi.checkQemuAlive(pidFile)) {
+       hilog.info(DOMAIN, 'VmController', '重启监控超时但进程存活，强制恢复状态为 RUNNING');
+       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING');
+    } else {
+       // 进程都没了，那就是关机了
+       hilog.info(DOMAIN, 'VmController', '重启监控超时且进程消失，更新状态为 SHUTDOWN');
+       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN');
+       this.handleQmpEvent('SHUTDOWN', undefined);
+    }
   }
 }

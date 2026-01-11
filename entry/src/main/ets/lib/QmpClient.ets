@@ -34,9 +34,9 @@ export class QmpClient {
 
   /**
    * 连接到 QMP LocalSocket 并完成握手
-   * 超时时间缩短为 3 秒
+   * @param greetingTimeout 等待问候消息的超时时间（毫秒），默认 5000
    */
-  async connect(): Promise<boolean> {
+  async connect(greetingTimeout: number = 5000): Promise<boolean> {
     // 先清理旧连接
     await this.disconnect()
     
@@ -74,8 +74,8 @@ export class QmpClient {
       
       hilog.info(DOMAIN, 'QmpClient', '已连接到 QMP Socket: %{public}s', this.socketPath)
 
-      // 1. 等待 Greeting (5秒超时，解决 PC 端启动慢的问题)
-      const greeting = await this.waitForResponse(5000)
+      // 1. 等待 Greeting (使用传入的超时时间)
+      const greeting = await this.waitForResponse(greetingTimeout)
       if (!greeting || !greeting.QMP) {
         hilog.error(DOMAIN, 'QmpClient', '未收到 QMP Greeting')
         await this.disconnect()

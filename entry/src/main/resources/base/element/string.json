@@ -609,6 +609,14 @@
       "value": "Connected"
     },
     {
+      "name": "pm_force_shutdown_timeout_title",
+      "value": "Force Shutdown Timeout"
+    },
+    {
+      "name": "pm_force_shutdown_timeout_msg",
+      "value": "The virtual machine did not respond. Please completely close and restart the application to resolve the issue."
+    },
+    {
       "name": "pm_status_qmp_disconnected",
       "value": "Disconnected"
     },
@@ -1822,4 +1830,3 @@
     }
   ]
 }
-
