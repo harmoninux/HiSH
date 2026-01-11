@@ -601,6 +601,18 @@
       "value": "Connections reset successfully"
     },
     {
+      "name": "pm_label_qmp_status",
+      "value": "QMP Status:"
+    },
+    {
+      "name": "pm_status_qmp_connected",
+      "value": "Connected"
+    },
+    {
+      "name": "pm_status_qmp_disconnected",
+      "value": "Disconnected"
+    },
+    {
       "name": "pm_title",
       "value": "Power Management"
     },

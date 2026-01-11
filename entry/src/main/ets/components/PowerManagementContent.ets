@@ -59,8 +59,8 @@ export default struct PowerManagementContent {
     this.autoReconnectTimer = setInterval(() => {
       // 只有在组件活跃、VM 应该运行、未连接且未在进行敏感操作时才尝试重连
       if (this.isComponentActive && !this.isConnecting && !this.isConnected && !this.isOperating) {
-        if (this.currentEmulatorStatus === 'RUNNING' || this.currentEmulatorStatus === 'ABNORMAL') {
-           hilog.info(DOMAIN, 'PowerManagement', '自动重连定时器触发')
+        if (this.currentEmulatorStatus === 'RUNNING' || this.currentEmulatorStatus === 'ABNORMAL' || this.currentEmulatorStatus === 'REBOOTING') {
+           hilog.info(DOMAIN, 'PowerManagement', '自动重连定时器触发 (状态: %{public}s)', this.currentEmulatorStatus)
            this.connectToQGA(1, 0) // 尝试一次，无延迟
         } else if (this.currentEmulatorStatus === '') {
            // 状态丢失恢复机制
@@ -496,12 +496,10 @@ export default struct PowerManagementContent {
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')
         if (this.qgaAgent) await this.qgaAgent.disconnect()
         
-        // 延迟连接
-        setTimeout((): void => { 
+        // 延迟连接 (修复双重 setTimeout 问题)
         setTimeout((): void => { 
           if (this.isComponentActive) this.connectToQGA(5, 2000) 
-        }, 10000) // 重启稍微久一点
-        }, 10000) // 重启稍微久一点
+        }, 15000) // 等待 15 秒后开始重试
     } else {
         this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_failed').id)
     }
@@ -786,20 +784,44 @@ export default struct PowerManagementContent {
     Scroll() {
       Column() {
         // 状态显示
-        Row() {
-          Text($r('app.string.pm_label_ga_status'))
-            .fontSize(12)
-            .fontWeight(FontWeight.Medium)
-          Blank()
-          if (this.isConnecting) {
-            LoadingProgress()
-              .width(12)
-              .height(12)
-              .margin({ right: 8 })
+        // 状态信息面板
+        Column() {
+          // QMP 状态
+          Row() {
+            Text($r('app.string.pm_label_qmp_status'))
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+            Blank()
+            Text(this.currentEmulatorStatus !== '' && this.currentEmulatorStatus !== 'SHUTDOWN' ? $r('app.string.pm_status_qmp_connected') : $r('app.string.pm_status_qmp_disconnected'))
+              .fontSize(12)
+              .fontColor(this.currentEmulatorStatus !== '' && this.currentEmulatorStatus !== 'SHUTDOWN' ? '#00AA00' : '#AA0000')
           }
-          Text(this.statusMessage)
-            .fontSize(10)
-            .fontColor(this.isConnected ? '#00AA00' : '#AA0000')
+          .width('100%')
+          .padding({ top: 4, bottom: 4 })
+
+          Divider()
+            .color('#33FFFFFF') // 增加透明度，使其更明显
+            .strokeWidth(1)     // 增加粗细
+            .margin({ top: 12, bottom: 12 }) // 稍微增加间距
+
+          // Guest Agent 状态
+          Row() {
+            Text($r('app.string.pm_label_ga_status'))
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+            Blank()
+            if (this.isConnecting) {
+              LoadingProgress()
+                .width(12)
+                .height(12)
+                .margin({ right: 8 })
+            }
+            Text(this.statusMessage)
+              .fontSize(12)  // 统一字体大小
+              .fontColor(this.isConnected ? '#00AA00' : '#AA0000')
+          }
+          .width('100%')
+          .padding({ top: 4, bottom: 4 })
         }
         .width('100%')
         .padding(12)
@@ -818,12 +840,7 @@ export default struct PowerManagementContent {
             })
         }
 
-        // 电源管理按钮
-        Text($r('app.string.pm_title'))
-          .fontSize(14)
-          .fontWeight(FontWeight.Bold)
-          .margin({ bottom: 8 })
-          .alignSelf(ItemAlign.Start)
+
 
         Column({ space: 8 }) {
           // 强制断电按钮
