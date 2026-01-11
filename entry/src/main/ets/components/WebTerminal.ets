@@ -99,12 +99,12 @@ export default struct WebTerminal {
       Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyWidth)
-    .borderRadius(VKeyRadius)
-    .margin(VKeyMargin)
-    .backgroundColor($r('sys.color.black'))
-    .selectedColor($r('sys.color.interactive_active'))
-    .onClick(() => action())
+      .width(VKeyWidth)
+      .borderRadius(VKeyRadius)
+      .margin(VKeyMargin)
+      .backgroundColor($r('sys.color.black'))
+      .selectedColor($r('sys.color.interactive_active'))
+      .onClick(() => action())
   }
 
   @Builder
@@ -113,12 +113,12 @@ export default struct WebTerminal {
       Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
     }
     .height(VKeyHeight)
-    .width(VKeyWidth)
-    .borderRadius(VKeyRadius)
-    .margin(VKeyMargin)
-    .backgroundColor($r('sys.color.black'))
-    .selectedColor($r('sys.color.interactive_active'))
-    .onClick(() => action())
+      .width(VKeyWidth)
+      .borderRadius(VKeyRadius)
+      .margin(VKeyMargin)
+      .backgroundColor($r('sys.color.black'))
+      .selectedColor($r('sys.color.interactive_active'))
+      .onClick(() => action())
   }
 
   @Builder
@@ -127,10 +127,10 @@ export default struct WebTerminal {
       Image($r('app.media.gearshape')).width(16).height(16).padding(0)
     }
     .height(VKeyHeight)
-    .width(VKeyHeight)
-    .borderRadius(VKeyRadius)
-    .margin(VKeyMargin)
-    .bindMenu(this.settingsButtonOptions())
+      .width(VKeyHeight)
+      .borderRadius(VKeyRadius)
+      .margin(VKeyMargin)
+      .bindMenu(this.settingsButtonOptions())
   }
 
   private settingsButtonOptions(): MenuElement[] {
@@ -192,7 +192,7 @@ export default struct WebTerminal {
             methodList: ['sendInput', 'resize', 'load',
               'getFontSize', 'getCursorShape', 'getCursorBlink',
               'getTerminalEffects', 'getTerminalTransparency', 'getTerminalScreensaver', 'getTerminalEffectType',
-              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift', 'getDeviceType', 'setApplicationMode'],
+              'copyToClipboard', 'requestCopy', 'requestPaste', 'resetShift', 'getDeviceType', 'setApplicationMode', 'updateTerminalStats'],
             controller: this.webviewController,
             asyncMethodList: ['pasteFromClipboard'],
             permission: `{
@@ -240,7 +240,7 @@ export default struct WebTerminal {
                 try {
                   await VmController.getInstance().resumeVM()
                 } catch (e) {
-                   // Handle error
+                  // Handle error
                 } finally {
                   // Delay slightly to show effect?
                   setTimeout(() => {
@@ -255,10 +255,10 @@ export default struct WebTerminal {
               .fontWeight(FontWeight.Bold)
           }
           .width('100%')
-          .height('100%')
-          .backgroundColor('#80808080')
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
+            .height('100%')
+            .backgroundColor('#80808080')
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
         }
 
         if (this.currentStatus === 'SHUTDOWN') {
@@ -266,10 +266,10 @@ export default struct WebTerminal {
             if (this.lastId) {
               Button($r('app.string.pm_btn_poweron'))
                 .onClick(() => {
-                   const emu = this.emulators.find(e => e.id === this.lastId)
-                   if (emu) {
-                     VmController.getInstance().startVM(emu, this.getUIContext())
-                   }
+                  const emu = this.emulators.find(e => e.id === this.lastId)
+                  if (emu) {
+                    VmController.getInstance().startVM(emu, this.getUIContext())
+                  }
                 })
                 .margin({ bottom: 20 })
             }
@@ -279,10 +279,10 @@ export default struct WebTerminal {
               .fontWeight(FontWeight.Medium)
           }
           .width('100%')
-          .height('100%')
-          .backgroundColor('#000000')
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
+            .height('100%')
+            .backgroundColor('#000000')
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
         }
       }
       .layoutWeight(1)
@@ -434,8 +434,10 @@ export default struct WebTerminal {
       const text = data.getPrimaryText()
       // hilog.info(DOMAIN, 'WebTerminal', 'handlePasteRequest text length: %{public}d', text ? text.length : 0);
       if (text) {
-        const escapedText = JSON.stringify(text);
-        this.webviewController.runJavaScript(`exports.paste(${escapedText})`)
+        // 使用 Base64 传输，避免字符转义问题
+        const array = util.TextEncoder.create().encodeInto(text)
+        const base64 = new util.Base64Helper().encodeToStringSync(array)
+        this.webviewController.runJavaScript(`exports.paste(atob('${base64}'))`)
         hilog.info(DOMAIN, 'WebTerminal', 'handlePasteRequest completed');
       }
     } catch (error) {
@@ -458,13 +460,75 @@ export default struct WebTerminal {
     this.resizeTimeout = setTimeout(() => this.sendInput('\x1b' + `[8;${height};${width}t`), 100)
   }
 
+  // 性能优化：输出缓冲区
+  private pendingChunks: Uint8Array[] = [];
+  private flushTimeoutID: number | undefined = undefined;
+  private readonly FLUSH_INTERVAL = 16; // 60FPS (16.6ms)
+
   private onData(ab: ArrayBuffer) {
-    let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
-    if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript(`exports.write("\\x1b[3J", ${this.applicationMode})`);
+    try {
+      // 将收到的数据块加入队列
+      this.pendingChunks.push(new Uint8Array(ab));
+
+      // 如果没有正在等待的 Flush 任务，则调度一个
+      if (this.flushTimeoutID === undefined) {
+        this.flushTimeoutID = setTimeout(() => {
+          this.flushData();
+        }, this.FLUSH_INTERVAL);
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'onData failed: %{public}s', JSON.stringify(e));
     }
-    // Revert to using string interpolation to allow JS to unescape literal control sequences (e.g. \x1b)
-    this.webviewController.runJavaScript(`exports.write("${s}", ${this.applicationMode})`);
+  }
+
+  private flushData() {
+    this.flushTimeoutID = undefined;
+
+    if (this.pendingChunks.length === 0) return;
+
+    try {
+      // 1. 计算总长度
+      let totalLength = 0;
+      for (const chunk of this.pendingChunks) {
+        totalLength += chunk.length;
+      }
+
+      // 2. 合并所有 Chunk
+      const merged = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of this.pendingChunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // 清空缓冲区
+      this.pendingChunks = [];
+
+      // 3. 检测清屏信号
+      // 检查合并后的数据是否包含 \x1b[H\x1b[J 的字面量转义序列
+      if (merged.length >= 12 &&
+        merged[0] === 0x5C && merged[1] === 0x78 && merged[2] === 0x31 && merged[3] === 0x62 && // \x1b
+        merged[4] === 0x5B && merged[5] === 0x48 && // [H
+        merged[6] === 0x5C && merged[7] === 0x78 && merged[8] === 0x31 && merged[9] === 0x62 && // \x1b
+        merged[10] === 0x5B && merged[11] === 0x4A // [J
+      ) {
+        const clearCmd = '\\x1b[3J';
+        const encoder = util.TextEncoder.create('utf-8');
+        const clearBytes = encoder.encodeInto(clearCmd);
+        const clearBase64 = new util.Base64Helper().encodeToStringSync(clearBytes);
+        this.webviewController.runJavaScript(`exports.writeBase64("${clearBase64}", ${this.applicationMode})`);
+      }
+
+      // 4. 发送合并后的数据
+      const base64Helper = new util.Base64Helper();
+      const base64 = base64Helper.encodeToStringSync(merged);
+      this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`);
+
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'flushData failed: %{public}s', JSON.stringify(e));
+      // 出错时也要清空缓冲区，避免积压
+      this.pendingChunks = [];
+    }
   }
 
   private async onShutdown() {
@@ -481,7 +545,7 @@ export default struct WebTerminal {
     // 保存 Last ID (确保重启按钮可用)
     const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
     if (currentRunning) {
-       AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
+      AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
     }
 
     // 更新虚拟机状态为已关机
@@ -527,6 +591,11 @@ export default struct WebTerminal {
     return this.termEffectType
   }
 
+  updateTerminalStats(fps: number, isGpu: boolean) {
+    AppStorage.setOrCreate('terminalFps', fps);
+    AppStorage.setOrCreate('terminalGpuEnabled', isGpu);
+  }
+
   getDeviceType(): string {
     return deviceInfo.deviceType;
   }
@@ -536,7 +605,7 @@ export default struct WebTerminal {
   }
 
   onCursorShapeChanged() {
-    this.webviewController.runJavaScript(`exports.setCursorShape('${this.cursorShape}')`)
+    this.webviewController.runJavaScript(`exports.setCursorShape(${JSON.stringify(this.cursorShape)})`)
   }
 
   onCursorBlinkChanged() {
@@ -561,7 +630,7 @@ export default struct WebTerminal {
   }
 
   onTermEffectTypeChanged() {
-    this.webviewController.runJavaScript(`exports.setTerminalEffectType('${this.termEffectType}')`)
+    this.webviewController.runJavaScript(`exports.setTerminalEffectType(${JSON.stringify(this.termEffectType)})`)
   }
 
   onRefreshSignal() {
