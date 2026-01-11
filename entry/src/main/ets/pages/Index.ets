@@ -374,6 +374,9 @@ struct PcIndex {
 
 @Component
 struct PhoneOrTablet {
+  @StorageProp(appOption.vncEnabled) vncEnabled: boolean = false
+  @StorageProp('vncWebSocketPort') vncPort: number = 0
+
   dataDiskManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.data_disk_management'),
@@ -382,6 +385,45 @@ struct PhoneOrTablet {
       }
     })
   })
+
+  @Builder
+  MobileMenuBuilder() {
+    Menu() {
+      if (this.vncEnabled) {
+        MenuItem({
+          content: $r('app.string.vnc_console_title')
+        })
+        .onClick(() => {
+          if (this.vncPort) {
+             this.getUIContext().getRouter().pushUrl({
+               url: 'pages/VncPage',
+               params: { vncPort: this.vncPort }
+             });
+          } else {
+             this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
+          }
+        })
+      }
+      
+      MenuItem({ content: $r('app.string.emulator_management_title') })
+        .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' }))
+      
+      MenuItem({ content: $r('app.string.image_management_title') })
+        .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/RootfsManagement' }))
+      
+      MenuItem({ content: $r('app.string.data_disk_management') })
+        .onClick(() => this.dataDiskManagementController.open())
+      
+      MenuItem({ content: $r('app.string.setting_shared_folder'), startIcon: $r('app.media.folder') })
+        .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/SharedFolderPage' }))
+      
+      MenuItem({ content: $r('app.string.Setting_title'), startIcon: $r('app.media.gearshape') })
+        .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' }))
+      
+      MenuItem({ content: $r('app.string.user_guide_title') })
+        .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/UserGuidePage' }))
+    }
+  }
 
   build() {
     Column() {
@@ -394,35 +436,7 @@ struct PhoneOrTablet {
           .fontSize(20)
           .fontColor([$r('sys.color.icon_secondary')])
           .padding(6)
-          .onClick(() => {
-            this.getUIContext().getPromptAction().showActionMenu({
-              title: $r('app.string.module_desc'),
-              buttons: [
-                { text: $r('app.string.emulator_management_title'), color: '#007DFF' },
-                { text: $r('app.string.image_management_title'), color: '#007DFF' },
-                { text: $r('app.string.data_disk_management'), color: '#007DFF' },
-                { text: $r('app.string.setting_shared_folder'), color: '#007DFF' },
-                { text: $r('app.string.Setting_title'), color: '#007DFF' },
-                { text: $r('app.string.user_guide_title'), color: '#007DFF' }
-              ]
-            }).then((data) => {
-              const index = data.index
-              if (index === 0) {
-                this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagement' })
-              } else if (index === 1) {
-                this.getUIContext().getRouter().pushUrl({ url: 'pages/RootfsManagement' })
-              } else if (index === 2) {
-                // this.getUIContext().getRouter().pushUrl({ url: 'pages/DataDiskManagementPage' })
-                this.dataDiskManagementController.open()
-              } else if (index === 3) {
-                this.getUIContext().getRouter().pushUrl({ url: 'pages/SharedFolderPage' })
-              } else if (index === 4) {
-                this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
-              } else if (index === 5) {
-                this.getUIContext().getRouter().pushUrl({ url: 'pages/UserGuidePage' })
-              }
-            })
-          })
+          .bindMenu(this.MobileMenuBuilder)
       }
       .width('100%')
       .height(32)

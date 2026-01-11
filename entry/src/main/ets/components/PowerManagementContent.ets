@@ -258,15 +258,15 @@ export default struct PowerManagementContent {
     }
   }
 
-  private async connectToQmp(): Promise<QmpClient | null> {
+  private async connectToQmp(timeout: number = 5000, maxRetries: number = 3): Promise<QmpClient | null> {
     const appTempDir = AppStorage.get(appOption.appTempDir) as string
     const uiSocket = appTempDir + '/qmp_socket'  // Use Monitor Socket instead of UI Event Socket
     
-    // 快速重试 3 次，间隔 500ms
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // 快速重试
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const client = new QmpClient(uiSocket)
       try {
-        const connected = await client.connect()
+        const connected = await client.connect(timeout) // 传递超时参数
         if (connected) {
           return client
         }
@@ -275,13 +275,13 @@ export default struct PowerManagementContent {
         await client.disconnect()
       }
       
-      // 短暂等待后重试
-      if (attempt < 2) {
+      // 短暂等待后重试 (仅当还有重试机会时)
+      if (attempt < maxRetries) {
         await new Promise<void>((resolve: () => void) => setTimeout(resolve, 500))
       }
     }
     
-    hilog.error(DOMAIN, 'PowerManagement', 'QMP 连接失败（已重试 3 次）')
+    hilog.error(DOMAIN, 'PowerManagement', 'QMP 连接失败（已重试 %{public}d 次）', maxRetries)
     return null
   }
 
@@ -691,13 +691,30 @@ export default struct PowerManagementContent {
       this.qgaAgent = null
     }
     
+    
     try {
-      const qmpClient = await this.connectToQmp()
+      // [优化] 强制关机只给 5 秒连接时间 (加上Socket本身的1秒超时，总共约6秒)，且不重试，实现“秒杀”响应
+      // 这样的好处是：如果 VM 死机，6 秒后直接更新 UI
+      const qmpClient = await this.connectToQmp(5000, 0)
       if (qmpClient) {
         try {
           await qmpClient.quit()
         } catch (e) {}
         try { await qmpClient.disconnect() } catch (e) {}
+      } else {
+        // [修复] 超时未响应，弹出提示
+        this.getUIContext().showAlertDialog({
+          title: $r('app.string.pm_force_shutdown_timeout_title'),
+          message: $r('app.string.pm_force_shutdown_timeout_msg'),
+          autoCancel: false,
+          alignment: DialogAlignment.Center,
+          buttons: [{
+            value: $r('app.string.setting_generic_confirm'),
+            action: () => {
+              // 用户确认后，可以尝试关闭当前页面或其他清理操作
+            }
+          }]
+        })
       }
     } catch (e) {}
     
