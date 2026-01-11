@@ -342,6 +342,85 @@ exports.setTerminalEffectType = (type) => {
     }
 };
 
+// --- GPU Acceleration Probe (Probe Only, No Rendering) ---
+function detectGpuAcceleration() {
+    const canvas = document.createElement('canvas'); // Temp canvas, not added to DOM
+    let gl;
+    try {
+        gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    } catch (e) { }
+
+    if (!gl) return false;
+
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (!debugInfo) return true; // WebGL works but no debug info, assume HW
+
+    const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+    // Check for known software renderers
+    if (/SwiftShader|llvmpipe|Software/i.test(renderer)) {
+        return false;
+    }
+
+    return true;
+}
+
+// --- FPS Counter & Stats Reporter ---
+let lastTime = performance.now();
+let frames = 0;
+let fps = 0;
+
+function fpsLoop() {
+    const now = performance.now();
+    frames++;
+    if (now - lastTime >= 1000) {
+        fps = frames;
+        frames = 0;
+        lastTime = now;
+
+        // Report to native periodically
+        if (window.native && native.updateTerminalStats) {
+            // Re-check GPU status occasionally or just cache it? One check per sec is cheap enough for a probe.
+            // Or better: check once and cache if result is constant.
+            // But renderer might crash/recover? Let's check every time for now, it's just a context create.
+            // Optimization: Context creation is heavy! Detect once.
+            // wait.. creating context every second is BAD.
+            // Let's cache it.
+        }
+    }
+    requestAnimationFrame(fpsLoop);
+}
+
+// Global cached GPU status
+let cachedGpuStatus = false;
+let gpuStatusChecked = false;
+
+function getGpuStatus() {
+    if (!gpuStatusChecked) {
+        cachedGpuStatus = detectGpuAcceleration();
+        gpuStatusChecked = true;
+        console.log("GPU Acceleration Probe Result: " + (cachedGpuStatus ? "ON" : "OFF"));
+    }
+    return cachedGpuStatus;
+}
+
+function fpsLoopReport() {
+    const now = performance.now();
+    frames++;
+    if (now - lastTime >= 1000) {
+        fps = frames;
+        frames = 0;
+        lastTime = now;
+
+        if (window.native && native.updateTerminalStats) {
+            native.updateTerminalStats(fps, getGpuStatus());
+        }
+    }
+    requestAnimationFrame(fpsLoopReport);
+}
+
+// Start FPS loop
+requestAnimationFrame(fpsLoopReport);
+
 function resetScreensaverTimer() {
     if (screensaverTimer) clearTimeout(screensaverTimer);
 
@@ -560,6 +639,53 @@ exports.write = (data, applicationMode) => {
     }
 };
 
+exports.writeBase64 = (base64Data, applicationMode) => {
+    try {
+        let binaryString = atob(base64Data);
+
+        // 兼容性修复：还原字面量转义序列 (Unescape)
+        // 支持 \xHH, \uHHHH, 以及常见 C 风格转义符 (\n, \r, \t, \', \", \\)
+        binaryString = binaryString.replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)/g, (match, param) => {
+            if (param[0] === 'x' || param[0] === 'u') {
+                return String.fromCharCode(parseInt(param.slice(1), 16));
+            }
+            switch (param) {
+                case 'n': return '\n';
+                case 'r': return '\r';
+                case 't': return '\t';
+                case 'b': return '\b';
+                case 'f': return '\f';
+                case 'v': return '\v';
+                case '0': return '\0';
+                default: return param; // For \' \" \\ and others, just return the char
+            }
+        });
+
+        const uint8 = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            uint8[i] = binaryString.charCodeAt(i);
+        }
+        term.write(uint8);
+
+        // Sync Application Cursor Mode using xterm.js state
+        if (term.modes && term.modes.applicationCursorKeysMode !== undefined) {
+            if (term.modes.applicationCursorKeysMode !== applicationMode) {
+                if (native && native.setApplicationMode) {
+                    native.setApplicationMode(term.modes.applicationCursorKeysMode);
+                }
+            }
+        } else {
+            // Check for mode switch in the binary data? 
+            // Parsing strings in binary data is harder. 
+            // However, DECCKM is usually short. 
+            // For now, relies on xterm.js v5+ logic (first branch) which is more robust.
+            // If fallback is needed, we might convert binaryString back to check, but let's assume v5+ logic covers most cases.
+        }
+    } catch (e) {
+        console.error("exports.writeBase64 failed", e);
+    }
+};
+
 exports.paste = (data) => {
     if (native && native.sendInput) {
         // If data is already binary string (UTF-8 bytes as chars), just send it.
@@ -570,7 +696,7 @@ exports.paste = (data) => {
 exports.copy = () => {
     // xterm.js selection API
     const selection = term.getSelection();
-    return JSON.stringify(selection);
+    return selection;
 };
 
 exports.setFontSize = (size) => {
