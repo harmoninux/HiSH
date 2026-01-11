@@ -609,6 +609,14 @@
       "value": "已连接"
     },
     {
+      "name": "pm_force_shutdown_timeout_title",
+      "value": "强制关机超时"
+    },
+    {
+      "name": "pm_force_shutdown_timeout_msg",
+      "value": "虚拟机未响应。请彻底关闭并重启应用以解决该问题。"
+    },
+    {
       "name": "pm_status_qmp_disconnected",
       "value": "未连接"
     },
