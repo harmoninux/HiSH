@@ -252,6 +252,45 @@ exports.write = (data, applicationMode) => {
     }
 };
 
+exports.writeBase64 = (base64Data, applicationMode) => {
+    try {
+        let binaryString = atob(base64Data);
+
+        // 兼容性修复：还原字面量转义序列 (Unescape)
+        // 支持 \xHH, \uHHHH, 以及常见 C 风格转义符 (\n, \r, \t, \', \", \\)
+        binaryString = binaryString.replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)/g, (match, param) => {
+            if (param[0] === 'x' || param[0] === 'u') {
+                return String.fromCharCode(parseInt(param.slice(1), 16));
+            }
+            switch (param) {
+                case 'n': return '\n';
+                case 'r': return '\r';
+                case 't': return '\t';
+                case 'b': return '\b';
+                case 'f': return '\f';
+                case 'v': return '\v';
+                case '0': return '\0';
+                default: return param; // For \' \" \\ and others, just return the char
+            }
+        });
+
+        const uint8 = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            uint8[i] = binaryString.charCodeAt(i);
+        }
+        term.write(uint8);
+
+        // Sync Application Cursor Mode using xterm.js state
+        if (term.modes.applicationCursorKeysMode !== applicationMode) {
+            if (native && native.setApplicationMode) {
+                native.setApplicationMode(term.modes.applicationCursorKeysMode);
+            }
+        }
+    } catch (e) {
+        console.error("exports.writeBase64 failed", e);
+    }
+};
+
 exports.paste = (data) => {
     if (native && native.sendInput) {
         // If data is already binary string (UTF-8 bytes as chars), just send it.

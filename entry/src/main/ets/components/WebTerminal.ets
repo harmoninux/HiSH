@@ -334,13 +334,75 @@ export default struct WebTerminal {
     this.resizeTimeout = setTimeout(() => this.sendInput('\x1b' + `[8;${height};${width}t`), 100)
   }
 
+  // 性能优化：输出缓冲区
+  private pendingChunks: Uint8Array[] = [];
+  private flushTimeoutID: number | undefined = undefined;
+  private readonly FLUSH_INTERVAL = 16; // 60FPS (16.6ms)
+
   private onData(ab: ArrayBuffer) {
-    let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
-    hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
-    if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript(`exports.write("\\x1b[3J", ${this.applicationMode})`);
+    try {
+      // 将收到的数据块加入队列
+      this.pendingChunks.push(new Uint8Array(ab));
+
+      // 如果没有正在等待的 Flush 任务，则调度一个
+      if (this.flushTimeoutID === undefined) {
+        this.flushTimeoutID = setTimeout(() => {
+          this.flushData();
+        }, this.FLUSH_INTERVAL);
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'onData failed: %{public}s', JSON.stringify(e));
     }
-    this.webviewController.runJavaScript(`exports.write("${s}", ${this.applicationMode})`);
+  }
+
+  private flushData() {
+    this.flushTimeoutID = undefined;
+
+    if (this.pendingChunks.length === 0) return;
+
+    try {
+      // 1. 计算总长度
+      let totalLength = 0;
+      for (const chunk of this.pendingChunks) {
+        totalLength += chunk.length;
+      }
+
+      // 2. 合并所有 Chunk
+      const merged = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of this.pendingChunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // 清空缓冲区
+      this.pendingChunks = [];
+
+      // 3. 检测清屏信号
+      // 检查合并后的数据是否包含 \x1b[H\x1b[J 的字面量转义序列
+      if (merged.length >= 12 &&
+        merged[0] === 0x5C && merged[1] === 0x78 && merged[2] === 0x31 && merged[3] === 0x62 && // \x1b
+        merged[4] === 0x5B && merged[5] === 0x48 && // [H
+        merged[6] === 0x5C && merged[7] === 0x78 && merged[8] === 0x31 && merged[9] === 0x62 && // \x1b
+        merged[10] === 0x5B && merged[11] === 0x4A // [J
+      ) {
+        const clearCmd = '\\x1b[3J';
+        const encoder = util.TextEncoder.create('utf-8');
+        const clearBytes = encoder.encodeInto(clearCmd);
+        const clearBase64 = new util.Base64Helper().encodeToStringSync(clearBytes);
+        this.webviewController.runJavaScript(`exports.writeBase64("${clearBase64}", ${this.applicationMode})`);
+      }
+
+      // 4. 发送合并后的数据
+      const base64Helper = new util.Base64Helper();
+      const base64 = base64Helper.encodeToStringSync(merged);
+      this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`);
+
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'flushData failed: %{public}s', JSON.stringify(e));
+      // 出错时也要清空缓冲区，避免积压
+      this.pendingChunks = [];
+    }
   }
 
   private async onShutdown() {
