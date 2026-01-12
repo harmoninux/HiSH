@@ -859,10 +859,12 @@ void serial_output_worker(const char *unix_socket_path) {
             int fd = fds[i].fd;
             ssize_t r = read(fd, buffer, sizeof(buffer) - 1);
             if (r > 0) {
-                // pretty print
-                auto hex = convert_to_hex(buffer, r);
                 //  call callback registered by ArkTS
-                on_serial_data_received(hex);
+                std::string s(reinterpret_cast<char *>(buffer), r);
+                on_serial_data_received(s);
+
+                // pretty print
+                std::string hex = convert_to_hex(buffer, r);
                 OH_LOG_INFO(LOG_APP, "Received, data: %{public}s", hex.c_str());
             } else if (r < 0) {
                 OH_LOG_INFO(LOG_APP, "Program exited, %{public}ld %{public}d", r, errno);

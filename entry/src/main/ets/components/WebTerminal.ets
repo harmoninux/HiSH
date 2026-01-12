@@ -34,6 +34,7 @@ export default struct WebTerminal {
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
+  ports?: webview.WebMessagePort[] = undefined
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -288,6 +289,7 @@ export default struct WebTerminal {
   private toggleShift(): void {
     this.shiftPressed = !this.shiftPressed;
   }
+
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
@@ -321,6 +323,13 @@ export default struct WebTerminal {
 
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
+
+    this.ports = this.webviewController.createWebMessagePorts()
+    this.ports![1].onMessageEvent((r) => {
+      console.log(r.toString())
+    })
+    this.webviewController.postMessage('__init_port__', [this.ports[0]], '*')
+
     napi.onData((d: ArrayBuffer) => this.onData(d))
     napi.onShutdown(() => this.onShutdown())
   }
@@ -337,10 +346,10 @@ export default struct WebTerminal {
   private onData(ab: ArrayBuffer) {
     let s: string = this.utf8Decoder.decodeToString(new Uint8Array(ab), { stream: true });
     hilog.info(DOMAIN, 'WebTerminal', 'write, data: %{public}s', s);
-    if (s.startsWith('\\x1b[H\\x1b[J')) {
-      this.webviewController.runJavaScript(`exports.write("\\x1b[3J", ${this.applicationMode})`);
+    if (s.startsWith('\x1b[H\x1b[J')) {
+      this.ports![1].postMessageEvent('\x1b[3J')
     }
-    this.webviewController.runJavaScript(`exports.write("${s}", ${this.applicationMode})`);
+    this.ports![1].postMessageEvent(s)
   }
 
   private async onShutdown() {

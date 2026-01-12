@@ -225,9 +225,9 @@ function setupMirroredInputFix(termEl) {
         const flippedY = rect.height - relativeY;
         const newClientY = rect.top + flippedY;
 
-        // We can't easily modify clientY of a native event, 
+        // We can't easily modify clientY of a native event,
         // but xterm.js uses offsetX/offsetY or calculates from clientX/Y.
-        // This is a complex area. A simpler way is to use a proxy element or 
+        // This is a complex area. A simpler way is to use a proxy element or
         // just warn the user that touch selection might be inverted.
         console.log("Input coordinates might need inversion due to WebGL fix");
     };
@@ -300,3 +300,18 @@ term.options.linkHandler = {
 exports.selectAll = () => {
     term.selectAll();
 };
+
+var port;
+window.addEventListener('message', function (event) {
+    if (event.data === '__init_port__') {
+        if (event.ports[0] != null) {
+            port = event.ports[0];
+            console.log('__init_port__ onmessage', port)
+            port.onmessage = function (event) {
+                const content = event.data
+                const uint8 = strToUint8Array(content);
+                term.write(uint8);
+            }
+        }
+    }
+})
