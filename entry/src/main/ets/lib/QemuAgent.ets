@@ -100,6 +100,7 @@ export class QemuAgent {
   private requestId: number = 0
   private pendingResponse: string = ''
   private isConnected: boolean = false
+  private commandMutex: Promise<void> = Promise.resolve()
 
   constructor(socketPath: string) {
     this.socketPath = socketPath
@@ -155,7 +156,12 @@ export class QemuAgent {
       hilog.info(DOMAIN, 'QemuAgent', '已连接到 QGA: %{public}s', this.socketPath)
       
       // 连接后立即执行流同步，确保通信可靠
-      await this.sync()
+      const synced = await this.sync()
+      if (!synced) {
+        hilog.error(DOMAIN, 'QemuAgent', 'QGA 流同步失败，断开连接')
+        await this.disconnect()
+        return false
+      }
       
       return true
     } catch (e) {
@@ -165,53 +171,7 @@ export class QemuAgent {
     }
   }
 
-  /**
-   * QGA 流同步 (guest-sync-delimited)
-   * 发送一个随机数，QGA 会返回相同的随机数，用于清理缓冲区并同步状态
-   */
-  private async sync(): Promise<boolean> {
-    const syncId = Math.floor(Math.random() * 1000000)
-    hilog.info(DOMAIN, 'QemuAgent', '执行 QGA 流同步 (id=%{public}d)', syncId)
-    
-    // 直接构造同步命令，不使用 sendCommand 以免死循环
-    const request: QGARequest = { 
-      execute: 'guest-sync-delimited', 
-      arguments: { id: syncId } as QGAArguments,
-      id: syncId 
-    }
-    const requestJson = JSON.stringify(request) + '\n'
-    
-    try {
-      const encoder = util.TextEncoder.create()
-      const buffer = encoder.encodeInto(requestJson)
-      await this.client?.send({ data: buffer.buffer, encoding: 'utf-8' })
-      
-      const startTime = Date.now()
-      const timeout = 5000
-      
-      while (Date.now() - startTime < timeout) {
-        if (!this.isConnected) return false
-        
-        const lineEndIndex = this.pendingResponse.indexOf('\n')
-        if (lineEndIndex !== -1) {
-          const line = this.pendingResponse.substring(0, lineEndIndex).trim()
-          this.pendingResponse = this.pendingResponse.substring(lineEndIndex + 1)
-          
-          // QGA 同步响应可能包含 0xFF 字节，这里简单判断包含 syncId 即可
-          if (line.includes(syncId.toString())) {
-            hilog.info(DOMAIN, 'QemuAgent', 'QGA 流同步成功')
-            return true
-          }
-        }
-        await new Promise<void>((resolve: () => void) => setTimeout(resolve, 100))
-      }
-      hilog.warn(DOMAIN, 'QemuAgent', 'QGA 流同步超时')
-      return false
-    } catch (e) {
-      hilog.error(DOMAIN, 'QemuAgent', 'QGA 流同步异常: %{public}s', JSON.stringify(e))
-      return false
-    }
-  }
+
 
   /**
    * 断开连接
@@ -256,81 +216,119 @@ export class QemuAgent {
     const currentId = ++this.requestId
 
     try {
-      const request: QGARequest = {
-        execute: command,
-        arguments: args,
-        id: currentId
-      }
-
-      const requestJson = JSON.stringify(request) + '\n'
-      const encoder = util.TextEncoder.create()
-      const buffer = encoder.encodeInto(requestJson)
-
-      const sendOptions: socket.LocalSendOptions = {
-        data: buffer.buffer,
-        encoding: 'utf-8'
-      }
+      // [修复] 增加互斥锁，防止心跳探测与业务命令冲突导致响应错位
+      const release = await this.lock();
       
-      // 发送前清空缓冲区（确保读到的是这次请求的响应）
-      this.pendingResponse = ''
-      
-      await this.client.send(sendOptions)
-      hilog.info(DOMAIN, 'QemuAgent', '发送命令: %{public}s (id=%{public}d)', command, currentId)
-
-      if (!waitForResponse) {
-        return new Object() as T
-      }
-
-      // 等待响应，使用更合理的超时和间隔
-      const startTime: number = Date.now()
-      
-      while (Date.now() - startTime < timeoutMs) {
-        // 检查连接状态
-        if (!this.isConnected) {
-          hilog.error(DOMAIN, 'QemuAgent', '等待响应期间连接断开 (命令: %{public}s)', command)
-          return null
+      try {
+        const request: QGARequest = {
+          execute: command,
+          arguments: args,
+          id: currentId
         }
 
-        // 检查是否有完整的响应行
-        const lineEndIndex = this.pendingResponse.indexOf('\n')
-        if (lineEndIndex !== -1) {
-          const line = this.pendingResponse.substring(0, lineEndIndex).trim()
-          this.pendingResponse = this.pendingResponse.substring(lineEndIndex + 1)
-          
-          if (line.length > 0) {
-            try {
-              const result: QGAResponse = JSON.parse(line) as QGAResponse
-              
-              // 检查响应 ID 是否匹配（如果响应包含 ID）
-              if (result.id !== undefined && result.id !== currentId) {
-                hilog.warn(DOMAIN, 'QemuAgent', '收到过时响应: 期望 %{public}d, 收到 %{public}d (内容: %{public}s)', currentId, result.id, line)
-                continue  // 跳过不匹配的响应
-              }
-              
-              if (result.error) {
-                hilog.error(DOMAIN, 'QemuAgent', 'QGA 返回错误: %{public}s (命令: %{public}s)', JSON.stringify(result.error), command)
-                return null
-              }
-              
-              return (result.return as T) || (new Object() as T)
-            } catch (e) {
-              hilog.warn(DOMAIN, 'QemuAgent', 'JSON 解析失败: %{public}s (命令: %{public}s)', line, command)
-              continue
-            }
-          }
+        const requestJson = JSON.stringify(request) + '\n'
+        const encoder = util.TextEncoder.create()
+        const buffer = encoder.encodeInto(requestJson)
+
+        const sendOptions: socket.LocalSendOptions = {
+          data: buffer.buffer,
+          encoding: 'utf-8'
         }
         
-        // 等待 50ms 后重试
-        await new Promise<void>((resolve: () => void) => setTimeout(resolve, 50))
+        // 发送前清空缓冲区（确保读到的是这次请求的响应）
+        this.pendingResponse = ''
+        
+        await this.client.send(sendOptions)
+        hilog.info(DOMAIN, 'QemuAgent', '发送命令: %{public}s (id=%{public}d)', command, currentId)
+
+        if (!waitForResponse) {
+          return new Object() as T
+        }
+
+        // 等待响应，使用更合理的超时和间隔
+        const startTime: number = Date.now()
+        
+        while (Date.now() - startTime < timeoutMs) {
+          // 检查连接状态
+          if (!this.isConnected) {
+            hilog.error(DOMAIN, 'QemuAgent', '等待响应期间连接断开 (命令: %{public}s)', command)
+            return null
+          }
+
+          // 检查是否有完整的响应行
+          const lineEndIndex = this.pendingResponse.indexOf('\n')
+          if (lineEndIndex !== -1) {
+            const lineRaw = this.pendingResponse.substring(0, lineEndIndex).trim()
+            this.pendingResponse = this.pendingResponse.substring(lineEndIndex + 1)
+            let line = lineRaw;
+            
+            if (line.length > 0) {
+              try {
+                // [修复] 处理 QGA 特有的 0xFF 引导符
+                // 由于 TextDecoder('utf-8') 可能会将 0xFF 解码为 \uFFFD，我们直接定位 '{' 开始解析
+                const braceIndex = line.indexOf('{')
+                if (braceIndex > 0) {
+                  line = line.substring(braceIndex)
+                } else if (braceIndex === -1) {
+                  // hilog.warn(DOMAIN, 'QemuAgent', '收到非 JSON 数据 (可能为引导符): %{public}s', line) // Original line
+                  continue 
+                }
+
+                const result: QGAResponse = JSON.parse(line) as QGAResponse
+                
+                // 检查响应 ID 是否匹配（如果响应包含 ID）
+                if (result.id !== undefined && result.id !== currentId) {
+                  // hilog.warn(DOMAIN, 'QemuAgent', '收到过时响应: 期望 %{public}d, 收到 %{public}d (内容: %{public}s)', currentId, result.id, line) // Original line
+                  hilog.warn(DOMAIN, 'QemuAgent', '收到过时响应: 期望 %{public}d, 收到 %{public}d', currentId, result.id)
+                  continue  // 跳过不匹配的响应
+                }
+                
+                if (result.error) {
+                  hilog.error(DOMAIN, 'QemuAgent', 'QGA 返回错误: %{public}s (命令: %{public}s)', JSON.stringify(result.error), command)
+                  return null
+                }
+                
+                return (result.return as T) || (new Object() as T)
+              } catch (e) {
+                hilog.warn(DOMAIN, 'QemuAgent', 'JSON 解析失败: %{public}s (命令: %{public}s)', line, command)
+                continue
+              }
+            }
+          }
+          
+          // 等待 50ms 后重试
+          await new Promise<void>((resolve: () => void) => setTimeout(resolve, 50))
+        }
+        
+        // hilog.error(DOMAIN, 'QemuAgent', '等待响应超时 (命令: %{public}s, 已等待 %{public}d ms)，强制断开连接', command, Date.now() - startTime) // Original line
+        hilog.error(DOMAIN, 'QemuAgent', '等待响应超时 (命令: %{public}s)，强制断开连接', command)
+        // [修复] 超时意味着底层的 Socket 缓冲可能已乱序或虚拟机代理检测失效，必须彻底重连
+        this.isConnected = false
+        await this.disconnect()
+        return null
+      } finally {
+        release();
       }
-      
-      hilog.error(DOMAIN, 'QemuAgent', '等待响应超时 (命令: %{public}s, 已等待 %{public}d ms)', command, Date.now() - startTime)
-      return null
     } catch (e) {
       hilog.error(DOMAIN, 'QemuAgent', '执行命令异常: %{public}s (命令: %{public}s)', JSON.stringify(e), command)
       this.isConnected = false  // 标记连接已断开
+      await this.disconnect() // [修复] 捕获异常时也断开连接
       return null
     }
+  }
+
+  /**
+   * 命令锁实现
+   */
+  private async lock(): Promise<() => void> {
+    let release: () => void = () => {}
+    const newLock = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const oldLock = this.commandMutex
+    this.commandMutex = oldLock.then(() => newLock)
+    await oldLock
+    return release
   }
 
   /**
@@ -357,6 +355,33 @@ export class QemuAgent {
   async suspend(): Promise<boolean> {
     const result = await this.sendCommand<Record<string, Object>>('guest-suspend-ram', undefined, false)
     return result !== null
+  }
+
+  /**
+   * QGA 流同步 (guest-sync-delimited)
+   * [优化] 在发送指令前发送 0xFF 字节以冲刷缓冲区，并发送随机 ID 以同步
+   */
+  private async sync(): Promise<boolean> {
+    const syncToken = Math.floor(Math.random() * 2147483647)
+    
+    try {
+      if (this.client) {
+        // 1. 发送 0xFF 字符流引导，强制 Guest 端重置 JSON 解析器
+        const resetBuffer = new ArrayBuffer(1)
+        const view = new Uint8Array(resetBuffer)
+        view[0] = 0xFF
+        await this.client.send({ data: resetBuffer })
+        // 稍作延迟让对端处理
+        await new Promise<void>(resolve => setTimeout(resolve, 100))
+      }
+      
+      // 2. 发送同步指令并验证返回 ID
+      const response = await this.sendCommand<number>('guest-sync-delimited', { id: syncToken })
+      return response !== null && response === syncToken
+    } catch (e) {
+      hilog.error(DOMAIN, 'QemuAgent', 'QGA 流同步异常: %{public}s', JSON.stringify(e))
+      return false
+    }
   }
 
   /**

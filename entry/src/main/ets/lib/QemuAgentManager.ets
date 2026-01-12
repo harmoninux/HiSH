@@ -70,7 +70,15 @@ class QemuAgentManagerImpl {
     
     // 如果是同一个使用者，直接返回现有连接
     if (this.currentUser === userId && this.agent) {
-      return this.agent
+      // [修复] 即使是同一用户，也要检查 Agent 是否真的存活（防止 Socket 已断开但逻辑状态未更新）
+      if (this.agent.isAlive()) {
+        hilog.info(DOMAIN, 'AgentManager', '用户 %{public}s 复用现有活跃 Agent', userId);
+        return this.agent;
+      }
+      hilog.warn(DOMAIN, 'AgentManager', '用户 %{public}s 的 Agent 已失效，准备释放并重新创建', userId);
+      await this.forceRelease();
+      // [修复] 释放后管理器变为空忙，直接重新连接，不要去排队
+      return await this.createConnection(userId);
     }
     
     // 高优先级请求可以抢占低优先级
@@ -170,6 +178,9 @@ class QemuAgentManagerImpl {
     }
     this.currentUser = null
     this.stopKeepAlive()
+    
+    // [修复] 强制释放后，唤醒等待队列，防止请求挂起
+    await this.processQueue()
   }
   
   /**
@@ -232,6 +243,12 @@ class QemuAgentManagerImpl {
 
       if (!currentAgent || !currentAgent.isAlive()) {
         this.stopKeepAlive()
+        return
+      }
+
+      // [修复] 如果当前有使用者正在操作，不要发送心跳 ping，防止 pendingResponse 被清空导致业务指令超时
+      if (this.currentUser) {
+        hilog.debug(DOMAIN, 'AgentManager', '业务正在占用 Agent，跳过此轮心跳')
         return
       }
 
