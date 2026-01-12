@@ -588,8 +588,7 @@ export default struct PowerManagementContent {
         }
         hilog.info(DOMAIN, 'PowerManagement', 'QMP quit 命令已发送')
       } else {
-        hilog.warn(DOMAIN, 'PowerManagement', 'QMP 连接失败，尝试强制杀进程')
-        napi.killQemuProcess(pidFile)
+        hilog.warn(DOMAIN, 'PowerManagement', 'QMP 连接失败，跳过强制杀进程')
       }
       
       // 3. 轮询等待进程退出 (最多 30 秒)

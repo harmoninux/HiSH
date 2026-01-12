@@ -160,6 +160,29 @@ export class VmController {
           }
         }
 
+    if (appTempDir) {
+      // [修复] 启动新进程前，物理清理旧的 Socket 文件，防止残留进程导致通信污染
+      const socketFiles = [
+        appTempDir + '/qmp_socket',
+        appTempDir + '/qmp_socket_ui',
+        appTempDir + '/qga_socket',
+        appTempDir + '/serial_socket'
+      ];
+      socketFiles.forEach(path => {
+        try {
+          if (fs.accessSync(path, fs.AccessModeType.EXIST)) {
+            fs.unlinkSync(path);
+            hilog.info(DOMAIN, 'VmController', '启动前清理旧 Socket 文件: %{public}s', path);
+          }
+        } catch (e) {
+          hilog.warn(DOMAIN, 'VmController', '清理 Socket 文件失败: %{public}s', path);
+        }
+      });
+    }
+
+        // 0. 重置底层管理器
+        await QemuAgentManager.reset();
+
         startVm({
           baseDir: vmBaseDir,
           cpu: item.cpu,
