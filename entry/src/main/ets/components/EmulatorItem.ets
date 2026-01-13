@@ -129,7 +129,7 @@ export default struct EmulatorItem {
         top: 10,
         bottom: 10
       })
-      .width('100%')
+        .width('100%')
 
       if (this.hasDataDisk) {
         // 有数据盘：2行布局
@@ -145,7 +145,7 @@ export default struct EmulatorItem {
                 .fontColor($r('sys.color.font_primary'))
             }
             .layoutWeight(1)
-            
+
             Text() {
               Span(`${getContext(this).resourceManager.getStringSync($r('app.string.label_memory').id)} `)
                 .fontSize($r('sys.float.Body_S'))
@@ -155,7 +155,7 @@ export default struct EmulatorItem {
                 .fontColor($r('sys.color.font_primary'))
             }
             .layoutWeight(1)
-            .textAlign(TextAlign.Center)
+              .textAlign(TextAlign.Center)
 
             Text() {
               Span(`${getContext(this).resourceManager.getStringSync($r('app.string.label_port_mapping').id)} `)
@@ -166,7 +166,7 @@ export default struct EmulatorItem {
                 .fontColor($r('sys.color.font_primary'))
             }
             .layoutWeight(1)
-            .textAlign(TextAlign.End)
+              .textAlign(TextAlign.End)
           }
           .width('100%')
 
@@ -193,12 +193,12 @@ export default struct EmulatorItem {
             .layoutWeight(1)
           }
           .width('100%')
-          .margin({ top: 5 })
+            .margin({ top: 5 })
         }
         .padding({ top: 10, bottom: 10, left: '4%', right: '4%' })
-        .borderRadius(10)
-        .backgroundColor($r('app.color.setting_block_background_2'))
-        .width('100%')
+          .borderRadius(10)
+          .backgroundColor($r('app.color.setting_block_background_2'))
+          .width('100%')
       } else {
         // 无数据盘：原始4列布局
         Row() {
@@ -208,7 +208,7 @@ export default struct EmulatorItem {
               .margin({ top: 5 })
           }
           .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
+            .alignItems(HorizontalAlign.Start)
 
           Column() {
             Text(this.formatMemory()).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_primary'))
@@ -239,12 +239,12 @@ export default struct EmulatorItem {
             .alignItems(HorizontalAlign.Center)
           }
           .layoutWeight(1)
-          .alignItems(HorizontalAlign.End)
+            .alignItems(HorizontalAlign.End)
         }
         .padding({ top: 10, bottom: 10, left: '4%', right: '4%' })
-        .borderRadius(10)
-        .backgroundColor($r('app.color.setting_block_background_2'))
-        .width('100%')
+          .borderRadius(10)
+          .backgroundColor($r('app.color.setting_block_background_2'))
+          .width('100%')
       }
 
       Row() {
@@ -256,9 +256,9 @@ export default struct EmulatorItem {
           Text($r('app.string.label_set_default')).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_tertiary'))
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT })
-        .onClick(() => {
-          this.onSetDefault(this.emulator)
-        })
+          .onClick(() => {
+            this.onSetDefault(this.emulator)
+          })
 
         Blank().layoutWeight(1)
         Button($r('app.string.btn_delete'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
@@ -279,15 +279,15 @@ export default struct EmulatorItem {
           .onClick(() => this.onEdit(this.emulator))
       }
       .padding({ top: 5, bottom: 5 })
-      .width('100%')
+        .width('100%')
     }
     .borderRadius(10)
-    .padding({
-      left: 10,
-      right: 10
-    })
-    .clickEffect({ level: ClickEffectLevel.LIGHT })
-    .backgroundColor($r('app.color.setting_block_background'))
+      .padding({
+        left: 10,
+        right: 10
+      })
+      .clickEffect({ level: ClickEffectLevel.LIGHT })
+      .backgroundColor($r('app.color.setting_block_background'))
   }
 
   private formatMemory() {
@@ -301,8 +301,6 @@ export default struct EmulatorItem {
     switch (this.currentStatus) {
       case 'PAUSED':
         return $r('app.string.status_paused2')
-      case 'REBOOTING':
-        return $r('app.string.status_rebooting')
       case 'SHUTDOWN':
         return $r('app.string.status_shutdown2')
       case 'ABNORMAL':
@@ -317,8 +315,6 @@ export default struct EmulatorItem {
     switch (this.currentStatus) {
       case 'PAUSED':
         return '#3498DB' // Blue
-      case 'REBOOTING':
-        return '#F39C12' // Orange
       case 'SHUTDOWN':
         return '#E74C3C' // Red
       case 'ABNORMAL':

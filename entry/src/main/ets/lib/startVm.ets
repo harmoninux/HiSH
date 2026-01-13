@@ -26,7 +26,7 @@ function startVm(options: VmOptions) {
   const root = options.rootVda ? options.rootVda : defaultEmulator.rootVda;
   const sharedFolderOption = options.sharedFolderReadonly ? ",readonly" : ""
 
-  const basic = ['-machine', 'virt,gic-version=max,' +
+  const basic = ['-machine', 'virt,acpi=on,gic-version=max,' +
     'iommu=none,its=off,usb=off,virtualization=off,memory-backend=mem0,compact-highmem=on,' +
     'dump-guest-core=off,mem-merge=off,hmat=off',
     '-overcommit', 'cpu-pm=off',
@@ -44,7 +44,7 @@ function startVm(options: VmOptions) {
     '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('')]
   const shared =
     ["-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + options.sharedFolder + sharedFolderOption,
-    "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
+      "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
   const drive = ["-global", "virtio-blk-pci.scsi=off", "-global", "virtio-scsi-pci.cmd_per_lun=128",
     "-global", "virtio-scsi-pci.packed=on", "-drive", "if=none,format=qcow2,file=" + options.rootFilesystem
     + ",id=hd0,cache=writeback,aio=threads,discard=unmap", "-object", "iothread,id=iothread0,poll-max-ns=2000000",
@@ -60,14 +60,14 @@ function startVm(options: VmOptions) {
   ] : []
   const kernelParam = ["-append",
     "root=" + root + " rw rootfstype=ext4 rootwait console=tty0 console=ttyAMA0 consoleblank=0 " +
-    "elevator=noop skew_tick=1 acpi=off " +
+    "elevator=noop skew_tick=1 acpi=on " +
     "mitigations=off audit=0 nmi_watchdog=0 hardened_usercopy=off random.trust_cpu=on virtio_balloon.config_impl=0 " +
     "security=none selinux=0 apparmor=0 psi=0 page_alloc.shuffle=0 swiotlb=noforce idle=halt " +
     "cpuidle.off=1 transparent_hugepage=always pci=noaer scsi_mod.use_blk_mq=1 rng_core.default_quality=1000 " +
     "systemd.mask=run-lock.mount systemd.mask=sys-kernel-debug.mount systemd.mask=dev-hugepages.mount " +
     "cryptomgr.notests rodata=off rcupdate.rcu_cpu_stall_timeout=60 " +
     "rcu_expedited=1 init_on_free=0 init_on_alloc=1 page_poison=0 slub_debug=- " +
-    "TERM=ansi init=" + options.init]
+    "TERM=xterm init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait',
     '-qmp', 'unix:' + options.qmpUnixSocketUI + ',server,nowait']
   const qga = [
@@ -88,6 +88,9 @@ function startVm(options: VmOptions) {
     '-device', 'virtio-tablet-pci'
   ] : []
 
+  // 定义 PID 文件路径（与其他 socket 文件放在同一目录）
+  const pidFilePath = options.baseDir + '/qemu.pid';
+
   const args = [
     'qemu-system-aarch64',
     ...basic,
@@ -102,7 +105,8 @@ function startVm(options: VmOptions) {
     ...kernelParam,
     ...monitor,
     ...qga,
-    ...vnc
+    ...vnc,
+    '-pidfile', pidFilePath
   ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
@@ -120,9 +124,6 @@ function startVm(options: VmOptions) {
   if (!fs.accessSync(options.sharedFolder, fs.AccessModeType.EXIST)) {
     fs.mkdirSync(options.sharedFolder)
   }
-
-  // 定义 PID 文件路径（与其他 socket 文件放在同一目录）
-  const pidFilePath = options.baseDir + '/qemu.pid';
 
   // 清理可能残留的 QEMU 进程（防止资源冲突）
   napi.killQemuProcess(pidFilePath);

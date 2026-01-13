@@ -63,6 +63,12 @@ export default struct EmulatorListGrid {
     }),
     autoCancel: false
   })
+  startingProgress: CustomDialogController = new CustomDialogController({
+    builder: LoadingDialog({
+      content: $r('app.string.pm_status_starting'),
+    }),
+    autoCancel: false
+  })
   powerManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.dialog_power_management'),
@@ -211,7 +217,7 @@ export default struct EmulatorListGrid {
           const result: string = napi.getSnapshots(item.rootFilesystem)
           const response: Record<string, ESObject> = JSON.parse(result) as Record<string, ESObject>
           const snapshots: Array<ESObject> = response['snapshots'] as Array<ESObject>
-          
+
           if (snapshots && snapshots.length > 0) {
             this.promptAction.showDialog({
               title: $r('app.string.dialog_cannot_export'),
@@ -226,7 +232,7 @@ export default struct EmulatorListGrid {
           hilog.error(0x0000, 'EmulatorListGrid', '检查快照失败: %{public}s', JSON.stringify(e))
           // 检查失败时仍允许导出，但给出警告
         }
-        
+
         this.selectedId = item.id
         this.rootfsNameController.open()
       },
@@ -243,7 +249,7 @@ export default struct EmulatorListGrid {
 
   askForStartEmulator(item: Emulator) {
     const isPcOrTablet = deviceInfo.deviceType === '2in1' || deviceInfo.deviceType === 'tablet';
-    
+
     this.getUIContext().showAlertDialog({
       title: item.name,
       message: isPcOrTablet ? $r('app.string.msg_start_vm_confirm') : $r('app.string.msg_restart_confirm'),
@@ -270,7 +276,14 @@ export default struct EmulatorListGrid {
 
   // 统一启动入口
   async startEmulator(item: Emulator) {
-    await VmController.getInstance().startVM(item, this.getUIContext());
+    this.startingProgress.open()
+    try {
+      await VmController.getInstance().startVM(item, this.getUIContext());
+    } catch (e) {
+      hilog.error(DOMAIN, 'EmulatorListGrid', 'Start VM failed: %{public}s', JSON.stringify(e));
+    } finally {
+      this.startingProgress.close()
+    }
   }
 
   private askForDeleteEmulator(item: Emulator) {
@@ -369,10 +382,10 @@ export default struct EmulatorListGrid {
       })
     }
     .scrollable(ScrollDirection.Vertical)
-    .scrollBar(BarState.Auto)
-    .scrollBarWidth(1)
-    .layoutWeight(1)
-    .align(Alignment.Top)
+      .scrollBar(BarState.Auto)
+      .scrollBarWidth(1)
+      .layoutWeight(1)
+      .align(Alignment.Top)
   }
 
   openPowerManageDialog() {
@@ -400,7 +413,7 @@ export default struct EmulatorListGrid {
   @Builder
   buildImageManagement() {
     if (this.selectedEmulatorForImage) {
-      ImageManagementContent({ 
+      ImageManagementContent({
         emulator: this.selectedEmulatorForImage,
         isVmRunning: this.selectedEmulatorForImage.id === this.currentRunning
       })

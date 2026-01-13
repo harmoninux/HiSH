@@ -12,6 +12,7 @@ var term = new Terminal({
         cursor: '#ffffff'
     },
     screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
+    scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
 });
 
 // Initialize Addons

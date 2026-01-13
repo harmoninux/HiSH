@@ -34,6 +34,8 @@ class appOption {
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
   // VM 切换标志，防止 shutdown 回调覆盖状态
   static isVmSwitching = 'isVmSwitching';
+  // QGA 连接状态 (Global Truth)
+  static isQgaConnected = 'isQgaConnected';
   // ARM CPU 架构版本 ('v85' 或 'generic')
   static cpuArchVersion = 'cpuArchVersion';
 
