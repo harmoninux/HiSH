@@ -57,7 +57,7 @@ function startVm(options: VmOptions) {
     "systemd.mask=run-lock.mount systemd.mask=sys-kernel-debug.mount systemd.mask=dev-hugepages.mount " +
     "cryptomgr.notests rodata=off rcupdate.rcu_cpu_stall_timeout=60 " +
     "rcu_expedited=1 init_on_free=0 init_on_alloc=1 page_poison=0 slub_debug=- " +
-    "TERM=ansi init=" + options.init]
+    "TERM=xterm init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
 
   const sharedUserFolder = deviceInfo.deviceType !== '2in1' ? [] :
