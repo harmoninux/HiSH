@@ -14,17 +14,12 @@ import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
 import { startQmpEventListener, stopQmpEventListener, QmpEventType, QmpEventData } from '../lib/QmpEventListener';
-import QemuAgent from '../lib/QemuAgent';
+
 import { VmController } from '../lib/VmController';
 
 const DOMAIN = 0x0000;
 
-// 窗口大小变化防抖定时器
-let windowResizeTimer: number = -1;
-// resize 专用的 QGA 连接（独立于 QemuAgentManager，避免冲突）
-let resizeAgent: QemuAgent | null = null;
-// resize 操作锁，避免并发
-let isResizing: boolean = false;
+
 
 interface StartResult {
   portsSkipped: number[]
@@ -39,14 +34,14 @@ interface StartResult {
 function getFreeVncPort(min: number, max: number): number | undefined {
   const range = max - min + 1;
   const maxAttempts = 100; // 最大尝试次数
-  
+
   for (let i = 0; i < maxAttempts; i++) {
     const port = min + Math.floor(Math.random() * range);
     if (!napi.checkPortUsed(port)) {
       return port;
     }
   }
-  
+
   hilog.warn(DOMAIN, 'testTag', 'Could not find a free VNC port after %{public}d attempts', maxAttempts);
   return undefined;
 }
@@ -55,31 +50,21 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
-    
+
     // 初始化 VM 切换标志，防止启动时的竞态导致意外退出
     AppStorage.setOrCreate(appOption.isVmSwitching, false);
   }
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
-    
+
     // 1. 调用 VmController 统一销毁资源（停止监听器、清理定时器、断开 Agent）
     VmController.getInstance().dispose().catch((e: Error) => {
       hilog.warn(DOMAIN, 'testTag', 'VmController dispose failed: %{public}s', e.message);
     });
 
-    // 2. 清理窗口大小变化防抖定时器
-    if (windowResizeTimer !== -1) {
-      clearTimeout(windowResizeTimer);
-      windowResizeTimer = -1;
-    }
-    
-    // 3. 断开 resizeAgent 连接
-    if (resizeAgent) {
-      resizeAgent.disconnect().catch(() => { /* 忽略错误 */ });
-      resizeAgent = null;
-    }
-    
+
+
     // 4. 杀死 QEMU 子进程
     try {
       const pidFilePath = this.context.filesDir + '/vm/qemu.pid';
@@ -134,8 +119,7 @@ export default class EntryAbility extends UIAbility {
         mainWindow.setWindowDecorHeight(48);
       }
 
-      // 监听窗口大小变化
-      this.registerWindowSizeChangeListener(mainWindow);
+
 
       await this.prepareForSharedFolder(appContext)
       const result = this.startDefaultEmulator()
@@ -199,7 +183,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
 
     // 读取 VNC 启用配置
-    const vncEnabled =  AppStorage.get<boolean>(appOption.vncEnabled)
+    const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)
 
     // 获取随机 VNC 端口 (60000-65000)
     const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
@@ -252,11 +236,11 @@ export default class EntryAbility extends UIAbility {
   private async startQmpEventMonitor(qmpSocketPath: string): Promise<void> {
     // 延迟启动，等待 QEMU 完成初始化（增加到 5 秒以确保 socket 文件已创建）
     hilog.info(DOMAIN, 'testTag', '准备启动 QMP 事件监听器，socket 路径: %{public}s', qmpSocketPath)
-    
+
     setTimeout(async (): Promise<void> => {
       try {
         hilog.info(DOMAIN, 'testTag', '开始连接 QMP Socket...')
-        const started = await startQmpEventListener(qmpSocketPath, 
+        const started = await startQmpEventListener(qmpSocketPath,
           (event: QmpEventType, data: QmpEventData | undefined): void => {
             hilog.info(DOMAIN, 'testTag', '===== QMP 事件回调触发 =====')
             this.handleQmpEvent(event, data)
@@ -275,7 +259,7 @@ export default class EntryAbility extends UIAbility {
             }
           }
         )
-        
+
         if (started) {
           hilog.info(DOMAIN, 'testTag', '✓ QMP 事件监听器已成功启动')
         } else {
@@ -291,65 +275,61 @@ export default class EntryAbility extends UIAbility {
    * 处理 QMP 事件
    */
   private handleQmpEvent(event: QmpEventType, data: QmpEventData | undefined): void {
-    hilog.info(DOMAIN, 'testTag', '收到 QMP 事件: %{public}s, 数据: %{public}s', 
-               event, JSON.stringify(data))
-    
+    hilog.info(DOMAIN, 'testTag', '收到 QMP 事件: %{public}s, 数据: %{public}s',
+      event, JSON.stringify(data))
+
     switch (event) {
       case 'SHUTDOWN':
         // 虚拟机关机
-        hilog.info(DOMAIN, 'testTag', '虚拟机已关机 (来源: %{public}s)', 
-                   data?.guest ? 'guest' : 'host')
+        hilog.info(DOMAIN, 'testTag', '虚拟机已关机 (来源: %{public}s)',
+          data?.guest ? 'guest' : 'host')
 
         // 检查是否正在切换 VM，如果是则跳过状态更新
         const isVmSwitching = AppStorage.get(appOption.isVmSwitching) as boolean;
         if (isVmSwitching) {
-            hilog.info(DOMAIN, 'testTag', '检测到 VM 切换/重置进行中，跳过 SHUTDOWN 状态清理');
-            return;
+          hilog.info(DOMAIN, 'testTag', '检测到 VM 切换/重置进行中，跳过 SHUTDOWN 状态清理');
+          return;
         }
 
         // 保存 Last ID (确保重启按钮可用)
         const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
         if (currentRunning) {
-             AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
+          AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
         }
 
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
         // 清除当前运行的模拟器 ID，这样模拟器管理界面会显示为"未运行"
         AppStorage.setOrCreate(appOption.currentRunningEmulator, '')
-        
+
         // 自动清理资源
         VmController.getInstance().dispose();
         break
-        
+
       case 'POWERDOWN':
         // 收到 ACPI 关机信号
         hilog.info(DOMAIN, 'testTag', '收到 ACPI 关机信号')
         // POWERDOWN 事件通常在 SHUTDOWN 之前发送，不需要立即更新状态
         break
-        
+
       case 'RESET':
         // 虚拟机重置
         hilog.info(DOMAIN, 'testTag', '虚拟机正在重置')
-        // 断开 resizeAgent 连接，等待下次使用时重新建立
-        if (resizeAgent) {
-          resizeAgent.disconnect().catch(() => { /* 忽略错误 */ });
-          resizeAgent = null;
-        }
+
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')
         break
-        
+
       case 'STOP':
         // 虚拟机暂停
         hilog.info(DOMAIN, 'testTag', '虚拟机已暂停')
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'PAUSED')
         break
-        
+
       case 'RESUME':
         // 虚拟机恢复运行
         hilog.info(DOMAIN, 'testTag', '虚拟机已恢复运行')
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
         break
-        
+
       case 'GUEST_PANICKED':
         // 虚拟机内核崩溃
         hilog.error(DOMAIN, 'testTag', '虚拟机内核崩溃!')
@@ -357,117 +337,17 @@ export default class EntryAbility extends UIAbility {
         // 异常状态也清除运行中标记
         AppStorage.setOrCreate(appOption.currentRunningEmulator, '')
         break
-        
+
       default:
         hilog.info(DOMAIN, 'testTag', '未处理的 QMP 事件: %{public}s', event)
     }
   }
 
-  /**
-   * 注册窗口大小变化监听器
-   * 当窗口大小变化时，通过 QGA 在虚拟机内执行 resize 命令
-   */
-  private registerWindowSizeChangeListener(mainWindow: window.Window): void {
-    try {
-      mainWindow.on('windowSizeChange', (size: window.Size): void => {
-        hilog.info(DOMAIN, 'testTag', 'Window size changed: %{public}d x %{public}d', size.width, size.height)
-        
-        // 防抖处理：避免频繁调用
-        if (windowResizeTimer !== -1) {
-          clearTimeout(windowResizeTimer)
-        }
-        
-        windowResizeTimer = setTimeout((): void => {
-          this.tryQgaResizeOnWindowChange()
-        }, 300)  // 300ms 防抖
-      })
-      
-      hilog.info(DOMAIN, 'testTag', 'Window size change listener registered')
-    } catch (e) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to register window size change listener: %{public}s', JSON.stringify(e))
-    }
-  }
 
-  /**
-   * 窗口大小变化时尝试通过 QGA 执行 resize 命令
-   * 使用独立的 QemuAgent 实例，完全不干扰 QemuAgentManager 管理的连接
-   */
-  private async tryQgaResizeOnWindowChange(): Promise<void> {
-    // 避免并发执行
-    if (isResizing) {
-      hilog.info(DOMAIN, 'testTag', 'resize 正在进行中，跳过')
-      return
-    }
-    
-    // 检查虚拟机状态
-    const vmStatus = AppStorage.get(appOption.currentEmulatorStatus) as string
-    if (vmStatus !== 'RUNNING') {
-      hilog.info(DOMAIN, 'testTag', '虚拟机未运行 (状态: %{public}s)，跳过 resize', vmStatus)
-      return
-    }
-    
-    const appTempDir = AppStorage.get(appOption.appTempDir) as string
-    if (!appTempDir) {
-      hilog.info(DOMAIN, 'testTag', 'appTempDir 未设置，跳过 resize')
-      return
-    }
-    
-    isResizing = true
-    hilog.info(DOMAIN, 'testTag', '开始尝试 QGA resize...')
-    
-    try {
-      const qgaSocket = appTempDir + '/qga_socket'
-      
-      // 创建独立的 QemuAgent 实例（不通过 QemuAgentManager）
-      resizeAgent = new QemuAgent(qgaSocket)
-      
-      // 设置较短的连接超时
-      const connectPromise = resizeAgent.connect()
-      const timeoutPromise: Promise<boolean> = new Promise<boolean>((resolve: (value: boolean) => void): void => {
-        setTimeout((): void => resolve(false), 500)
-      })
-      
-      const connected = await Promise.race([connectPromise, timeoutPromise])
-      
-      if (!connected) {
-        hilog.info(DOMAIN, 'testTag', 'QGA 连接超时或失败，跳过 resize')
-        if (resizeAgent) {
-          try { await resizeAgent.disconnect() } catch (e) { /* 忽略 */ }
-          resizeAgent = null
-        }
-        return
-      }
-      
-      hilog.info(DOMAIN, 'testTag', 'QGA 独立连接成功，执行 resize 命令')
-      
-      // 直接执行 resize 命令，指定 ttyAMA0 终端设备
-      const pid = await resizeAgent.exec('/bin/sh', ['-c', 'resize ttyAMA0 >/dev/null 2>&1'])
-      
-      if (pid !== null) {
-        hilog.info(DOMAIN, 'testTag', 'Resize window!')
-      } else {
-        hilog.info(DOMAIN, 'testTag', 'resize 命令执行失败 (pid=null)')
-      }
-      
-      // 断开独立连接
-      try { await resizeAgent.disconnect() } catch (e) { /* 忽略 */ }
-      resizeAgent = null
-      
-    } catch (e) {
-      hilog.info(DOMAIN, 'testTag', '通过 QGA 执行 resize 异常: %{public}s', JSON.stringify(e))
-      // 确保断开连接
-      if (resizeAgent) {
-        try { await resizeAgent.disconnect() } catch (disconnectErr) { /* 忽略 */ }
-        resizeAgent = null
-      }
-    } finally {
-      isResizing = false
-    }
-  }
 
   private getEmulatorToStart() {
     const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string;
-    
+
     // 如果存在临时启动项，使用后立即清除，防止影响下次正常启动
     if (temporaryStart) {
       hilog.info(DOMAIN, 'testTag', '检测到临时启动项: %{public}s，将优先启动', temporaryStart);
@@ -485,12 +365,12 @@ export default class EntryAbility extends UIAbility {
     const emulators = AppStorage.get(appOption.emulators) as Emulator[];
     // 如果找不到对应的 VM（可能被删除了），则回退到第一个，或者抛出错误
     const emulatorToStart = emulators.find(it => it.id === defaultStart) || emulators[0];
-    
+
     if (!emulatorToStart) {
-       hilog.error(DOMAIN, 'testTag', '未找到可启动的虚拟机配置');
-       throw new Error('No emulator found');
+      hilog.error(DOMAIN, 'testTag', '未找到可启动的虚拟机配置');
+      throw new Error('No emulator found');
     }
-    
+
     return emulatorToStart;
   }
 
@@ -597,7 +477,7 @@ export default class EntryAbility extends UIAbility {
     }
 
     let kernelResourcePath = '';
-    
+
     if (cpuArchVersion === 'v85') {
       if (hasV85Kernel) {
         kernelResourcePath = 'vm/kernel_aarch64';
@@ -633,7 +513,7 @@ export default class EntryAbility extends UIAbility {
     // 使用根据架构版本选择的内核
     this.extractVmResourceFile(appContext, kernelResourcePath, 'vm/kernel_aarch64', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
-    
+
     // 确保 keymaps 目录存在
     const keymapsDir = vmBaseDir + '/keymaps';
     if (!fs.accessSync(keymapsDir, fs.AccessModeType.EXIST)) {
@@ -643,7 +523,7 @@ export default class EntryAbility extends UIAbility {
     this.extractVmResourceFile(appContext, 'vm/keymaps/en-us', 'vm/keymaps/en-us', forceOverride);
     // 同时提取到 vm/en-us (备用路径)
     this.extractVmResourceFile(appContext, 'vm/keymaps/en-us', 'vm/en-us', forceOverride);
-    
+
     // 验证文件是否存在及大小
     const keymapPath = vmBaseDir + '/keymaps/en-us';
     const keymapPath2 = vmBaseDir + '/en-us';

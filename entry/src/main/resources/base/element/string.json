@@ -641,6 +641,10 @@
       "value": "Reboot"
     },
     {
+      "name": "pm_status_reboot_failed_hint",
+      "value": "Reboot command received no response. This usually means the QMP service is busy or blocked.\n\nPlease try to shut down the VM manually, or try again later."
+    },
+    {
       "name": "pm_btn_pause",
       "value": "Pause"
     },
@@ -1827,6 +1831,10 @@
     {
       "name": "data_disk_image_management_title",
       "value": "Data Disk Image Management"
+    },
+    {
+      "name": "msg_shutdown_timeout",
+      "value": "Graceful shutdown of the previous VM failed (timeout). Operation aborted to protect data safety. Please reset manually or try again later."
     }
   ]
 }

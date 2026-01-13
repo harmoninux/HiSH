@@ -38,22 +38,22 @@ interface ManagerStatus {
  */
 class QemuAgentManagerImpl {
   private static instance: QemuAgentManagerImpl | null = null
-  
+
   private agent: QemuAgent | null = null
   private currentUser: string | null = null
   private waitQueue: ConnectionRequest[] = []
   private isProcessing: boolean = false
   private keepAliveTimer: number = -1
-  
-  private constructor() {}
-  
+
+  private constructor() { }
+
   static getInstance(): QemuAgentManagerImpl {
     if (!QemuAgentManagerImpl.instance) {
       QemuAgentManagerImpl.instance = new QemuAgentManagerImpl()
     }
     return QemuAgentManagerImpl.instance
   }
-  
+
   /**
    * 获取 Agent 连接
    * @param userId 使用者标识
@@ -62,12 +62,12 @@ class QemuAgentManagerImpl {
    */
   async acquire(userId: string, priority: AgentPriority = AgentPriority.NORMAL, timeout: number = 5000): Promise<QemuAgent | null> {
     hilog.info(DOMAIN, 'AgentManager', '请求连接: %{public}s, 优先级: %{public}d', userId, priority)
-    
+
     // 如果当前没有使用者，直接获取
     if (!this.currentUser) {
       return await this.createConnection(userId)
     }
-    
+
     // 如果是同一个使用者，直接返回现有连接
     if (this.currentUser === userId && this.agent) {
       // [修复] 即使是同一用户，也要检查 Agent 是否真的存活（防止 Socket 已断开但逻辑状态未更新）
@@ -80,14 +80,14 @@ class QemuAgentManagerImpl {
       // [修复] 释放后管理器变为空忙，直接重新连接，不要去排队
       return await this.createConnection(userId);
     }
-    
+
     // 高优先级请求可以抢占低优先级
     if (priority === AgentPriority.HIGH && this.currentUser !== userId) {
       hilog.info(DOMAIN, 'AgentManager', '高优先级请求，要求 %{public}s 释放连接', this.currentUser)
       await this.forceRelease()
       return await this.createConnection(userId)
     }
-    
+
     // 否则加入等待队列
     return new Promise<QemuAgent | null>((resolve: (agent: QemuAgent | null) => void, reject: (error: Error) => void) => {
       // 去重：移除同一用户的旧请求
@@ -99,14 +99,14 @@ class QemuAgentManagerImpl {
           oldRequest.resolve(null)  // 通知旧请求已取消
         }
       }
-      
+
       // 队列满时拒绝新请求
       if (this.waitQueue.length >= MAX_QUEUE_SIZE) {
         hilog.warn(DOMAIN, 'AgentManager', '队列已满（%{public}d），拒绝 %{public}s', MAX_QUEUE_SIZE, userId)
         resolve(null)
         return
       }
-      
+
       const request: ConnectionRequest = {
         userId,
         priority,
@@ -114,7 +114,7 @@ class QemuAgentManagerImpl {
         reject,
         timestamp: Date.now()
       }
-      
+
       // 按优先级插入队列
       let inserted = false
       for (let i = 0; i < this.waitQueue.length; i++) {
@@ -127,9 +127,9 @@ class QemuAgentManagerImpl {
       if (!inserted) {
         this.waitQueue.push(request)
       }
-      
+
       hilog.info(DOMAIN, 'AgentManager', '%{public}s 加入等待队列，当前队列长度: %{public}d/%{public}d', userId, this.waitQueue.length, MAX_QUEUE_SIZE)
-      
+
       // 设置超时
       setTimeout(() => {
         const index = this.waitQueue.findIndex((r: ConnectionRequest) => r.userId === userId && r.timestamp === request.timestamp)
@@ -141,33 +141,35 @@ class QemuAgentManagerImpl {
       }, timeout)
     })
   }
-  
+
   /**
    * 释放连接
    * @param userId 使用者标识
    */
   async release(userId: string): Promise<void> {
     if (this.currentUser !== userId) {
-      hilog.warn(DOMAIN, 'AgentManager', '%{public}s 尝试释放非自己的连接', userId)
+      if (this.currentUser) {
+        hilog.debug(DOMAIN, 'AgentManager', '忽略 %{public}s 的释放请求 (当前实际持有者: %{public}s)', userId, this.currentUser)
+      }
       return
     }
-    
+
     hilog.info(DOMAIN, 'AgentManager', '%{public}s 释放连接 (进入空闲复用状态)', userId)
-    
+
     // 软释放：不关闭连接，只清除使用者标识
     // 这样下次 acquire 可以直接复用
     this.currentUser = null
-    
+
     // 处理等待队列中的下一个请求
     await this.processQueue()
   }
-  
+
   /**
    * 强制释放当前连接（用于高优先级抢占或彻底清理）
    */
   private async forceRelease(): Promise<void> {
     hilog.info(DOMAIN, 'AgentManager', '强制释放并关闭连接，当前使用者: %{public}s', this.currentUser || 'none')
-    
+
     if (this.agent) {
       try {
         await this.agent.disconnect()
@@ -178,11 +180,11 @@ class QemuAgentManagerImpl {
     }
     this.currentUser = null
     this.stopKeepAlive()
-    
+
     // [修复] 强制释放后，唤醒等待队列，防止请求挂起
     await this.processQueue()
   }
-  
+
   /**
    * 创建新连接
    */
@@ -199,9 +201,9 @@ class QemuAgentManagerImpl {
       hilog.error(DOMAIN, 'AgentManager', 'appTempDir 未设置')
       return null
     }
-    
+
     const qgaSocket = appTempDir + '/qga_socket'
-    
+
     try {
       // 彻底清理旧连接
       if (this.agent) {
@@ -210,14 +212,14 @@ class QemuAgentManagerImpl {
 
       this.agent = new QemuAgent(qgaSocket)
       const connected = await this.agent.connect()
-      
+
       if (connected) {
         this.currentUser = userId
         hilog.info(DOMAIN, 'AgentManager', '%{public}s 连接成功', userId)
-        
+
         // 启动心跳保活
         this.startKeepAlive()
-        
+
         return this.agent
       } else {
         this.agent = null
@@ -236,7 +238,7 @@ class QemuAgentManagerImpl {
    */
   private startKeepAlive(): void {
     this.stopKeepAlive()
-    
+
     hilog.info(DOMAIN, 'AgentManager', '启动 QGA 心跳保活 (20s)')
     this.keepAliveTimer = setInterval(async () => {
       const currentAgent = this.agent
@@ -255,7 +257,7 @@ class QemuAgentManagerImpl {
       try {
         hilog.debug(DOMAIN, 'AgentManager', '发送 QGA 心跳 (ping)...')
         const success = await currentAgent.ping()
-        
+
         if (!success) {
           hilog.warn(DOMAIN, 'AgentManager', 'QGA 心跳失败，尝试自动重连...')
           // P1-10修复: 心跳失败后尝试自动重连一次
@@ -283,7 +285,7 @@ class QemuAgentManagerImpl {
       hilog.info(DOMAIN, 'AgentManager', '停止 QGA 心跳保活')
     }
   }
-  
+
   /**
    * 处理等待队列
    */
@@ -291,9 +293,9 @@ class QemuAgentManagerImpl {
     if (this.isProcessing || this.waitQueue.length === 0 || this.currentUser) {
       return
     }
-    
+
     this.isProcessing = true
-    
+
     try {
       // 循环处理，直到有用户成功连接或队列为空
       while (this.waitQueue.length > 0 && !this.currentUser) {
@@ -301,28 +303,28 @@ class QemuAgentManagerImpl {
         if (request) {
           hilog.info(DOMAIN, 'AgentManager', '处理队列请求: %{public}s', request.userId)
           const agent = await this.createConnection(request.userId)
-          
+
           if (agent) {
-             // 连接成功，currentUser 已在 createConnection 中设置
-             request.resolve(agent)
-             // 循环结束，currentUser 不为空
+            // 连接成功，currentUser 已在 createConnection 中设置
+            request.resolve(agent)
+            // 循环结束，currentUser 不为空
           } else {
-             // 连接失败，继续处理下一个请求
-             hilog.warn(DOMAIN, 'AgentManager', '%{public}s 连接失败，尝试下一个请求', request.userId)
-             request.resolve(null)
+            // 连接失败，继续处理下一个请求
+            hilog.warn(DOMAIN, 'AgentManager', '%{public}s 连接失败，尝试下一个请求', request.userId)
+            request.resolve(null)
           }
         }
       }
     } finally {
       this.isProcessing = false
-      
+
       // 如果还有等待的请求且当前无用户，继续尝试（递归保护）
       if (this.waitQueue.length > 0 && !this.currentUser && !this.isProcessing) {
         this.processQueue()
       }
     }
   }
-  
+
   /**
    * 获取当前连接状态
    */
@@ -341,7 +343,7 @@ class QemuAgentManagerImpl {
    */
   async reset(): Promise<void> {
     hilog.warn(DOMAIN, 'AgentManager', '执行全局重置...')
-    
+
     // 1. 清空等待队列并拒绝所有请求
     while (this.waitQueue.length > 0) {
       const request = this.waitQueue.shift()
@@ -349,16 +351,16 @@ class QemuAgentManagerImpl {
         request.reject(new Error('Global Reset'))
       }
     }
-    
+
     // 2. 强制断开当前连接
     await this.forceRelease()
-    
+
     // 3. 重置处理标志
     this.isProcessing = false
-    
+
     // 4. 清理 AppStorage 状态 (暂时)
     AppStorage.setOrCreate(appOption.currentEmulatorStatus, '')
-    
+
     // 5. 存活检查与状态恢复
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     if (vmBaseDir) {
@@ -366,14 +368,14 @@ class QemuAgentManagerImpl {
       if (napi.checkQemuAlive(pidFile)) {
         hilog.info(DOMAIN, 'AgentManager', '重置后检测到 VM 存活，恢复状态为 RUNNING')
         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
-        
+
         // 尝试恢复 currentRunningEmulator (如果为空)
         const currentId = AppStorage.get(appOption.currentRunningEmulator) as string
         if (!currentId) {
-           const lastId = AppStorage.get('lastRunningEmulatorId') as string
-           if (lastId) {
-             AppStorage.setOrCreate(appOption.currentRunningEmulator, lastId)
-           }
+          const lastId = AppStorage.get('lastRunningEmulatorId') as string
+          if (lastId) {
+            AppStorage.setOrCreate(appOption.currentRunningEmulator, lastId)
+          }
         }
       } else {
         hilog.info(DOMAIN, 'AgentManager', '重置后检测到 VM 未运行')

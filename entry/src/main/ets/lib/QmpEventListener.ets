@@ -71,22 +71,23 @@ export class QmpEventListener {
   private isConnected: boolean = false
   private reconnectTimer: number = -1
   private statusCheckTimer: number = -1
-  
+  private isQueryPaused: boolean = false
+
   // 事件回调
   public onEvent: QmpEventCallback | null = null
   // 断开连接回调
   public onDisconnect: (() => void) | null = null
-  
+
   // 配置参数
-  private reconnectInterval: number = 10000  // 重连间隔增加到 10 秒，减轻 PC 端压力
-  private statusCheckInterval: number = 10000  // 状态检查间隔（毫秒）
+  private reconnectInterval: number = 2000   // 缩短重连间隔到 2s，提升重启响应灵敏度
+  private statusCheckInterval: number = 5000  // 缩短状态检查间隔到 5s
   private maxReconnectAttempts: number = -1  // 最大重连次数，-1 表示无限
   private reconnectAttempts: number = 0
-  
+
   constructor(socketPath: string) {
     this.socketPath = socketPath
   }
-  
+
   /**
    * 启动事件监听
    */
@@ -95,19 +96,19 @@ export class QmpEventListener {
       hilog.warn(DOMAIN, TAG, '监听器已在运行')
       return true
     }
-    
+
     this.isRunning = true
     this.reconnectAttempts = 0
-    
+
     const connected = await this.connect()
     if (connected) {
       // 启动定期状态检查（作为事件监听的补充）
       this.startStatusCheck()
     }
-    
+
     return connected
   }
-  
+
   /**
    * 停止事件监听
    */
@@ -118,61 +119,63 @@ export class QmpEventListener {
     await this.disconnect()
     hilog.info(DOMAIN, TAG, '事件监听器已停止')
   }
-  
+
   /**
    * 连接到 QMP Socket
    */
   private async connect(): Promise<boolean> {
     try {
       hilog.info(DOMAIN, TAG, '尝试连接 QMP Socket: %{public}s', this.socketPath)
-      
-      // 检查 socket 文件是否存在
+
+      // 检查 socket 文件是否存在 - 增加微重试机制 (1.5s 窗口)，缓解文件系统创建时滞
       let socketExists = false
-      try {
-        socketExists = fs.accessSync(this.socketPath, fs.AccessModeType.EXIST)
-      } catch (accessErr) {
-        hilog.warn(DOMAIN, TAG, 'accessSync 异常: %{public}s', JSON.stringify(accessErr))
+      for (let i = 0; i < 15; i++) {
+        try {
+          socketExists = fs.accessSync(this.socketPath, fs.AccessModeType.EXIST)
+          if (socketExists) break
+        } catch (e) { }
+        await new Promise<void>(r => setTimeout(r, 100))
       }
-      
+
       if (!socketExists) {
-        hilog.warn(DOMAIN, TAG, 'QMP Socket 文件不存在: %{public}s，将尝试重连', this.socketPath)
+        hilog.warn(DOMAIN, TAG, 'QMP Socket 文件不存在: %{public}s，进入重连队列', this.socketPath)
         this.scheduleReconnect()
         return false
       }
-      
+
       hilog.info(DOMAIN, TAG, 'QMP Socket 文件存在，开始连接...')
-      
+
       this.client = socket.constructLocalSocketInstance()
       this.pendingData = ''
-      
+
       const connectOptions: socket.LocalConnectOptions = {
         address: {
           address: this.socketPath
         },
         timeout: 3000
       }
-      
+
       await this.client.connect(connectOptions)
-      
+
       // 设置消息接收监听器
       this.client.on('message', (value: socket.LocalSocketMessageInfo): void => {
         this.onMessage(value)
       })
-      
+
       // 设置错误监听器
       this.client.on('error', (err: Error): void => {
         hilog.error(DOMAIN, TAG, 'Socket 错误: %{public}s', err.message)
         this.handleDisconnect()
       })
-      
+
       // 设置关闭监听器
       this.client.on('close', (): void => {
         hilog.info(DOMAIN, TAG, 'Socket 连接已关闭')
         this.handleDisconnect()
       })
-      
+
       hilog.info(DOMAIN, TAG, '已连接到 QMP Socket: %{public}s', this.socketPath)
-      
+
       // 等待 Greeting
       const greeting = await this.waitForGreeting()
       if (!greeting) {
@@ -181,7 +184,7 @@ export class QmpEventListener {
         this.scheduleReconnect()
         return false
       }
-      
+
       // 发送 qmp_capabilities 完成握手
       const capResult = await this.sendCommand('qmp_capabilities')
       if (!capResult) {
@@ -190,11 +193,11 @@ export class QmpEventListener {
         this.scheduleReconnect()
         return false
       }
-      
+
       this.isConnected = true
       this.reconnectAttempts = 0
       hilog.info(DOMAIN, TAG, 'QMP 事件监听器握手成功')
-      
+
       return true
     } catch (e) {
       hilog.error(DOMAIN, TAG, '连接 QMP 失败: %{public}s', JSON.stringify(e))
@@ -203,7 +206,7 @@ export class QmpEventListener {
       return false
     }
   }
-  
+
   /**
    * 断开连接
    */
@@ -223,13 +226,13 @@ export class QmpEventListener {
       }
     }
   }
-  
+
   /**
    * 处理断开连接
    */
   private handleDisconnect(): void {
     this.isConnected = false
-    
+
     // 触发断开回调
     if (this.onDisconnect) {
       this.onDisconnect()
@@ -240,31 +243,31 @@ export class QmpEventListener {
       this.scheduleReconnect()
     }
   }
-  
+
   /**
    * 调度重连
    */
   private scheduleReconnect(): void {
     if (!this.isRunning) return
-    
+
     if (this.maxReconnectAttempts !== -1 && this.reconnectAttempts >= this.maxReconnectAttempts) {
       hilog.warn(DOMAIN, TAG, '达到最大重连次数，停止重连')
       return
     }
-    
+
     this.stopReconnectTimer()
     this.reconnectAttempts++
-    
-    hilog.info(DOMAIN, TAG, '将在 %{public}d 毫秒后尝试重连 (第 %{public}d 次)', 
-               this.reconnectInterval, this.reconnectAttempts)
-    
+
+    hilog.info(DOMAIN, TAG, '将在 %{public}d 毫秒后尝试重连 (第 %{public}d 次)',
+      this.reconnectInterval, this.reconnectAttempts)
+
     this.reconnectTimer = setTimeout(async (): Promise<void> => {
       if (this.isRunning) {
         await this.connect()
       }
     }, this.reconnectInterval)
   }
-  
+
   /**
    * 停止重连定时器
    */
@@ -274,7 +277,7 @@ export class QmpEventListener {
       this.reconnectTimer = -1
     }
   }
-  
+
   /**
    * 处理收到的消息
    */
@@ -282,14 +285,14 @@ export class QmpEventListener {
     const decoder: util.TextDecoder = util.TextDecoder.create('utf-8')
     const message: string = decoder.decodeToString(new Uint8Array(value.message))
     this.pendingData += message
-    
+
     // 只有在握手完成后才自动处理消息（事件）
     // 握手期间的消息由 waitForGreeting 和 sendCommand 手动从 pendingData 中提取
     if (this.isConnected) {
       this.processMessages()
     }
   }
-  
+
   /**
    * 处理缓冲区中的消息
    */
@@ -297,23 +300,23 @@ export class QmpEventListener {
     while (true) {
       const lineEndIndex = this.pendingData.indexOf('\n')
       if (lineEndIndex === -1) break
-      
+
       const line = this.pendingData.substring(0, lineEndIndex).trim()
       this.pendingData = this.pendingData.substring(lineEndIndex + 1)
-      
+
       if (line.length > 0) {
         this.parseMessage(line)
       }
     }
   }
-  
+
   /**
    * 解析单条消息
    */
   private parseMessage(line: string): void {
     try {
       const msg: QmpMessage = JSON.parse(line) as QmpMessage
-      
+
       // 检查是否是事件
       if (msg.event) {
         this.handleEvent(msg.event, msg.data)
@@ -322,7 +325,7 @@ export class QmpEventListener {
       hilog.warn(DOMAIN, TAG, 'JSON 解析失败: %{public}s', line)
     }
   }
-  
+
   /**
    * 处理 QMP 事件
    */
@@ -330,9 +333,9 @@ export class QmpEventListener {
     hilog.info(DOMAIN, TAG, '===== 收到 QMP 事件 =====')
     hilog.info(DOMAIN, TAG, '事件名称: %{public}s', eventName)
     hilog.info(DOMAIN, TAG, '事件数据: %{public}s', JSON.stringify(data))
-    
+
     let eventType: QmpEventType
-    
+
     switch (eventName) {
       case 'SHUTDOWN':
         eventType = 'SHUTDOWN'
@@ -358,27 +361,27 @@ export class QmpEventListener {
         eventType = 'UNKNOWN'
         hilog.info(DOMAIN, TAG, '未知事件类型: %{public}s', eventName)
     }
-    
+
     // 调用回调
     if (this.onEvent) {
       hilog.info(DOMAIN, TAG, '调用事件回调，事件类型: %{public}s', eventType)
       this.onEvent(eventType, data)
     }
   }
-  
+
   /**
    * 等待 Greeting
    */
   private async waitForGreeting(): Promise<boolean> {
     const timeout = 10000 // 增加到 10 秒，解决 PC 端响应慢的问题
     const startTime = Date.now()
-    
+
     while (Date.now() - startTime < timeout) {
       const lineEndIndex = this.pendingData.indexOf('\n')
       if (lineEndIndex !== -1) {
         const line = this.pendingData.substring(0, lineEndIndex).trim()
         this.pendingData = this.pendingData.substring(lineEndIndex + 1)
-        
+
         if (line.length > 0) {
           try {
             const msg: QmpMessage = JSON.parse(line) as QmpMessage
@@ -390,42 +393,42 @@ export class QmpEventListener {
           }
         }
       }
-      
+
       await new Promise<void>((resolve: () => void) => setTimeout(resolve, 50))
     }
-    
+
     return false
   }
-  
+
   /**
    * 发送 QMP 命令
    */
   private async sendCommand(command: string): Promise<boolean> {
     if (!this.client) return false
-    
+
     try {
       const request: QmpRequest = { execute: command }
       const requestJson = JSON.stringify(request) + '\n'
       const encoder = util.TextEncoder.create()
       const buffer = encoder.encodeInto(requestJson)
-      
+
       const sendOptions: socket.LocalSendOptions = {
         data: buffer.buffer,
         encoding: 'utf-8'
       }
-      
+
       await this.client.send(sendOptions)
-      
+
       // 等待响应
       const timeout = 3000
       const startTime = Date.now()
-      
+
       while (Date.now() - startTime < timeout) {
         const lineEndIndex = this.pendingData.indexOf('\n')
         if (lineEndIndex !== -1) {
           const line = this.pendingData.substring(0, lineEndIndex).trim()
           this.pendingData = this.pendingData.substring(lineEndIndex + 1)
-          
+
           if (line.length > 0) {
             try {
               const msg: QmpMessage = JSON.parse(line) as QmpMessage
@@ -444,46 +447,46 @@ export class QmpEventListener {
             }
           }
         }
-        
+
         await new Promise<void>((resolve: () => void) => setTimeout(resolve, 50))
       }
-      
+
       return false
     } catch (e) {
       hilog.error(DOMAIN, TAG, '发送命令失败: %{public}s', JSON.stringify(e))
       return false
     }
   }
-  
+
   /**
    * 查询虚拟机状态
    */
   async queryStatus(): Promise<QmpStatusResult | null> {
     if (!this.client || !this.isConnected) return null
-    
+
     try {
       const request: QmpRequest = { execute: 'query-status' }
       const requestJson = JSON.stringify(request) + '\n'
       const encoder = util.TextEncoder.create()
       const buffer = encoder.encodeInto(requestJson)
-      
+
       const sendOptions: socket.LocalSendOptions = {
         data: buffer.buffer,
         encoding: 'utf-8'
       }
-      
+
       await this.client.send(sendOptions)
-      
+
       // 等待响应
       const timeout = 3000
       const startTime = Date.now()
-      
+
       while (Date.now() - startTime < timeout) {
         const lineEndIndex = this.pendingData.indexOf('\n')
         if (lineEndIndex !== -1) {
           const line = this.pendingData.substring(0, lineEndIndex).trim()
           this.pendingData = this.pendingData.substring(lineEndIndex + 1)
-          
+
           if (line.length > 0) {
             try {
               const msg: QmpMessage = JSON.parse(line) as QmpMessage
@@ -507,38 +510,39 @@ export class QmpEventListener {
             }
           }
         }
-        
+
         await new Promise<void>((resolve: () => void) => setTimeout(resolve, 50))
       }
-      
+
       return null
     } catch (e) {
       hilog.error(DOMAIN, TAG, '查询状态失败: %{public}s', JSON.stringify(e))
       return null
     }
   }
-  
+
   /**
    * 启动定期状态检查
    */
   private startStatusCheck(): void {
     this.stopStatusCheck()
-    
+
     hilog.info(DOMAIN, TAG, '启动定期状态检查，间隔: %{public}d ms', this.statusCheckInterval)
-    
+
     this.statusCheckTimer = setInterval(async (): Promise<void> => {
-      if (!this.isRunning || !this.isConnected) {
-        hilog.debug(DOMAIN, TAG, '跳过状态检查: isRunning=%{public}s, isConnected=%{public}s',
-                    this.isRunning.toString(), this.isConnected.toString())
+      if (!this.isRunning || !this.isConnected || this.isQueryPaused) {
+        if (this.isQueryPaused) {
+          hilog.debug(DOMAIN, TAG, '心跳查询已挂起（业务指令优先）')
+        }
         return
       }
-      
+
       hilog.info(DOMAIN, TAG, '执行定期状态查询...')
       const status = await this.queryStatus()
       if (status) {
-        hilog.info(DOMAIN, TAG, '虚拟机状态: status=%{public}s, running=%{public}s', 
-                   status.status, status.running.toString())
-        
+        hilog.info(DOMAIN, TAG, '虚拟机状态: status=%{public}s, running=%{public}s',
+          status.status, status.running.toString())
+
         // 如果虚拟机处于关机状态
         if (status.status === 'shutdown' && !status.running) {
           hilog.info(DOMAIN, TAG, '===== 通过状态检查检测到虚拟机已关机 =====')
@@ -552,7 +556,7 @@ export class QmpEventListener {
       }
     }, this.statusCheckInterval)
   }
-  
+
   /**
    * 停止定期状态检查
    */
@@ -562,7 +566,7 @@ export class QmpEventListener {
       this.statusCheckTimer = -1
     }
   }
-  
+
   /**
    * 检查是否已连接
    */
@@ -576,25 +580,41 @@ export class QmpEventListener {
    */
   async reset(): Promise<void> {
     hilog.warn(DOMAIN, TAG, '执行全局重置...')
-    
+
     // 1. 停止监听
     await this.stop()
-    
+
     // 2. 清空状态
     this.pendingData = ''
     this.reconnectAttempts = 0
-    
+
     // 3. 重新启动
     await this.start()
-    
+
     // 4. 立即查询一次状态以同步
     if (this.isConnected) {
       const status = await this.queryStatus()
       if (status && status.running) {
         hilog.info(DOMAIN, TAG, '重置后 QMP 状态确认: RUNNING')
-        // 这里可以触发一个事件或直接更新 AppStorage，但通常由 PowerManagement 或 VmStatusBar 处理
       }
     }
+  }
+
+  /**
+   * 挂起状态查询（心跳）
+   * 用于电源管理指令执行期间，防止由于心跳包导致的 QMP 响应粘包或排队延迟
+   */
+  pauseQuery(): void {
+    hilog.info(DOMAIN, TAG, '已收到挂起心跳指令')
+    this.isQueryPaused = true
+  }
+
+  /**
+   * 恢复状态查询
+   */
+  resumeQuery(): void {
+    hilog.info(DOMAIN, TAG, '已恢复心跳查询')
+    this.isQueryPaused = false
   }
 }
 
@@ -614,7 +634,7 @@ export function getQmpEventListener(): QmpEventListener | null {
  * @param onEvent 事件回调
  */
 export async function startQmpEventListener(
-  socketPath: string, 
+  socketPath: string,
   onEvent: QmpEventCallback,
   onDisconnect?: () => void
 ): Promise<boolean> {
@@ -622,13 +642,13 @@ export async function startQmpEventListener(
   if (globalListener) {
     await globalListener.stop()
   }
-  
+
   globalListener = new QmpEventListener(socketPath)
   globalListener.onEvent = onEvent
   if (onDisconnect) {
     globalListener.onDisconnect = onDisconnect
   }
-  
+
   return await globalListener.start()
 }
 
