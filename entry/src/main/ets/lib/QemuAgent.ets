@@ -234,6 +234,12 @@ export class QemuAgent {
           data: buffer.buffer,
           encoding: 'utf-8'
         }
+        
+        // 发送前清空缓冲区（确保读到的是这次请求的响应）
+        this.pendingResponse = ''
+        
+        await this.client.send(sendOptions)
+        hilog.info(DOMAIN, 'QemuAgent', '发送命令: %{public}s (id=%{public}d)', command, currentId)
 
         // 发送前清空缓冲区（确保读到的是这次请求的响应）
         this.pendingResponse = ''
