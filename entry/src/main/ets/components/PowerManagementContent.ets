@@ -2,7 +2,7 @@ import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI'
 import appOption from '../model/appOption'
 import QemuAgent from '../lib/QemuAgent'
 import { QemuAgentManager, AgentPriority } from '../lib/QemuAgentManager'
-import QmpClient from '../lib/QmpClient'
+import QmpClient, { QmpStatusResult } from '../lib/QmpClient'
 import { getQmpEventListener } from '../lib/QmpEventListener'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { startVm } from '../lib/startVm'
@@ -33,12 +33,10 @@ function getFreeVncPort(min: number, max: number): number | undefined {
  */
 @Component
 export default struct PowerManagementContent {
-  @State isConnecting: boolean = false
-  @State isConnected: boolean = false
+  @StorageProp(appOption.isQgaConnected) isConnected: boolean = false
   @State isOperating: boolean = false  // 防止连续点击
   @State statusMessage: string = ''
   @StorageProp(appOption.currentEmulatorStatus) currentEmulatorStatus: string = ''
-  private qgaAgent: QemuAgent | null = null
   @State processingMessage: string = ''
   private processingDialog: CustomDialogController = new CustomDialogController({
     builder: LoadingDialog({
@@ -48,191 +46,77 @@ export default struct PowerManagementContent {
     alignment: DialogAlignment.Center
   })
   private isComponentActive: boolean = false  // [2.2] 生命周期标志
-  private autoReconnectTimer: number = -1
 
   aboutToAppear() {
     AppStorage.setOrCreate(appOption.isPowerManagementOpen, true)
     this.isComponentActive = true
-    this.connectToQGA()
-
-    // 启动自动重连定时器 (每 5 秒检查一次)
-    this.autoReconnectTimer = setInterval(() => {
-      // 只有在组件活跃、VM 应该运行、未连接且未在进行敏感操作时才尝试重连
-      if (this.isComponentActive && !this.isConnecting && !this.isConnected && !this.isOperating) {
-        if (this.currentEmulatorStatus === 'RUNNING' || this.currentEmulatorStatus === 'ABNORMAL' || this.currentEmulatorStatus === 'REBOOTING') {
-           hilog.info(DOMAIN, 'PowerManagement', '自动重连定时器触发 (状态: %{public}s)', this.currentEmulatorStatus)
-           this.connectToQGA(1, 0) // 尝试一次，无延迟
-        } else if (this.currentEmulatorStatus === '') {
-           // 状态丢失恢复机制
-           this.connectToQGA(1, 0)
-        }
-      }
-    }, 5000)
+    // QGA 状态现在统一由 VmStatusBar 在全局分发并感知，本组件不再独立探测
   }
 
   aboutToDisappear() {
-    if (this.autoReconnectTimer !== -1) {
-      clearInterval(this.autoReconnectTimer)
-      this.autoReconnectTimer = -1
-    }
     AppStorage.setOrCreate(appOption.isPowerManagementOpen, false)
     this.isComponentActive = false  // 标记组件已销毁
-    this.isConnecting = false       // 重置连接状态
-    this.isConnected = false        // 重置连接状态
     this.isOperating = false        // 重置操作状态
-    // 释放连接管理器中的连接
-    QemuAgentManager.release('PowerManagement')
-    this.qgaAgent = null
   }
 
-  /**
-   * 连接到 Guest Agent，支持重试
-   * @param maxRetries 最大重试次数，默认 5 次
-   * @param retryDelay 重试间隔（毫秒），默认 3000
-   */
-  async connectToQGA(maxRetries: number = 5, retryDelay: number = 3000) {
-    // 如果已关机或暂停，不尝试连接
-    if (this.currentEmulatorStatus === 'SHUTDOWN') {
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
-      this.isConnected = false
-      this.isConnecting = false
-      return
-    }
-
-    // 状态恢复：如果状态为空，但在运行，则恢复为 RUNNING
-    if (this.currentEmulatorStatus === '') {
-       // 检查 PID 文件
-       const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
-       const pidFile = vmBaseDir + '/qemu.pid'
-       if (napi.checkQemuAlive(pidFile)) {
-         hilog.info(DOMAIN, 'PowerManagement', '检测到 VM 进程存活，恢复状态为 RUNNING')
-         AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
-         // 继续连接
-       } else {
-         this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
-         this.isConnected = false
-         this.isConnecting = false
-         return
-       }
-    }
-    if (this.currentEmulatorStatus === 'PAUSED') {
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_paused').id)
-      this.isConnected = false
-      this.isConnecting = false
-      return
-    }
-
-    // 防止重复连接
-    if (this.isConnecting) {
-      return
-    }
-
-    this.isConnecting = true
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connecting').id)
-    
-    // 重试循环
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      // 检查组件是否仍然活跃
-      if (!this.isComponentActive) {
-        hilog.info(DOMAIN, 'PowerManagement', '组件已销毁，取消连接')
-        this.isConnecting = false
-        return
-      }
-      
-      // 检查状态是否变化（允许 ABNORMAL 状态尝试连接以便恢复）
-      if (this.currentEmulatorStatus !== 'RUNNING' && 
-          this.currentEmulatorStatus !== 'REBOOTING' &&
-          this.currentEmulatorStatus !== 'ABNORMAL') {
-        this.isConnecting = false
-        return
-      }
-      
-      if (attempt > 0) {
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_retrying').id, attempt, maxRetries)
-        // 重试前等待
-        await new Promise<void>((resolve: () => void) => setTimeout(resolve, retryDelay))
-        
-        // 等待后再次检查
-        if (!this.isComponentActive) {
-          this.isConnecting = false
-          return
-        }
-      }
-      
-      try {
-        // 使用连接管理器获取连接（高优先级）
-        this.qgaAgent = await QemuAgentManager.acquire('PowerManagement', AgentPriority.HIGH)
-        
-        if (this.qgaAgent) {
-          // 测试 ping
-          const pingResult = await this.qgaAgent.ping()
-          if (pingResult) {
-            this.isConnected = true
-            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connected').id)
-            this.isConnecting = false
-            
-            // 如果当前状态是异常或重启中，连接成功后自动恢复为 RUNNING
-            const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string
-            if (currentStatus === 'ABNORMAL' || currentStatus === 'REBOOTING') {
-              AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
-              hilog.info(DOMAIN, 'PowerManagement', '状态已从 %{public}s 恢复为 RUNNING', currentStatus)
-            }
-            
-            return  // 成功，退出
-          }
-        }
-        
-        hilog.warn(DOMAIN, 'PowerManagement', 'Agent 连接尝试 %{public}d 失败', attempt + 1)
-        // 释放连接以备重试
-        await QemuAgentManager.release('PowerManagement')
-        this.qgaAgent = null
-      } catch (e) {
-        hilog.error(DOMAIN, 'PowerManagement', '连接 QGA 失败: %{public}s', JSON.stringify(e))
-        await QemuAgentManager.release('PowerManagement')
-        this.qgaAgent = null
-      }
-    }
-    
-    // 所有重试都失败
-    this.isConnected = false
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_connect_failed_final').id)
-    this.isConnecting = false
-  }
+  // --- [已移除] 独立连接逻辑 connectToQGA, performAction, connectToQmp, verifyVmStatus ---
 
   /**
-   * 执行全局重置
-   * 重置 QGA/QMP 连接，清空队列，并等待状态恢复
+   * 执行全局重置 (最高优先级保命功能)
+   * 清理整个 Agent 环境，重置 QMP 监听，并强制 VmStatusBar 刷新状态
    */
   async performGlobalReset() {
     if (this.isOperating) return
     this.isOperating = true
-    
+
     this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resetting_connections').id)
     this.processingMessage = this.statusMessage
     this.processingDialog.open()
-    
+
     try {
-      // 1. 重置 QGA 管理器 (清空队列，断开连接，恢复状态)
+      hilog.warn(DOMAIN, 'PowerManagement', '>>> 开始执行全局连接重置 (Global Reset) <<<')
+
+      // 1. 强制重置 QGA 管理器 (这将强制断开所有持有者，包括 VmStatusBar)
       await QemuAgentManager.reset()
-      
-      // 2. 重置 QMP 监听器
+
+      // 2. 强制 VmStatusBar 状态为 False (在重新探测前)
+      AppStorage.setOrCreate(appOption.isQgaConnected, false)
+
+      // 3. 重置 QMP 监听器
       const qmpListener = getQmpEventListener()
       if (qmpListener) {
         await qmpListener.reset()
       }
-      
-      // 3. 等待一小段时间让底层释放资源
-      await new Promise<void>((resolve: () => void) => setTimeout(resolve, 1000))
-      
-      // 4. 尝试重新连接 QGA (带重试)
-      // 注意：QemuAgentManager.reset() 内部已经尝试恢复了 RUNNING 状态(如果进程存活)
-      // 这里调用 connectToQGA 会根据恢复后的状态决定是否连接
-      await this.connectToQGA(5, 2000)
-      
-      if (this.isConnected) {
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_connections_success').id)
+
+      // 4. 等待资源释放 (物理 Socket 清理通常由 Manager reset 处理，但这里给系统喘息时间)
+      await new Promise<void>((resolve: () => void) => setTimeout(resolve, 1500))
+
+      // 5. 触发 VmStatusBar 进行一次立即探测 (心跳重启)
+      // 注意：我们不在这里直接连接，而是通过全局状态通知机制
+      // 如果 VmStatusBar 发现断连，它的逻辑会自动尝试重连或等待下一次心跳，
+      // 但这里我们希望有一个立即的手动反馈？VmStatusBar 没有公开暴露 forceRefresh，
+      // 但它的 onPowerManagementChange 逻辑在关闭 PM 时会刷新。
+      // 在 PM 开启状态下，我们依赖它的后台心跳。
+      // **关键优化**：我们可以临时模拟一次 Agent 获取来验证环境，然后立即释放，以确认“通路”已打通。
+      hilog.info(DOMAIN, 'PowerManagement', '验证重置后的 QGA 通路...')
+      try {
+        // 使用特殊 ID 获取一次高优先级连接，确保存活
+        const testAgent = await QemuAgentManager.acquire('PM_GlobalReset_Probe', AgentPriority.HIGH, 3000)
+        if (testAgent) {
+          const ping = await testAgent.ping()
+          hilog.info(DOMAIN, 'PowerManagement', '重置后通路验证结果: %{public}s', ping)
+          AppStorage.setOrCreate(appOption.isQgaConnected, ping)
+          await QemuAgentManager.release('PM_GlobalReset_Probe')
+        } else {
+          hilog.warn(DOMAIN, 'PowerManagement', '重置后依然无法获取 QGA Agent')
+        }
+      } catch (probeErr) {
+        hilog.warn(DOMAIN, 'PowerManagement', '重置后探测异常: %{public}s', JSON.stringify(probeErr))
       }
-      
+
+      hilog.info(DOMAIN, 'PowerManagement', '全局连接重置完成，等待 VmStatusBar 重新探测。')
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_connections_success').id)
+
     } catch (e) {
       hilog.error(DOMAIN, 'PowerManagement', '全局重置失败: %{public}s', JSON.stringify(e))
       this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, JSON.stringify(e))
@@ -242,64 +126,19 @@ export default struct PowerManagementContent {
     }
   }
 
-  async performAction(action: string, actionFn: () => Promise<boolean>) {
-    if (!this.qgaAgent || !this.isConnected) {
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_not_connected').id)
-      return
-    }
-
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_executing').id, action)
-    try {
-      const result = await actionFn()
-      this.statusMessage = result ? getContext(this).resourceManager.getStringSync($r('app.string.pm_status_command_sent').id, action) : getContext(this).resourceManager.getStringSync($r('app.string.pm_status_action_failed').id, action)
-    } catch (e) {
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_action_failed_detail').id, action, JSON.stringify(e))
-      hilog.error(DOMAIN, 'PowerManagement', '%{public}s失败: %{public}s', action, JSON.stringify(e))
-    }
-  }
-
-  private async connectToQmp(timeout: number = 5000, maxRetries: number = 3): Promise<QmpClient | null> {
-    const appTempDir = AppStorage.get(appOption.appTempDir) as string
-    const uiSocket = appTempDir + '/qmp_socket'  // Use Monitor Socket instead of UI Event Socket
-    
-    // 快速重试
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const client = new QmpClient(uiSocket)
-      try {
-        const connected = await client.connect(timeout) // 传递超时参数
-        if (connected) {
-          return client
-        }
-        await client.disconnect()
-      } catch (e) {
-        await client.disconnect()
-      }
-      
-      // 短暂等待后重试 (仅当还有重试机会时)
-      if (attempt < maxRetries) {
-        await new Promise<void>((resolve: () => void) => setTimeout(resolve, 500))
-      }
-    }
-    
-    hilog.error(DOMAIN, 'PowerManagement', 'QMP 连接失败（已重试 %{public}d 次）', maxRetries)
-    return null
-  }
-
   async performResume() {
     if (this.isOperating) return
     this.isOperating = true
-    this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_resuming').id)
+    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resuming').id)
     this.processingMessage = this.statusMessage
     this.processingDialog.open()
 
     try {
-      // 使用 VmController 统一的恢复逻辑
-      await VmController.getInstance().resumeVM()
-      
-      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_resumed').id)
-      // 2. 尝试连接 Agent
-      this.connectToQGA()
+      // 委托给 VmController 执行
+      await VmController.getInstance().resumeVM();
 
+      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_running').id)
+      // QGA 连接状态将通过 VmStatusBar 自动同步更新
     } catch (e) {
       const errorMsg = (e as Error).message || JSON.stringify(e);
       this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_resume_failed_cmd').id) + `: ${errorMsg}`
@@ -314,364 +153,123 @@ export default struct PowerManagementContent {
     this.isOperating = true
     this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_pausing').id)
     this.processingMessage = this.statusMessage
-    this.processingMessage = this.statusMessage
     this.processingDialog.open()
-    
-    let qmpClient: QmpClient | null = null
 
     try {
-      // 1. 断开 Agent (必须彻底释放，否则 Resume 时会获取到断开的实例)
-      this.isConnected = false
-      await QemuAgentManager.release('PowerManagement')
-      this.qgaAgent = null
-      
-      qmpClient = await this.connectToQmp()
-      
-      if (qmpClient) {
-        // 2. 发送 stop 命令
-        await qmpClient.stop()
-        
-        // 3. 更新状态
-        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'PAUSED')
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_paused').id)
-      } else {
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_pause_failed').id)
-      }
+      // 委托给 VmController 执行
+      await VmController.getInstance().pauseVM();
+
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_paused').id)
     } catch (e) {
       this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_pause_failed').id)
       hilog.error(DOMAIN, 'PowerManagement', '暂停失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
       this.processingDialog.close()
-      if (qmpClient) {
-        try { await qmpClient.disconnect() } catch (e) {}
-      }
     }
   }
 
   async performShutdown() {
-    if (this.isOperating) return  // [4.1] 添加操作锁
+    if (this.isOperating) return
     this.isOperating = true
     this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutting_down').id)
-    
+    this.processingMessage = this.statusMessage
+    this.processingDialog.open()
+
     try {
-      // 优先尝试执行 poweroff 命令（最兼容）
-      if (this.qgaAgent && this.isConnected) {
-        try {
-          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_exec_poweroff').id)
-          
-          // 广播关机消息
-          await this.qgaAgent.exec('wall', ['System is shutting down by HiSH Manager...'])
-          
-          const pid = await this.qgaAgent.exec('/sbin/poweroff', [])
-          if (pid !== null) {
-            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
-            this.isConnected = false
-            
-            // 显式保存 Last ID
-            const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
-            if (currentRunning) {
-               AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
-            }
-            // 移除过早的状态设置，等待 QMP SHUTDOWN 事件
-            // AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
-            
-            // 正确释放 Agent
-            await QemuAgentManager.release('PowerManagement')
-            this.qgaAgent = null
-            return
-          }
-        } catch (e) {
-          hilog.warn(DOMAIN, 'PowerManagement', 'poweroff 命令失败: %{public}s', JSON.stringify(e))
+      // 委托给 VmController 执行，包含完整的 QGA -> QMP -> Force Kill 流程
+      const success = await VmController.getInstance().shutdownVM()
+
+      if (success) {
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
+        // 显式保存 Last ID (虽然 VmController 内部可能已处理，但为了 UI 逻辑保险再做一次)
+        const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string
+        if (currentRunning) {
+          AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning)
         }
-        
-        // Fallback: 尝试 guest-shutdown
-        try {
-          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_try_guest_shutdown').id)
-          const result = await this.qgaAgent!.shutdown()
-          if (result) {
-            this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
-            this.isConnected = false
-            
-            // 显式保存 Last ID
-            const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
-            if (currentRunning) {
-               AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
-            }
-            // 移除过早的状态设置，等待 QMP SHUTDOWN 事件
-            // AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
-            
-            // 正确释放 Agent
-            await QemuAgentManager.release('PowerManagement')
-            this.qgaAgent = null
-            return
-          }
-        } catch (e) {
-          hilog.warn(DOMAIN, 'PowerManagement', 'guest-shutdown 失败: %{public}s', JSON.stringify(e))
-        }
-      }
-      
-      // Fallback: 尝试 ACPI 关机
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_try_acpi').id)
-      const qmpClient = await this.connectToQmp()
-      if (qmpClient) {
-        try {
-          await qmpClient.sendCommand('system_powerdown')
-          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
-          
-           // 显式保存 Last ID
-           const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
-           if (currentRunning) {
-              AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
-           }
-        } finally {
-          await qmpClient.disconnect()
-        }
+        // VmController 的 shutdownVM 成功后会更新 SHUTDOWN 状态
       } else {
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown_failed_qmp').id)
+        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown_failed').id, 'Timeout or Error')
       }
     } catch (e) {
-      hilog.error(DOMAIN, 'PowerManagement', 'ACPI 关机失败: %{public}s', JSON.stringify(e))
+      hilog.error(DOMAIN, 'PowerManagement', '关机流程异常: %{public}s', JSON.stringify(e))
       this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_shutdown_failed').id, JSON.stringify(e))
     } finally {
       this.isOperating = false
+      this.processingDialog.close()
     }
   }
 
   async performReboot() {
-    if (this.isOperating) return  // [4.2] 添加操作锁
+    if (this.isOperating) return
     this.isOperating = true
-    
-    // 如果没有连接 QGA，尝试 QMP
-    if (!this.qgaAgent || !this.isConnected) {
-       hilog.warn(DOMAIN, 'PowerManagement', 'QGA 未连接，尝试 QMP system_reset')
-       // Fallback to QMP logic below (or implement direct QMP system_reset here)
-       // Since QMP logic is not shared easily, we can just try QMP fallback directly
-    }
+    this.processingMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_rebooting').id)
+    this.processingDialog.open()
 
-    this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_rebooting').id)
-    
-    let rebootSuccess = false
-    
-    // 1. 尝试 QGA
-    if (this.qgaAgent && this.isConnected) {
-        try {
-          // reboot command
-          this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_exec_reboot').id)
-          const pid = await this.qgaAgent.exec('/sbin/reboot', [])
-          if (pid !== null) rebootSuccess = true
-        } catch (e) {
-          hilog.warn(DOMAIN, 'PowerManagement', 'reboot 命令失败: %{public}s', JSON.stringify(e))
-        }
-        
-        if (!rebootSuccess) {
-            try {
-              const result = await this.qgaAgent.reboot()
-              if (result) rebootSuccess = true
-            } catch(e) {}
-        }
-    }
-    
-    // 2. Fallback: QMP system_reset
-    if (!rebootSuccess) {
-         this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_try_acpi').id) // Use Generic message or add specific
-         const qmpClient = await this.connectToQmp()
-         if (qmpClient) {
-            try {
-               await qmpClient.sendCommand('system_reset')
-               rebootSuccess = true
-            } catch (e) {
-               hilog.error(DOMAIN, 'PowerManagement', 'QMP system_reset 失败: %{public}s', JSON.stringify(e))
-            } finally {
-               await qmpClient.disconnect()
-            }
-         }
-    }
-      
-    if (rebootSuccess) {
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_sent').id)
-        this.isConnected = false
-        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'REBOOTING')
-        if (this.qgaAgent) await this.qgaAgent.disconnect()
-        
-        // 延迟连接 (修复双重 setTimeout 问题)
-        setTimeout((): void => { 
-          if (this.isComponentActive) this.connectToQGA(5, 2000) 
-        }, 15000) // 等待 15 秒后开始重试
-    } else {
+    try {
+      const success = await VmController.getInstance().rebootVM();
+      if (!success) {
         this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_failed').id)
+        this.getUIContext().showAlertDialog({
+          title: $r('app.string.pm_status_reboot_failed'),
+          message: getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reboot_failed_hint').id),
+          autoCancel: true,
+          alignment: DialogAlignment.Center,
+          buttons: [{
+            value: $r('app.string.setting_generic_confirm'),
+            action: () => { }
+          }]
+        })
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'PowerManagement', 'performReboot exception: %{public}s', JSON.stringify(e));
+    } finally {
+      this.isOperating = false
+      this.processingDialog.close()
     }
-    
-    this.isOperating = false
   }
-
   /**
    * 状态验证定时器
    * 在指定时间后验证虚拟机状态，确保 UI 状态与实际状态一致
    * @param timeout 超时时间（毫秒）
    */
-  private scheduleStatusVerification(timeout: number) {
-    setTimeout(async (): Promise<void> => {
-      const currentStatus = AppStorage.get(appOption.currentEmulatorStatus) as string
-      
-      // 只在状态仍为 REBOOTING 时进行验证
-      if (currentStatus !== 'REBOOTING') {
-        return
-      }
-      
-      hilog.info(DOMAIN, 'PowerManagement', '开始验证虚拟机状态...')
-      
-      // 尝试连接 Agent 验证实际状态
-      const verified = await this.verifyVmStatus()
-      
-      if (verified) {
-        hilog.info(DOMAIN, 'PowerManagement', '验证成功，状态更新为 RUNNING')
-        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
-      } else {
-        hilog.warn(DOMAIN, 'PowerManagement', '验证失败，状态更新为 ABNORMAL')
-        AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'ABNORMAL')
-      }
-      
-      // 如果组件仍活跃，尝试重连
-      if (this.isComponentActive) {
-        this.connectToQGA(3, 2000)
-      }
-    }, timeout)
-  }
 
   /**
-   * 验证虚拟机状态
-   * 尝试通过 Agent ping 验证虚拟机是否正常运行
-   * @returns true 表示虚拟机正常运行，false 表示无法验证
+   * 验证虚拟机状态 (Core Status Check)
+   * 优先级: PID (L1) > QMP (L2) > QGA (Ignored)
+   * @returns true if Running/Paused, false if Shutdown/Unknown
    */
-  private async verifyVmStatus(): Promise<boolean> {
-    try {
-      const agent = await QemuAgentManager.acquire('PowerManagement', AgentPriority.HIGH, 5000)
-      if (agent) {
-        const ping = await agent.ping()
-        await QemuAgentManager.release('PowerManagement')
-        return ping
-      }
-    } catch (e) {
-      hilog.error(DOMAIN, 'PowerManagement', '验证虚拟机状态失败: %{public}s', JSON.stringify(e))
-    }
-    return false
-  }
 
   async performHardReset() {
     if (this.isOperating) return
     this.isOperating = true
     this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_resetting').id)
-    
+    this.processingMessage = this.statusMessage // Ensure dialog message is updated
+    this.processingDialog.open()
+
     // 设置重置标志
     AppStorage.setOrCreate(appOption.isVmSwitching, true)
-    
-    // 1. 断开 Agent
-    this.isConnected = false
-    if (this.qgaAgent) {
-      try { await this.qgaAgent.disconnect() } catch (e) {}
-      this.qgaAgent = null
-    }
-    
+
+    // 1. 设置 VM 切换标志
+    AppStorage.setOrCreate(appOption.isVmSwitching, true)
+
+    // 2. Agent 清理由 VmController.hardResetVM 内部负责，组件层无需手动断开
+
     try {
-      // 2. 断电 (优先 QMP, 备选强制杀进程)
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_powering_off').id)
-      const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
-      const pidFile = vmBaseDir + '/qemu.pid'
-      
-      const qmpClient = await this.connectToQmp()
-      if (qmpClient) {
-        try {
-          await qmpClient.quit()
-        } finally {
-          await qmpClient.disconnect()
-        }
-        hilog.info(DOMAIN, 'PowerManagement', 'QMP quit 命令已发送')
-      } else {
-        hilog.warn(DOMAIN, 'PowerManagement', 'QMP 连接失败，跳过强制杀进程')
-      }
-      
-      // 3. 轮询等待进程退出 (最多 30 秒)
-      const startTime = Date.now()
-      const timeout = 30000
-      
-      while (Date.now() - startTime < timeout) {
-        if (!napi.checkQemuAlive(pidFile)) {
-          break
-        }
-        await new Promise<void>((resolve: () => void) => setTimeout(resolve, 500))
-      }
-      
-      if (napi.checkQemuAlive(pidFile)) {
-        throw new Error('虚拟机进程未能在超时时间内退出')
-      }
-      
-      // 4. 重新开机
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_powering_on').id)
-      const appTempDir = AppStorage.get(appOption.appTempDir) as string
-      const kernelFile = AppStorage.get(appOption.kernel) as string
-      const sharedFolder = AppStorage.get(appOption.sharedHost) as string
-      const emulators = AppStorage.get(appOption.emulators) as Emulator[]
-      const currentEmulatorId = AppStorage.get(appOption.currentRunningEmulator) as string
-      const emulator = emulators.find((e: Emulator) => e.id === currentEmulatorId)
-      
-      if (!emulator) {
-        this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_reset_failed_no_config').id)
-        return
-      }
-      
-      // 读取 VNC 启用配置
-      const appContext = this.getUIContext().getHostContext()!!.getApplicationContext();
-      const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
-      const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
-      const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
-      
-      // 获取 VNC 端口
-      const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
-      if (vncPort) {
-        AppStorage.setOrCreate('vncWebSocketPort', vncPort);
-      }
+      // 委托给 VmController 执行 Hard Reset (传入当前 UIContext 以防底层丢失)
+      await VmController.getInstance().hardResetVM(this.getUIContext());
 
-      // 获取数据盘路径（如果开启了挂载）
-      let dataDiskPath: string | undefined = undefined;
-      if (emulator.dataDiskId && emulator.mountDataDisk) {
-        const dataDisks = (AppStorage.get(appOption.dataDisks) as DataDisk[]) || [];
-        const selectedDisk = dataDisks.find(d => d.id === emulator.dataDiskId);
-        if (selectedDisk) {
-          dataDiskPath = selectedDisk.path;
-        }
-      }
-
-      startVm({
-        baseDir: vmBaseDir,
-        cpu: emulator.cpu,
-        memory: emulator.memory,
-        portMapping: emulator.portMapping.filter((pm: PortMapping) => pm.host),
-        kernel: kernelFile,
-        rootVda: emulator.rootVda,
-        rootFilesystem: emulator.rootFilesystem,
-        sharedFolder: sharedFolder,
-        serialUnixSocket: appTempDir + '/serial_socket',
-        sharedFolderReadonly: emulator.sharedFolderReadonly,
-        init: emulator.init,
-        qmpUnixSocket: appTempDir + '/qmp_socket',
-        qmpUnixSocketUI: appTempDir + '/qmp_socket_ui',
-        qgaUnixSocket: appTempDir + '/qga_socket',
-        vncWebSocketPort: vncPort,
-        dataDiskPath: dataDiskPath
-      })
-      
       this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_running').id)
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
-      // 延迟后连接 Agent
-      setTimeout((): void => { 
-        if (this.isComponentActive) this.connectToQGA(5, 2000) 
-      }, 3000)
+
+      // QGA 连接状态将通过 VmStatusBar 自动同步更新
     } catch (e) {
-      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, JSON.stringify(e))
-      hilog.error(DOMAIN, 'PowerManagement', '重置失败: %{public}s', JSON.stringify(e))
+      const errorMsg = (e instanceof Error) ? e.message : JSON.stringify(e);
+      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_reset_failed').id, errorMsg)
+      hilog.error(DOMAIN, 'PowerManagement', '重置失败: %{public}s', errorMsg)
     } finally {
       this.isOperating = false
+      this.processingDialog.close()
       // 延迟重置 VM 切换标志
       setTimeout(() => {
         AppStorage.setOrCreate(appOption.isVmSwitching, false)
@@ -683,114 +281,67 @@ export default struct PowerManagementContent {
     if (this.isOperating) return
     this.isOperating = true
     this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_force_shutdown').id)
-    this.isConnected = false
-    
-    if (this.qgaAgent) {
-      try { await this.qgaAgent.disconnect() } catch (e) {}
-      this.qgaAgent = null
-    }
-    
-    
-    try {
-      // [优化] 强制关机只给 5 秒连接时间 (加上Socket本身的1秒超时，总共约6秒)，且不重试，实现“秒杀”响应
-      // 这样的好处是：如果 VM 死机，6 秒后直接更新 UI
-      const qmpClient = await this.connectToQmp(5000, 0)
-      if (qmpClient) {
-        try {
-          await qmpClient.quit()
-        } catch (e) {}
-        try { await qmpClient.disconnect() } catch (e) {}
-      } else {
-        // [修复] 超时未响应，弹出提示
-        this.getUIContext().showAlertDialog({
-          title: $r('app.string.pm_force_shutdown_timeout_title'),
-          message: $r('app.string.pm_force_shutdown_timeout_msg'),
-          autoCancel: false,
-          alignment: DialogAlignment.Center,
-          buttons: [{
-            value: $r('app.string.setting_generic_confirm'),
-            action: () => {
-              // 用户确认后，可以尝试关闭当前页面或其他清理操作
-            }
-          }]
-        })
-      }
-    } catch (e) {}
-    
-    // 显式保存 Last ID (确保重启按钮可用)
-    const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
-    if (currentRunning) {
-       AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
-    }
+    this.processingMessage = this.statusMessage
+    this.processingDialog.open()
 
-    AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'SHUTDOWN')
-    this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
-    this.isOperating = false
+    // Agent 清理委托给底层，无需手动 release
+
+    try {
+      // 委托给 VmController 执行 Force Power Off
+      await VmController.getInstance().forcePowerOff();
+
+      // VmController 会处理状态更新
+      this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_shutdown').id)
+
+    } catch (e) {
+      // Should ensure UI is unblocked
+    } finally {
+      // 显式保存 Last ID (确保重启按钮可用)
+      const currentRunning = AppStorage.get(appOption.currentRunningEmulator) as string;
+      if (currentRunning) {
+        AppStorage.setOrCreate('lastRunningEmulatorId', currentRunning);
+      }
+
+      this.isOperating = false
+      this.processingDialog.close()
+    }
   }
 
   async performPowerOn() {
     if (this.isOperating) return  // 添加操作锁
     this.isOperating = true
-    
-    // [修复] 移除 isVmSwitching 设置，交给 VmController 统一管理
-    // AppStorage.setOrCreate(appOption.isVmSwitching, true)
-    
     this.statusMessage = this.getUIContext().getHostContext()!!.resourceManager.getStringSync($r('app.string.pm_status_starting').id)
+
     try {
-      const appTempDir = AppStorage.get(appOption.appTempDir) as string
-      const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
-      const kernelFile = AppStorage.get(appOption.kernel) as string
-      const sharedFolder = AppStorage.get(appOption.sharedHost) as string
       const emulators = AppStorage.get(appOption.emulators) as Emulator[]
       let currentEmulatorId = AppStorage.get(appOption.currentRunningEmulator) as string
-      
+
       // 如果 currentRunningEmulator 为空，使用 defaultStartEmulator 作为备选
       if (!currentEmulatorId) {
         currentEmulatorId = AppStorage.get(appOption.defaultStartEmulator) as string
         hilog.info(DOMAIN, 'PowerManagement', '使用默认模拟器: %{public}s', currentEmulatorId)
       }
-      
+
       const emulator = emulators.find((e: Emulator) => e.id === currentEmulatorId)
-      
+
       if (!emulator) {
         this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_poweron_failed_no_config').id)
+        this.isOperating = false
         return
-      }
-      
-      // 更新 currentRunningEmulator
-      AppStorage.setOrCreate(appOption.currentRunningEmulator, emulator.id)
-      
-      // 读取 VNC 启用配置
-      const appContext = getContext(this).getApplicationContext();
-      const appPref: preference.Preferences = await preference.getPreferences(appContext, appOption.preferenceName);
-      const vncEnabledPref = await appPref.get(appOption.vncEnabled, true);
-      const vncEnabled = typeof vncEnabledPref === 'boolean' ? vncEnabledPref : true;
-      
-      // 获取 VNC 端口
-      const vncPort = vncEnabled ? getFreeVncPort(60000, 65000) : undefined;
-      if (vncPort) {
-        AppStorage.setOrCreate('vncWebSocketPort', vncPort);
       }
 
       // 使用 VmController 启动虚拟机 (确保状态同步和事件监听)
+      // VmController 内部会自动处理 VNC 端口、数据盘路径等计算
       await VmController.getInstance().startVM(emulator, this.getUIContext());
-      
-      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_running').id)
-      // VmController 会设置 currentEmulatorStatus 为 RUNNING
 
-      // 使用强制重连
-      setTimeout((): void => { 
-        if (this.isComponentActive) this.connectToQGA(5, 2000) 
-      }, 3000)
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_running').id)
+
+      this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_running').id)
     } catch (e) {
       this.statusMessage = getContext(this).resourceManager.getStringSync($r('app.string.pm_status_poweron_failed').id, JSON.stringify(e))
       hilog.error(DOMAIN, 'PowerManagement', '开机失败: %{public}s', JSON.stringify(e))
     } finally {
       this.isOperating = false
-      // [修复] 移除延迟释放 switch 标志，交给 VmController 统一管理
-      // setTimeout(() => {
-      //   AppStorage.setOrCreate(appOption.isVmSwitching, false)
-      // }, 1500)
     }
   }
 
@@ -811,7 +362,7 @@ export default struct PowerManagementContent {
               .fontColor(this.currentEmulatorStatus !== '' && this.currentEmulatorStatus !== 'SHUTDOWN' ? '#00AA00' : '#AA0000')
           }
           .width('100%')
-          .padding({ top: 4, bottom: 4 })
+            .padding({ top: 4, bottom: 4 })
 
           Divider()
             .color('#33FFFFFF') // 增加透明度，使其更明显
@@ -824,24 +375,18 @@ export default struct PowerManagementContent {
               .fontSize(12)
               .fontWeight(FontWeight.Medium)
             Blank()
-            if (this.isConnecting) {
-              LoadingProgress()
-                .width(12)
-                .height(12)
-                .margin({ right: 8 })
-            }
             Text(this.statusMessage)
               .fontSize(12)  // 统一字体大小
               .fontColor(this.isConnected ? '#00AA00' : '#AA0000')
           }
           .width('100%')
-          .padding({ top: 4, bottom: 4 })
+            .padding({ top: 4, bottom: 4 })
         }
         .width('100%')
-        .padding(12)
-        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-        .borderRadius(8)
-        .margin({ bottom: 12 })
+          .padding(12)
+          .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+          .borderRadius(8)
+          .margin({ bottom: 12 })
 
         // 强制重连按钮（只要 VM 未关机就显示，总是可用以便打断）
         if (this.currentEmulatorStatus !== 'SHUTDOWN' && this.currentEmulatorStatus !== '') {
@@ -869,11 +414,11 @@ export default struct PowerManagementContent {
             }
           }
           .width('100%')
-          .height(36)
-          .backgroundColor('#8B0000')
-          .borderRadius(8)
-          .enabled(!this.isOperating && this.currentEmulatorStatus !== 'SHUTDOWN' && this.currentEmulatorStatus !== '')
-          .onClick(() => this.performForceShutdown())
+            .height(36)
+            .backgroundColor('#8B0000')
+            .borderRadius(8)
+            .enabled(!this.isOperating && this.currentEmulatorStatus !== 'SHUTDOWN' && this.currentEmulatorStatus !== '')
+            .onClick(() => this.performForceShutdown())
 
           // 强制重置按钮
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -887,11 +432,11 @@ export default struct PowerManagementContent {
             }
           }
           .width('100%')
-          .height(36)
-          .backgroundColor('#C0392B')
-          .borderRadius(8)
-          .enabled(!this.isOperating && (this.currentEmulatorStatus === 'RUNNING' || this.currentEmulatorStatus === 'PAUSED' || this.currentEmulatorStatus === 'ABNORMAL' || this.currentEmulatorStatus === 'REBOOTING'))
-          .onClick(() => this.performHardReset())
+            .height(36)
+            .backgroundColor('#C0392B')
+            .borderRadius(8)
+            .enabled(!this.isOperating && this.currentEmulatorStatus !== 'SHUTDOWN' && this.currentEmulatorStatus !== '')
+            .onClick(() => this.performHardReset())
 
           // 关机按钮
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -905,11 +450,12 @@ export default struct PowerManagementContent {
             }
           }
           .width('100%')
-          .height(36)
-          .backgroundColor('#E74C3C')
-          .borderRadius(8)
-          .enabled(!this.isOperating && this.isConnected && !this.isConnecting)
-          .onClick(() => this.performShutdown())
+            .height(36)
+            .backgroundColor('#E74C3C')
+            .borderRadius(8)
+            // [修复] 仅在 RUNNING 状态允许 ACPI 关机 (PAUSED 下禁用)
+            .enabled(!this.isOperating && this.currentEmulatorStatus === 'RUNNING')
+            .onClick(() => this.performShutdown())
 
           // 重启按钮
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -923,11 +469,12 @@ export default struct PowerManagementContent {
             }
           }
           .width('100%')
-          .height(36)
-          .backgroundColor('#F39C12')
-          .borderRadius(8)
-          .enabled(!this.isOperating && this.isConnected && !this.isConnecting)
-          .onClick(() => this.performReboot())
+            .height(36)
+            .backgroundColor('#F39C12')
+            .borderRadius(8)
+            // [修复] 仅在 RUNNING 状态允许重启
+            .enabled(!this.isOperating && this.currentEmulatorStatus === 'RUNNING')
+            .onClick(() => this.performReboot())
 
           // 暂停按钮
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -941,11 +488,11 @@ export default struct PowerManagementContent {
             }
           }
           .width('100%')
-          .height(36)
-          .backgroundColor('#3498DB')
-          .borderRadius(8)
-          .enabled(!this.isOperating && this.currentEmulatorStatus === 'RUNNING' && !this.isConnecting)
-          .onClick(() => this.performPause())
+            .height(36)
+            .backgroundColor('#3498DB')
+            .borderRadius(8)
+            .enabled(!this.isOperating && this.currentEmulatorStatus === 'RUNNING')
+            .onClick(() => this.performPause())
 
           // 恢复按钮
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -959,11 +506,11 @@ export default struct PowerManagementContent {
             }
           }
           .width('100%')
-          .height(36)
-          .backgroundColor('#2ECC71')
-          .borderRadius(8)
-          .enabled(!this.isOperating && this.currentEmulatorStatus === 'PAUSED' && !this.isConnecting)
-          .onClick(() => this.performResume())
+            .height(36)
+            .backgroundColor('#2ECC71')
+            .borderRadius(8)
+            .enabled(!this.isOperating && this.currentEmulatorStatus === 'PAUSED')
+            .onClick(() => this.performResume())
 
           // 开机按钮
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -977,11 +524,11 @@ export default struct PowerManagementContent {
             }
           }
           .width('100%')
-          .height(36)
-          .backgroundColor('#27AE60')
-          .borderRadius(8)
-          .enabled((this.currentEmulatorStatus === 'SHUTDOWN' || this.currentEmulatorStatus === '') && !this.isConnecting)
-          .onClick(() => this.performPowerOn())
+            .height(36)
+            .backgroundColor('#27AE60')
+            .borderRadius(8)
+            .enabled((this.currentEmulatorStatus === 'SHUTDOWN' || this.currentEmulatorStatus === '') && !this.isOperating)
+            .onClick(() => this.performPowerOn())
         }
         .width('100%')
 
@@ -993,11 +540,11 @@ export default struct PowerManagementContent {
           .width('100%')
       }
       .width('100%')
-      .padding(16)
+        .padding(16)
     }
     .width('100%')
-    .height('100%')
-    .align(Alignment.Top)
-    .scrollBar(BarState.Auto)
+      .height('100%')
+      .align(Alignment.Top)
+      .scrollBar(BarState.Auto)
   }
 }

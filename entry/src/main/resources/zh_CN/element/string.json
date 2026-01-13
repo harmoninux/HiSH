@@ -641,6 +641,10 @@
       "value": "重启"
     },
     {
+      "name": "pm_status_reboot_failed_hint",
+      "value": "重启指令未获响应。这通常意味着 QMP 服务正忙或已被阻塞。\n\n请尝试手动关闭虚拟机，或稍后重试。"
+    },
+    {
       "name": "pm_btn_pause",
       "value": "暂停"
     },
@@ -1827,6 +1831,11 @@
     {
       "name": "data_disk_image_management_title",
       "value": "数据盘镜像管理"
+    },
+    {
+      "name": "msg_shutdown_timeout",
+      "value": "旧虚拟机停止失败（超时），为保护数据安全，已中止操作。请手动重置或稍后再试。"
     }
   ]
 }
+```

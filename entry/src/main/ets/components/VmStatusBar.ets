@@ -230,25 +230,11 @@ export struct VmStatusBar {
    * 电源管理优先级最高，监控条必须让步
    */
   onPowerManagementChange() {
+    // 即使电源管理打开，监控条也继续探测，作为 Truth Source
+    // 但为了避免抢占，如果在 reset 操作期间，逻辑通常会由全局状态控制暂停
+    // 目前保持常开即可，因为 acquire 锁机制会处理竞争
     if (this.isPowerManagementOpen) {
-      // 电源管理打开：立即停止刷新并断开连接
-      hilog.info(DOMAIN, 'VmStatusBar', '电源管理打开，监控条让步')
-      this.stopRefreshTimer()
-      if (this.qgaAgent) {
-        this.qgaAgent.disconnect()
-      }
-      this.status.agentConnected = false
-    } else {
-      // 电源管理关闭：延迟 1 秒后恢复
-      hilog.info(DOMAIN, 'VmStatusBar', '电源管理关闭，监控条恢复')
-      setTimeout((): void => {
-        if (this.isComponentActive && this.currentEmulatorStatus === 'RUNNING' && !this.isPowerManagementOpen) {
-          this.refreshStatus()
-          if (this.settings.masterSwitch) {
-            this.startRefreshTimer()
-          }
-        }
-      }, 1000)
+      hilog.info(DOMAIN, 'VmStatusBar', '电源管理已打开，监控条继续维持状态同步')
     }
   }
 
@@ -384,6 +370,7 @@ export struct VmStatusBar {
       // Ping 测试
       const pingResult = await agent.ping()
       this.status.agentConnected = pingResult
+      AppStorage.setOrCreate(appOption.isQgaConnected, pingResult)
 
       if (!pingResult) {
         await QemuAgentManager.release('VmStatusBar')
