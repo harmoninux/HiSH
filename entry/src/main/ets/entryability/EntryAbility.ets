@@ -510,8 +510,7 @@ export default class EntryAbility extends UIAbility {
       || lastResourceVersion !== bundleInfo.versionCode
       || bundleInfo.name.startsWith('dev.hackeris')
     this.extractVmResourceFile(appContext, 'vm/rootfs_aarch64.qcow2', 'roots/rootfs_aarch64.qcow2', forceOverride);
-    // 使用根据架构版本选择的内核
-    this.extractVmResourceFile(appContext, kernelResourcePath, 'vm/kernel_aarch64', forceOverride);
+    this.extractVmResourceFile(appContext, 'vm/kernel_aarch64', 'vm/kernel_aarch64', forceOverride);
     this.extractVmResourceFile(appContext, 'vm/efi-virtio.rom', 'vm/efi-virtio.rom', forceOverride);
 
     // 确保 keymaps 目录存在
