@@ -80,11 +80,11 @@ function startVm(options: VmOptions) {
     ...kernel,
     ...network,
     ...shared,
-    ...sharedUserFolder,
     ...drive,
     ...kernelParam,
     ...monitor,
-    ...vnc
+    ...vnc,
+    ...sharedUserFolder
   ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
