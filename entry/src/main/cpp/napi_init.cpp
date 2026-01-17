@@ -141,9 +141,11 @@ static std::string getQcow2Info(const std::string &imagePath)
     int fd = open(imagePath.c_str(), O_RDONLY);
     if (fd < 0)
     {
-        OH_LOG_ERROR(LOG_APP, "Failed to open image file: %{public}s, errno: %{public}d",
-                     imagePath.c_str(), errno);
-        return "{\"error\": \"Failed to open image file\"}";
+        // P1-11修复: 返回详细的错误信息
+        int err = errno;
+        OH_LOG_ERROR(LOG_APP, "Failed to open image file: %{public}s, errno: %{public}d (%{public}s)",
+                     imagePath.c_str(), err, strerror(err));
+        return "{\"error\": \"Failed to open image file\", \"errno\": " + std::to_string(err) + ", \"message\": \"" + strerror(err) + "\"}";
     }
 
     // 获取文件大小（实际磁盘占用）
@@ -176,7 +178,13 @@ static std::string getQcow2Info(const std::string &imagePath)
     uint32_t version = be32toh_manual(header.version);
     uint64_t virtual_size = be64toh_manual(header.size);
     uint32_t cluster_bits = be32toh_manual(header.cluster_bits);
-    uint32_t cluster_size = 1 << cluster_bits;
+    // P0-07修复: QCOW2规范要求 cluster_bits 在 9-21 范围内 (512B - 2MB clusters)
+    if (cluster_bits < 9 || cluster_bits > 21)
+    {
+        return "{\"error\": \"Invalid cluster_bits value\", \"cluster_bits\": " + std::to_string(cluster_bits) + "}";
+    }
+    // P1-09修复: 使用 64 位无符号整数计算 cluster_size，防止中间过程溢出
+    uint64_t cluster_size = 1ULL << cluster_bits;
     uint32_t nb_snapshots = be32toh_manual(header.nb_snapshots);
 
     // QCOW2 v3 特有字段
@@ -342,13 +350,34 @@ static std::string getSnapshotsFromFile(const std::string &imagePath)
             lseek(fd, extra_data_size, SEEK_CUR);
         }
 
+        // P0-04修复: 限制快照名称最大长度，防止OOM攻击
+        const size_t MAX_SNAPSHOT_NAME_SIZE = 4096;
+
         // 读取 ID 字符串
+        if (id_str_size > MAX_SNAPSHOT_NAME_SIZE)
+        {
+            OH_LOG_ERROR(LOG_APP, "Snapshot id_str_size too large: %{public}u", id_str_size);
+            break;
+        }
         std::string id_str(id_str_size, '\0');
-        read(fd, &id_str[0], id_str_size);
+        if (id_str_size > 0 && read(fd, &id_str[0], id_str_size) != id_str_size)
+        {
+            OH_LOG_ERROR(LOG_APP, "Failed to read snapshot id");
+            break;
+        }
 
         // 读取名称
+        if (name_size > MAX_SNAPSHOT_NAME_SIZE)
+        {
+            OH_LOG_ERROR(LOG_APP, "Snapshot name_size too large: %{public}u", name_size);
+            break;
+        }
         std::string name(name_size, '\0');
-        read(fd, &name[0], name_size);
+        if (name_size > 0 && read(fd, &name[0], name_size) != name_size)
+        {
+            OH_LOG_ERROR(LOG_APP, "Failed to read snapshot name");
+            break;
+        }
 
         // 跳过 padding（对齐到 8 字节）
         size_t header_size = sizeof(QcowSnapshotHeader) + extra_data_size + id_str_size + name_size;
@@ -567,15 +596,25 @@ static std::string executeQemuImgCommand(const std::vector<std::string> &args)
                     std::string escaped;
                     for (char c : output)
                     {
-                        if (c == '"')
-                            escaped += "\\\"";
-                        else if (c == '\n')
-                            escaped += "\\n";
-                        else if (c == '\r')
-                        {
+                        switch (c) {
+                            case '"':  escaped += "\\\""; break;
+                            case '\\': escaped += "\\\\"; break;
+                            case '\n': escaped += "\\n";  break;
+                            case '\r': escaped += "\\r";  break;
+                            case '\t': escaped += "\\t";  break;
+                            case '\b': escaped += "\\b";  break;
+                            case '\f': escaped += "\\f";  break;
+                            default:
+                                if ((unsigned char)c < 32) {
+                                    // 其他不可见控制字符，转义为 \u00xx 格式
+                                    char temp[8];
+                                    snprintf(temp, sizeof(temp), "\\u%04x", (unsigned char)c);
+                                    escaped += temp;
+                                } else {
+                                    escaped += c;
+                                }
+                                break;
                         }
-                        else
-                            escaped += c;
                     }
                     if (escaped.empty())
                         escaped = "Unknown error (exit code " + std::to_string(exit_code) + ")";
@@ -834,10 +873,20 @@ void serial_output_worker(const char *unix_socket_path) {
     // Connect to server
     memset(&server_addr, 0, sizeof(struct sockaddr_un));
     server_addr.sun_family = AF_UNIX;
+    // P0-03修复: 验证路径长度，防止缓冲区溢出
+    size_t path_len = strlen(unix_socket_path);
+    if (path_len >= sizeof(server_addr.sun_path))
+    {
+        OH_LOG_ERROR(LOG_APP, "Unix socket path too long: %{public}zu >= %{public}zu",
+                     path_len, sizeof(server_addr.sun_path));
+        close(client_fd);
+        return;
+    }
     strncpy(server_addr.sun_path, unix_socket_path, sizeof(server_addr.sun_path) - 1);
 
     if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_un)) == -1) {
         OH_LOG_INFO(LOG_APP, "Failed to connect to unix socket: %{public}d", errno);
+        close(client_fd); // 修复：连接失败时关闭 fd
         return;
     }
 
@@ -868,13 +917,23 @@ void serial_output_worker(const char *unix_socket_path) {
                 OH_LOG_INFO(LOG_APP, "Program exited, %{public}ld %{public}d", r, errno);
                 broken = true;
             }
+            else if (r == 0) {
+                // EOF: 对端关闭了连接
+                OH_LOG_INFO(LOG_APP, "Serial socket EOF - peer closed connection");
+                broken = true;
+            }
         }
 
         if (broken) {
             break;
         }
     }
-
+    
+    // 清理 socket 资源，但保留回调以便新的 worker 线程使用
+    close(client_fd);
+    serial_input_fd = -1;
+    OH_LOG_INFO(LOG_APP, "Closed serial socket fd: %{public}d", client_fd);
+    
     if (on_data_callback != nullptr) {
         napi_release_threadsafe_function(on_data_callback, napi_threadsafe_function_release_mode::napi_tsfn_release);
         on_data_callback = nullptr;
@@ -972,16 +1031,26 @@ static napi_value sendInput(napi_env env, napi_callback_info info) {
 
     uint8_t *data;
     size_t length;
+    // P0-01修复: 移除assert，使用显式错误处理
     napi_status ret = napi_get_arraybuffer_info(env, args[0], (void **)&data, &length);
-    assert(ret == napi_ok);
+    if (ret != napi_ok) {
+        OH_LOG_ERROR(LOG_APP, "Failed to get arraybuffer info: %{public}d", ret);
+        return nullptr;
+    }
 
-    std::string hex = convert_to_hex(data, ret);
+    // P0-06修复: 将ret改为length
+    std::string hex = convert_to_hex(data, length);
     OH_LOG_INFO(LOG_APP, "Send, data: %{public}s", hex.c_str());
 
     int written = 0;
-    while (written < length) {
+    while (written < (int)length)
+    {
+        // P0-02修复: 移除assert，使用显式错误处理
         int size = write(serial_input_fd, (uint8_t *)data + written, length - written);
-        assert(size >= 0);
+        if (size < 0) {
+            OH_LOG_ERROR(LOG_APP, "Serial write failed: errno=%{public}d", errno);
+            break;
+        }
         written += size;
     }
 
