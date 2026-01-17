@@ -139,6 +139,7 @@ export struct VmStatusBar {
 
   aboutToAppear() {
     this.isComponentActive = true
+    this.settings.masterSwitch = true
     this.initAgent()
   }
 
