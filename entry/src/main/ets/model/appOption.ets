@@ -26,6 +26,7 @@ class appOption {
   static serialChannel = 'serialChannel'
   static lastResourceVersion = 'lastResourceVersion';
   static runningInBackground = 'runningInBackground';
+  static displayStatusBar = 'displayStatusBar';
   static showVirtKey = 'showVirtKey';
   static isPowerManagementOpen = 'isPowerManagementOpen';
   static vncEnabled = 'vncEnabled';

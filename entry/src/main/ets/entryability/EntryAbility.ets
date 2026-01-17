@@ -211,6 +211,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.showVirtKey, showVirtKey);
     const runningInBackground = await appPref.get(appOption.runningInBackground, false) as boolean;
     AppStorage.setOrCreate(appOption.runningInBackground, runningInBackground);
+    const displayStatusBar = await appPref.get(appOption.displayStatusBar, false) as boolean;
+    AppStorage.setOrCreate(appOption.displayStatusBar, displayStatusBar);
     const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;
     AppStorage.setOrCreate(appOption.terminalFontSize, terminalFontSize);
     const terminalCursorShape = await appPref.get(appOption.terminalCursorShape, 'BLOCK') as CursorShape;

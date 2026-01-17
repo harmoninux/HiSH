@@ -1599,6 +1599,14 @@
     {
       "name": "error_copy_file_failed",
       "value": "Copy file failed: "
+    },
+    {
+      "name": "display_status_bar",
+      "value": "Status bar"
+    },
+    {
+      "name": "guest_status_bar_desc",
+      "value": "Display status of running emulator"
     }
   ]
 }

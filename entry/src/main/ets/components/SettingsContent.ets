@@ -38,6 +38,7 @@ export default struct SettingsContent {
   @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
+  @Watch('saveDisplayStatusBar') @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
   @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
@@ -116,6 +117,15 @@ export default struct SettingsContent {
       .select(this.runningInBackground)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.runningInBackground, value)
+      })
+  }
+
+  @Builder
+  private setDisplayStatusBar() {
+    Checkbox()
+      .select(this.displayStatusBar)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.displayStatusBar, value)
       })
   }
 
@@ -209,6 +219,15 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
+            })
+            SettingItem({
+              title: $r('app.string.display_status_bar'),
+              subTitle: $r('app.string.guest_status_bar_desc'),
+              content: () => {
+                this.setDisplayStatusBar()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.displayStatusBar, !this.displayStatusBar)
             })
           }
           .attributeModifier(this.blockStyle)
@@ -349,6 +368,10 @@ export default struct SettingsContent {
       }
     }
     await savePreference(appOption.runningInBackground, this.runningInBackground, this.getUIContext())
+  }
+
+  async saveDisplayStatusBar() {
+    await savePreference(appOption.displayStatusBar, this.displayStatusBar, this.getUIContext())
   }
 
   async saveVncEnabled() {

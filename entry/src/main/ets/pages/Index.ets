@@ -17,6 +17,7 @@ import VmStatusBar from '../components/VmStatusBar';
 struct PcIndex {
   @StorageProp(appOption.sharedHost) sharedHost?: string = undefined
   @StorageProp(appOption.sharedGuest) sharedGuest?: string = undefined
+  @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
   emulatorManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.emulator_management_title'),
@@ -69,8 +70,10 @@ struct PcIndex {
             .margin({ left: 10 })
         }
 
-        VmStatusBar()
-          .margin({ left: 20 })
+        if (this.displayStatusBar) {
+          VmStatusBar()
+            .margin({ left: 20 })
+        }
 
         Blank()
 
@@ -334,17 +337,21 @@ struct PcIndex {
 
 @Component
 struct PhoneOrTablet {
+  @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
+
   build() {
     Column() {
-      // 虚拟机状态监控条
-      Row() {
-        VmStatusBar()
-          .layoutWeight(1)
+      if (this.displayStatusBar) {
+        // 虚拟机状态监控条
+        Row() {
+          VmStatusBar()
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .height(32)
+        .padding({ left: 12, right: 6 })
+        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
-      .width('100%')
-      .height(32)
-      .padding({ left: 12, right: 6 })
-      .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
 
       WebTerminal({ virtKeyEnabled: true })
         .layoutWeight(1)
