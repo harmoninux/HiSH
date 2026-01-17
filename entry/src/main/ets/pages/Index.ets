@@ -71,7 +71,7 @@ struct PcIndex {
         }
 
         if (this.displayStatusBar) {
-          VmStatusBar()
+          VmStatusBar({ reactive: false })
             .margin({ left: 20 })
         }
 
@@ -344,12 +344,12 @@ struct PhoneOrTablet {
       if (this.displayStatusBar) {
         // 虚拟机状态监控条
         Row() {
-          VmStatusBar()
+          VmStatusBar({ reactive: true })
             .layoutWeight(1)
         }
         .width('100%')
-        .height(32)
-        .padding({ left: 12, right: 6 })
+        .height(28)
+        .padding({ left: 6, right: 6 })
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
 

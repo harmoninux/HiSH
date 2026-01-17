@@ -48,13 +48,13 @@ interface DisplaySettings {
 PersistentStorage.persistProp('VmStatusBarSettings', {
   masterSwitch: false,
   showAgent: true,
-  showHostname: true,
+  showHostname: false,
   showCpu: true,
   showMemory: true,
-  showDisk: true,
-  showSwap: true,
-  showSsh: true,
-  refreshInterval: 15000
+  showDisk: false,
+  showSwap: false,
+  showSsh: false,
+  refreshInterval: 10000
 })
 
 // 格式化字节为可读格式
@@ -105,22 +105,21 @@ export struct VmStatusBar {
   @StorageLink('VmStatusBarSettings') @Watch('onSettingsChange') settings: DisplaySettings = {
     masterSwitch: false,
     showAgent: true,
-    showHostname: true,
+    showHostname: false,
     showCpu: true,
     showMemory: true,
-    showDisk: true,
-    showSwap: true,
-    showSsh: true,
-    refreshInterval: 15000
+    showDisk: false,
+    showSwap: false,
+    showSsh: false,
+    refreshInterval: 5000
   }
 
   @State isRefreshing: boolean = false
   @State isForceReconnecting: boolean = false
-
+  @Prop reactive?: boolean = undefined
   private qgaAgent: QemuAgent | null = null
   private refreshTimer: number = -1
   private isComponentActive: boolean = true
-
   private lastCpuStats: CpuStats | null = null
 
   aboutToAppear() {
@@ -239,7 +238,9 @@ export struct VmStatusBar {
   }
 
   private async initAgent() {
-    if (!this.appTempDir) return
+    if (!this.appTempDir) {
+      return
+    }
 
     // 首次初始化：尝试获取一次数据
     await this.refreshStatus()
@@ -476,70 +477,92 @@ export struct VmStatusBar {
     Row({ space: 4 }) {
       // Agent 状态
       if (this.settings.showAgent) {
-        Text(this.status.agentConnected ? '🟢' : '🔴')
-          .fontSize(12)
+        if (!this.status.agentConnected) {
+          LoadingProgress().height(16).width(16)
+            .margin({ right: 5 })
+        }
       }
 
       // 监控项始终显示（Agent 未连接时显示 '-'）
-      if (this.settings.masterSwitch) {
-        // 主机名
-        if (this.settings.showHostname) {
-          Text(`🖥️ ${this.status.agentConnected ? this.status.hostname : '-'}`)
-            .fontSize(12)
-            .fontColor('#FFFFFF')
-        }
+      Scroll() {
+        Row() {
+          if (this.settings.masterSwitch) {
+            // 主机名
+            if (this.settings.showHostname) {
+              Text(`🖥️ ${this.status.agentConnected ? this.status.hostname : '-'}`)
+                .fontSize(12)
+                .fontColor('#FFFFFF')
+                .margin({ right: 10 })
+            }
 
-        // CPU
-        if (this.settings.showCpu) {
-          Text(`🔲 ${this.status.agentConnected ? this.status.cpuCount + getContext(this).resourceManager.getStringSync($r('app.string.label_cores').id) + ' ' + this.status.cpuUsage + '%' : '-'}`)
-            .fontSize(12)
-            .fontColor('#FFFFFF')
-        }
+            // CPU
+            if (this.settings.showCpu) {
+              Text(`🔲 ${this.status.agentConnected ?
+                this.status.cpuCount + getContext(this).resourceManager.getStringSync($r('app.string.label_cores').id) +
+                  ' ' + this.status.cpuUsage + '%' : '-'}`)
+                .fontSize(12)
+                .fontColor('#FFFFFF')
+                .margin({ right: 10 })
+            }
 
-        // 内存
-        if (this.settings.showMemory) {
-          Text(`🔷 ${this.status.agentConnected ? formatBytes(this.status.memoryTotal, true) + ' ' + this.status.memoryUsage + '%' : '-'}`)
-            .fontSize(12)
-            .fontColor('#FFFFFF')
-        }
+            // 内存
+            if (this.settings.showMemory) {
+              Text(`🔷 ${this.status.agentConnected ?
+                formatBytes(this.status.memoryTotal, true) + ' ' + this.status.memoryUsage + '%' : '-'}`)
+                .fontSize(12)
+                .fontColor('#FFFFFF')
+                .margin({ right: 10 })
+            }
 
-        // 硬盘
-        if (this.settings.showDisk) {
-          Text(`📦 ${this.status.agentConnected ? formatBytesToGB(this.status.diskUsed) + '/' + formatBytesToGB(this.status.diskTotal) + ' ' + this.status.diskUsage + '%' : '-'}`)
-            .fontSize(12)
-            .fontColor('#FFFFFF')
-        }
+            // 硬盘
+            if (this.settings.showDisk) {
+              Text(`📦 ${this.status.agentConnected ?
+                formatBytesToGB(this.status.diskUsed) + '/' + formatBytesToGB(this.status.diskTotal) + ' ' +
+                this.status.diskUsage + '%' : '-'}`)
+                .fontSize(12)
+                .fontColor('#FFFFFF')
+                .margin({ right: 10 })
+            }
 
-        // SWAP (仅在有数据时显示)
-        if (this.settings.showSwap) {
-          if (this.status.agentConnected && this.status.swapTotal > 0) {
-            Text(`💫 ${formatBytes(this.status.swapTotal, true)} ${this.status.swapUsage}%`)
-              .fontSize(12)
-              .fontColor('#FFFFFF')
-          } else if (!this.status.agentConnected) {
-            Text(`💫 -`)
-              .fontSize(12)
-              .fontColor('#FFFFFF')
-          }
-        }
+            // SWAP (仅在有数据时显示)
+            if (this.settings.showSwap) {
+              if (this.status.agentConnected && this.status.swapTotal > 0) {
+                Text(`💫 ${formatBytes(this.status.swapTotal, true)} ${this.status.swapUsage}%`)
+                  .fontSize(12)
+                  .fontColor('#FFFFFF')
+                  .margin({ right: 10 })
+              } else if (!this.status.agentConnected) {
+                Text(`💫 -`)
+                  .fontSize(12)
+                  .fontColor('#FFFFFF')
+                  .margin({ right: 10 })
+              }
+            }
 
-        // SSH
-        if (this.settings.showSsh) {
-          if (this.status.agentConnected) {
-            Text(this.status.sshRunning ? '🔐' : '🔒')
-              .fontSize(12)
-          } else {
-            Text('🔒 -')
-              .fontSize(12)
-              .fontColor('#FFFFFF')
+            // SSH
+            if (this.settings.showSsh) {
+              if (this.status.agentConnected) {
+                Text(this.status.sshRunning ? '🔐' : '🔒')
+                  .fontSize(12)
+              } else {
+                Text('🔒 -')
+                  .fontSize(12)
+                  .fontColor('#FFFFFF')
+              }
+            }
           }
         }
       }
+      .layoutWeight(this.reactive ? 1: 0)
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
+      .align(Alignment.Start)
+      .margin({ right: 5 })
 
       // 帮助按钮
-      Text('❓')
-        .fontSize(12)
-        .fontColor('#FFFFFF')
+      SymbolGlyph($r('sys.symbol.slider_horizontal_2'))
+        .fontSize(18)
+        .fontColor([$r('sys.color.icon_secondary')])
         .onClick(() => {
           new CustomDialogController({
             builder: CustomContentDialog({
@@ -551,7 +574,6 @@ export struct VmStatusBar {
           }).open()
         })
     }
-    .padding({ left: 8, right: 8 })
   }
 
   @Builder
@@ -571,8 +593,8 @@ export struct VmStatusBar {
               .fontWeight(FontWeight.Bold)
               .margin({ left: 8 })
           }
-        .width('100%')
-            .padding({ bottom: 8 })
+          .width('100%')
+          .padding({ bottom: 8 })
 
           Divider()
 
@@ -645,8 +667,8 @@ export struct VmStatusBar {
               .margin({ top: 8, bottom: 8 })
           }
         }
-      .alignItems(HorizontalAlign.Start)
-          .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
 
         Divider()
 
@@ -660,6 +682,8 @@ export struct VmStatusBar {
             Text($r('app.string.label_refresh_interval'))
               .fontSize(14)
             Select([
+              { value: $r('app.string.option_5s') },
+              { value: $r('app.string.option_10s') },
               { value: $r('app.string.option_15s') },
               { value: $r('app.string.option_30s') },
               { value: $r('app.string.option_45s') },
@@ -667,7 +691,7 @@ export struct VmStatusBar {
             ])
               .value(this.getIntervalLabel())
               .onSelect((index: number) => {
-                const intervals = [15000, 30000, 45000, 60000]
+                const intervals = [5000, 10000, 15000, 30000, 45000, 60000]
                 this.settings.refreshInterval = intervals[index]
                 if (this.settings.masterSwitch) {
                   this.startRefreshTimer()
@@ -675,15 +699,15 @@ export struct VmStatusBar {
               })
           }
         }
-      .alignItems(HorizontalAlign.Start)
-          .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
       }
       .padding(16)
-        .width('100%')
+      .width('100%')
     }
     .width('100%')
-      .scrollBar(BarState.Auto)
-      .align(Alignment.Top)
+    .scrollBar(BarState.Auto)
+    .align(Alignment.Top)
   }
 
   @Builder
@@ -700,6 +724,8 @@ export struct VmStatusBar {
 
   private getIntervalLabel(): string {
     const map: Record<number, string> = {
+      5000: getContext(this).resourceManager.getStringSync($r('app.string.option_5s').id),
+      10000: getContext(this).resourceManager.getStringSync($r('app.string.option_10s').id),
       15000: getContext(this).resourceManager.getStringSync($r('app.string.option_15s').id),
       30000: getContext(this).resourceManager.getStringSync($r('app.string.option_30s').id),
       45000: getContext(this).resourceManager.getStringSync($r('app.string.option_45s').id),

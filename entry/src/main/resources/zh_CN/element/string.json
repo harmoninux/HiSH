@@ -1358,11 +1358,19 @@
     },
     {
       "name": "label_refresh_settings",
-      "value": "⚙️ 刷新设置"
+      "value": "刷新设置"
     },
     {
       "name": "label_refresh_interval",
       "value": "刷新间隔："
+    },
+    {
+      "name": "option_5s",
+      "value": "5秒"
+    },
+    {
+      "name": "option_10s",
+      "value": "10秒"
     },
     {
       "name": "option_15s",

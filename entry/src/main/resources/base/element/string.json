@@ -1365,6 +1365,14 @@
       "value": "Refresh Interval:"
     },
     {
+      "name": "option_5s",
+      "value": "5s"
+    },
+    {
+      "name": "option_10s",
+      "value": "10s"
+    },
+    {
       "name": "option_15s",
       "value": "15s"
     },
