@@ -98,8 +98,6 @@ function startVm(options: VmOptions) {
     ...cpuMem,
     ...kernel,
     ...network,
-    ...shared,
-    ...sharedUserFolder,
     ...drive,
     ...dataDisk,
     ...kernelParam,
