@@ -1615,6 +1615,10 @@
     {
       "name": "guest_status_bar_desc",
       "value": "显示模拟器的运行状态"
+    },
+    {
+      "name": "agent_connecting_tips",
+      "value": "正在尝试连接qemu-guest-agent...\n若长时间未连接成功，请检查模拟器内的qemu-guest-agent是否正常运行"
     }
   ]
 }

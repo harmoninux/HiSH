@@ -1615,6 +1615,10 @@
     {
       "name": "guest_status_bar_desc",
       "value": "Display status of running emulator"
+    },
+    {
+      "name": "agent_connecting_tips",
+      "value": "Attempting to connect to qemu-guest-agent...\nIf it takes too long to connect, please check if the qemu-guest-agent inside the emulator is running properly"
     }
   ]
 }

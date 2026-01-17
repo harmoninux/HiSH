@@ -80,6 +80,21 @@ function formatBytesToGB(bytes: number): string {
 }
 
 @Component
+struct ConnectingProgress {
+  @State showPopup:boolean = false
+  build() {
+    LoadingProgress()
+      .onClick(() => this.showPopup = true)
+      .bindPopup(this.showPopup, {
+        message: this.getUIContext().getHostContext()!.resourceManager.getStringByNameSync('agent_connecting_tips'),
+        onStateChange: (e) => {
+          this.showPopup = e.isVisible
+        }
+      })
+  }
+}
+
+@Component
 export struct VmStatusBar {
   @StorageProp(appOption.appTempDir) appTempDir: string = ''
   @Watch('onEmulatorStatusChange') @StorageProp(appOption.currentEmulatorStatus) currentEmulatorStatus: string = ''
@@ -478,7 +493,10 @@ export struct VmStatusBar {
       // Agent 状态
       if (this.settings.showAgent) {
         if (!this.status.agentConnected) {
-          LoadingProgress().height(16).width(16)
+          ConnectingProgress().height(18).width(18)
+            .margin({ right: 5 })
+        } else {
+          Text('🟢').fontSize(11)
             .margin({ right: 5 })
         }
       }
@@ -582,21 +600,21 @@ export struct VmStatusBar {
       Column({ space: 12 }) {
         // 状态列表
         Column({ space: 8 }) {
-          // 总开关
-          Row() {
-            Toggle({ type: ToggleType.Checkbox, isOn: this.settings.masterSwitch })
-              .onChange((isOn: boolean) => {
-                this.settings.masterSwitch = isOn
-              })
-            Text($r('app.string.label_enable_monitor'))
-              .fontSize(16)
-              .fontWeight(FontWeight.Bold)
-              .margin({ left: 8 })
-          }
-          .width('100%')
-          .padding({ bottom: 8 })
-
-          Divider()
+          // // 总开关
+          // Row() {
+          //   Toggle({ type: ToggleType.Checkbox, isOn: this.settings.masterSwitch })
+          //     .onChange((isOn: boolean) => {
+          //       this.settings.masterSwitch = isOn
+          //     })
+          //   Text($r('app.string.label_enable_monitor'))
+          //     .fontSize(16)
+          //     .fontWeight(FontWeight.Bold)
+          //     .margin({ left: 8 })
+          // }
+          // .width('100%')
+          // .padding({ bottom: 8 })
+          //
+          // Divider()
 
           // Agent (强制显示，图标根据状态变化)
           Row({ space: 8 }) {
