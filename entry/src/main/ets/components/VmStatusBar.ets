@@ -46,7 +46,7 @@ interface DisplaySettings {
 
 // 初始化持久化设置
 PersistentStorage.persistProp('VmStatusBarSettings', {
-  masterSwitch: false,
+  masterSwitch: true,
   showAgent: true,
   showHostname: false,
   showCpu: true,
@@ -103,7 +103,7 @@ export struct VmStatusBar {
   }
 
   @StorageLink('VmStatusBarSettings') @Watch('onSettingsChange') settings: DisplaySettings = {
-    masterSwitch: false,
+    masterSwitch: true,
     showAgent: true,
     showHostname: false,
     showCpu: true,
@@ -562,7 +562,7 @@ export struct VmStatusBar {
       // 帮助按钮
       SymbolGlyph($r('sys.symbol.slider_horizontal_2'))
         .fontSize(18)
-        .fontColor([$r('sys.color.icon_secondary')])
+        .fontColor([$r('sys.color.white')])
         .onClick(() => {
           new CustomDialogController({
             builder: CustomContentDialog({

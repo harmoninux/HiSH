@@ -67,6 +67,7 @@ struct PcIndex {
           Image($r('app.media.startIcon'))
             .width(20)
           Text($r('app.string.EntryAbility_label'))
+            .fontColor($r('sys.color.white'))
             .margin({ left: 10 })
         }
 
