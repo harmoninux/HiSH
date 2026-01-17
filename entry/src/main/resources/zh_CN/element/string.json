@@ -1599,6 +1599,14 @@
     {
       "name": "error_copy_file_failed",
       "value": "复制文件失败: "
+    },
+    {
+      "name": "display_status_bar",
+      "value": "状态栏"
+    },
+    {
+      "name": "guest_status_bar_desc",
+      "value": "显示模拟器的运行状态"
     }
   ]
 }

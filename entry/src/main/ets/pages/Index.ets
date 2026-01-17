@@ -11,6 +11,7 @@ import { Emulator } from "../model/Emulator";
 import RootfsManagementContent from "../components/RootfsManagementContent";
 import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
+import VmStatusBar from '../components/VmStatusBar';
 
 @Component
 struct PcIndex {
@@ -67,6 +68,9 @@ struct PcIndex {
           Text($r('app.string.EntryAbility_label'))
             .margin({ left: 10 })
         }
+
+        VmStatusBar()
+          .margin({ left: 20 })
 
         Blank()
 
@@ -328,6 +332,28 @@ struct PcIndex {
   }
 }
 
+@Component
+struct PhoneOrTablet {
+  build() {
+    Column() {
+      // 虚拟机状态监控条
+      Row() {
+        VmStatusBar()
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .height(32)
+      .padding({ left: 12, right: 6 })
+      .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+
+      WebTerminal({ virtKeyEnabled: true })
+        .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Entry
 @Component
 struct Index {
@@ -338,10 +364,14 @@ struct Index {
   }
 
   build() {
-    if (this.isPc) {
-      PcIndex()
-    } else {
-      WebTerminal({ virtKeyEnabled: true })
+    Column() {
+      if (this.isPc) {
+        PcIndex()
+      } else {
+        PhoneOrTablet()
+      }
     }
+    .width('100%')
+    .height('100%')
   }
 }

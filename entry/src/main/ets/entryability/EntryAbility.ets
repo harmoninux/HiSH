@@ -139,8 +139,10 @@ export default class EntryAbility extends UIAbility {
 
     const serialUnixSocket = appTempDir + '/serial_socket'
     const qmpUnixSocket = appTempDir + '/qmp_socket'
+    const qgaUnixSocket = appTempDir + '/qga_socket'
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
+    AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
 
     // 读取 VNC 启用配置
     const vncEnabled =  AppStorage.get<boolean>(appOption.vncEnabled)
@@ -167,6 +169,7 @@ export default class EntryAbility extends UIAbility {
       sharedFolderReadonly,
       init,
       qmpUnixSocket,
+      qgaUnixSocket,
       vncWebSocketPort: vncPort
     })
 

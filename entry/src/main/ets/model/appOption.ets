@@ -20,16 +20,20 @@ class appOption {
   static rootFilesystems = 'rootFilesystems'
   static defaultStartEmulator = 'defaultStartEmulator'
   static currentRunningEmulator = 'currentRunningEmulator'
+  static currentEmulatorStatus = 'currentEmulatorStatus'
   static bundleInfo = 'bundleInfo'
   static temporaryStartEmulator = 'temporaryStartEmulator'
   static serialChannel = 'serialChannel'
   static lastResourceVersion = 'lastResourceVersion';
   static runningInBackground = 'runningInBackground';
   static showVirtKey = 'showVirtKey';
+  static isPowerManagementOpen = 'isPowerManagementOpen';
   static vncEnabled = 'vncEnabled';
   // qemu-img 后台任务状态
   static qemuImgTaskRunning = 'qemuImgTaskRunning';
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
+  // QGA 连接状态 (Global Truth)
+  static isQgaConnected = 'isQgaConnected';
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {
