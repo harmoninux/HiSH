@@ -37,8 +37,8 @@ You can try one of following methods to get HiSH:
 - Copy `build-profile.template.json5` to `build-profile.json5`
 - Download files and move to corresponding location as following (Notice: you should rename files as links)
   - [entry/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip)(Extract to `entry/libs`)
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20260103/kernel_aarch64)
-  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260110/rootfs_aarch64.qcow2)
+  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/kernel_aarch64)
+  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2)
 - Build project in DevEco Studio
 - Sign and run in your device or emulator
 
