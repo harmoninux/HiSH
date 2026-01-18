@@ -1,6 +1,8 @@
-PKGS=zstd \
+PKGS=libattr \
+	jemalloc \
+	zstd \
 	zlib \
-    pcre2 \
+	pcre2 \
 	libglib \
 	pixman \
 	libqemu
@@ -21,6 +23,8 @@ output/.stamp: $(STAMP) Makefile
 %/.stamp: %/Makefile
 	make -C $(patsubst %/.stamp,%,$@)
 	touch $@
+
+libqemu/.stamp: $(filter-out libqemu/.stamp,$(STAMP))
 
 clean:
 	rm -f $(STAMP)
