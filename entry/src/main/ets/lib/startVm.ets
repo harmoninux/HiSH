@@ -104,6 +104,8 @@ function startVm(options: VmOptions) {
     ...monitor,
     ...qga,
     ...vnc,
+    ...shared,
+    ...sharedUserFolder,
     '-pidfile', pidFilePath
   ]
 
