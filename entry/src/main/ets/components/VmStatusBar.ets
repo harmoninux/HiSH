@@ -537,9 +537,9 @@ export struct VmStatusBar {
       }
 
       // 帮助按钮
-      Text('❓')
-        .fontSize(12)
-        .fontColor('#FFFFFF')
+      SymbolGlyph($r('sys.symbol.slider_horizontal_2'))
+        .fontSize(18)
+        .fontColor([$r('sys.color.icon_secondary')])
         .onClick(() => {
           new CustomDialogController({
             builder: CustomContentDialog({
@@ -660,6 +660,8 @@ export struct VmStatusBar {
             Text($r('app.string.label_refresh_interval'))
               .fontSize(14)
             Select([
+              { value: $r('app.string.option_5s') },
+              { value: $r('app.string.option_10s') },
               { value: $r('app.string.option_15s') },
               { value: $r('app.string.option_30s') },
               { value: $r('app.string.option_45s') },
@@ -667,7 +669,7 @@ export struct VmStatusBar {
             ])
               .value(this.getIntervalLabel())
               .onSelect((index: number) => {
-                const intervals = [15000, 30000, 45000, 60000]
+                const intervals = [5000, 10000, 15000, 30000, 45000, 60000]
                 this.settings.refreshInterval = intervals[index]
                 if (this.settings.masterSwitch) {
                   this.startRefreshTimer()
@@ -721,6 +723,8 @@ export struct VmStatusBar {
 
   private getIntervalLabel(): string {
     const map: Record<number, string> = {
+      5000: getContext(this).resourceManager.getStringSync($r('app.string.option_5s').id),
+      10000: getContext(this).resourceManager.getStringSync($r('app.string.option_10s').id),
       15000: getContext(this).resourceManager.getStringSync($r('app.string.option_15s').id),
       30000: getContext(this).resourceManager.getStringSync($r('app.string.option_30s').id),
       45000: getContext(this).resourceManager.getStringSync($r('app.string.option_45s').id),
