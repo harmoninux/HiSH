@@ -10,9 +10,9 @@ Run Linux Shell on HarmonyOS devices! Based on [harmony-qemu](https://github.com
 
 You can try one of following methods to get HiSH:
 
-- Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster)
 - Install from [AppGallery](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish) (JIT not supported, run slower)
-- Build from source code in DevEco Studio, see [Build HAP](#build-hap) (JIT suported, runs faster)
+- Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster)
+- Build from source code in DevEco Studio, see [Build HAP](#build-hap) (JIT suported, runs faster. See [Signing an App Not Associated with a Registered App](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-signing#section151231211105010))
 
 ## Core Features
 

@@ -10,9 +10,9 @@
 
 可以选择下面任一方法获取HiSH：
 
-- 从[Releases](https://github.com/harmoninux/HiSH/releases)下载hap文件，自行签名后安装到设备或模拟器（支持JIT，运行效率更高）
-- 通过[应用市场](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish)安装（不支持JIT，运行效率一般）
-- 使用DevEco Studio编译源码，参考 [构建HAP](#构建hap)（支持JIT，运行效率更高）
+- 通过[应用市场](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish)安装（因应用市场政策限制，不支持JIT，运行效率一般）
+- 从[Releases](https://github.com/harmoninux/HiSH/releases)下载hap文件，自行签名后安装到设备或模拟器（支持JIT，运行效率更高。安装方法见：[使用教程](https://github.com/harmoninux/HiSH/discussions/130)）
+- 使用 DevEco Studio 编译源码安装，参考 [构建HAP](#构建hap)（支持JIT，运行效率更高。签名方法见：[自动签名-未关联注册应用](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-signing#section151231211105010)）
 
 ## 核心功能
 
