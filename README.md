@@ -12,7 +12,7 @@
 
 - 通过[应用市场](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish)安装（因应用市场政策限制，不支持JIT，运行效率一般）
 - 从[Releases](https://github.com/harmoninux/HiSH/releases)下载hap文件，自行签名后安装到设备或模拟器（支持JIT，运行效率更高。安装方法见：[使用教程](https://github.com/harmoninux/HiSH/discussions/130)）
-- 使用 DevEco Studio 编译源码安装，参考 [构建HAP](#构建hap)（支持JIT，运行效率更高。签名方法见：[自动签名-未关联注册应用](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-signing#section151231211105010)）
+- 使用 DevEco Studio 编译源码安装，参考 [构建并安装HAP](#构建hap)（支持JIT，运行效率更高）
 
 ## 核心功能
 
@@ -47,6 +47,7 @@
 
 ## 构建HAP
 
+* 下载安装 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)
 * 克隆代码到本地
 * 复制`build-profile.template.json5`到`build-profile.json5`
 * 下载以下文件到指定位置：
@@ -54,7 +55,7 @@
   - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/kernel_aarch64)
   - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2)
 * 在DevEco Studio中构建项目
-* 签名后在设备或模拟器上运行
+* 签名后在设备或模拟器上运行。参考 [本地真机运行应用](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-run-device) | [自动签名-未关联注册应用](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-signing#section151231211105010)
 
 ## 构建libqemu-system（可选）
 

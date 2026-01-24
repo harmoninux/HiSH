@@ -12,7 +12,7 @@ You can try one of following methods to get HiSH:
 
 - Install from [AppGallery](https://appgallery.huawei.com/app/detail?id=app.hackeris.hish) (JIT not supported, run slower)
 - Download hap from [Releases page](https://github.com/harmoninux/HiSH/releases) and signed by yourself, then install to your device or emulator (JIT suported, runs faster)
-- Build from source code in DevEco Studio, see [Build HAP](#build-hap) (JIT suported, runs faster. See [Signing an App Not Associated with a Registered App](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-signing#section151231211105010))
+- Build from source code in DevEco Studio, see [Build and install HAP](#build-hap) (JIT suported, runs faster)
 
 ## Core Features
 
@@ -33,6 +33,7 @@ You can try one of following methods to get HiSH:
 
 ## Build HAP
 
+- Download and install [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)
 - Clone this repo to local
 - Copy `build-profile.template.json5` to `build-profile.json5`
 - Download files and move to corresponding location as following (Notice: you should rename files as links)
@@ -40,7 +41,7 @@ You can try one of following methods to get HiSH:
   - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/kernel_aarch64)
   - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2)
 - Build project in DevEco Studio
-- Sign and run in your device or emulator
+- Sign and run in your device or emulator. See [Running Your App on a Local Real Device](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-run-device) | [Signing an App Not Associated with a Registered App](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-signing#section151231211105010)
 
 ## Build libqemu-system (Optional)
 
