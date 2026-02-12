@@ -2,7 +2,7 @@
 
 [GitHub](https://github.com/harmoninux/HiSH) | [GitCode](https://gitcode.com/realhackeris/HiSH) | [Gitee](https://gitee.com/hackeris/HiSH) | [English](README_EN.md)
 
-在HarmonyOS设备上运行Linux Shell。基于[harmony-qemu](https://github.com/hackeris/harmony-qemu)，支持2in1(PC)、平板和手机。
+在HarmonyOS设备上运行Linux Shell。基于[qemu-ohos](https://github.com/harmoninux/qemu)，支持2in1(PC)、平板和手机。
 
 ![多设备运行](docs/images/devices.png)
 
