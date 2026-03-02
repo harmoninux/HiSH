@@ -19,7 +19,7 @@
 - 完整的arm64 Linux内核
 - 网络支持，并支持端口转发
 - Alpine Linux根文件系统
-- 虚拟按键（Tab/Ctrl/Esc/方向键）
+- 虚拟按键（Tab/Ctrl/Esc/Shift/Fn/方向键）
 - 共享文件夹
 - JIT（仅开发者可用）
 - 镜像导入（[Ubuntu24.04镜像](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251213/ubuntu-base-24.04.zip) / [Debian12镜像](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）

@@ -2,7 +2,7 @@ import { webview } from "@kit.ArkWeb";
 
 @Component
 export struct SimpleWebView {
-  @Require url: string
+  @Require url: string = ''
   webController = new webview.WebviewController()
 
   build() {

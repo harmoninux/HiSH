@@ -1,5 +1,5 @@
 import { cpuOptions, getCpuCount, getMemSize, memOptions } from "../lib/systemProfile"
-import { defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
+import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
 import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
@@ -11,8 +11,18 @@ import { BackButton } from "./BackButton"
 
 @Component
 export default struct EditEmulatorContent {
-  @Require emulator: Emulator
-  @Require onFinished: (item: Emulator) => void
+  @Require emulator: Emulator = {
+    id: defaultEmulator.id,
+    name: defaultEmulator.name,
+    cpu: defaultEmulator.cpu,
+    memory: defaultEmulator.memory,
+    init: defaultEmulator.init,
+    portMapping: [...defaultEmulator.portMapping],
+    rootVda: defaultEmulator.rootVda,
+    rootFilesystem: defaultEmulator.rootFilesystem,
+    sharedFolderReadonly: defaultEmulator.sharedFolderReadonly
+  }
+  @Require onFinished: (item: Emulator) => void = (_item: Emulator): void => {}
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
   @State cpuOptions: SelectOption[] = []
   @State memOptions: SelectOption[] = []

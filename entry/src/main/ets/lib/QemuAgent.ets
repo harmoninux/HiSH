@@ -124,10 +124,11 @@ export class QemuAgent {
       this.pendingResponse = ''  // 清理缓冲区
       this.requestId = 0  // 重置请求 ID
 
+      const address: socket.LocalAddress = {
+        address: this.socketPath
+      }
       const connectOptions: socket.LocalConnectOptions = {
-        address: {
-          address: this.socketPath
-        },
+        address,
         timeout: 1000  // 恢复至 1000ms，配合 VmController 的 Smart Skip 逻辑确保稳定性
       }
 
@@ -178,7 +179,7 @@ export class QemuAgent {
    * [修复1.1] 完全清理：移除监听器、关闭连接、清空缓冲区
    */
   async disconnect(): Promise<void> {
-    const client = this.client
+    const client: socket.LocalSocket | null = this.client
     this.client = null // 立即置空，防止重入
     this.isConnected = false
     this.pendingResponse = ''

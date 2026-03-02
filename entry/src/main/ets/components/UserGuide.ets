@@ -58,7 +58,7 @@ const blocks: GuidBlock[] = [{
 export default struct UserGuide {
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
   guideBlocks: GuidBlock[] = [...blocks]
-  @Require openPage: (title: string | Resource, url: string) => void
+  @Require openPage: (title: string | Resource, url: string) => void = (_title: string | Resource, _url: string): void => {}
 
   build() {
     Column() {

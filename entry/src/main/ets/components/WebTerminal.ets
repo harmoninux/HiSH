@@ -8,23 +8,29 @@ import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
+import {
+  applyVirtualKeyModifiers,
+  FunctionKeySequences,
+  getVirtualKeyMetrics,
+  NormalKeySequences
+} from '../lib/terminalVirtualKeys';
 
 const DOMAIN = 0x0000;
 
-// 根据设备类型调整虚拟按键尺寸
-const isPhone = deviceInfo.deviceType === 'phone';
-const VKeyMargin = isPhone ? 1 : 2;
-const VKeyPadding = isPhone ? 2 : 4;
-const VKeyHeight = 28;
-const VKeyWidth = isPhone ? 48 : 60;
-const VKeyFontSize = isPhone ? 11 : 14;
-const VKeyRadius = 5;
+const VKeyMetrics = getVirtualKeyMetrics(deviceInfo.deviceType)
+const VKeyMargin = VKeyMetrics.margin;
+const VKeyPadding = VKeyMetrics.padding;
+const VKeyHeight = VKeyMetrics.height;
+const VKeyWidth = VKeyMetrics.width;
+const VKeyFontSize = VKeyMetrics.fontSize;
+const VKeyRadius = VKeyMetrics.radius;
 
 @Component
 export default struct WebTerminal {
-  @Require virtKeyEnabled: boolean
+  @Require virtKeyEnabled: boolean = true
   @State ctrlPressed: boolean = false
   @State shiftPressed: boolean = false
+  @State fnPressed: boolean = false
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
@@ -52,7 +58,7 @@ export default struct WebTerminal {
           }
         })
       MenuItem() {
-        PasteButton({ buttonType: ButtonType.ROUNDED_RECTANGLE })
+        PasteButton()
           .onClick(async (event: ClickEvent, result: PasteButtonOnClickResult) => {
             if (PasteButtonOnClickResult.SUCCESS === result) {
               let board = pasteboard.getSystemPasteboard();
@@ -64,7 +70,6 @@ export default struct WebTerminal {
             }
           })
           .width('100%')
-          .align(Alignment.Start)
           .backgroundColor('#292b2e')
       }
     }
@@ -122,6 +127,20 @@ export default struct WebTerminal {
   }
 
   @Builder
+  toggleFnKey(name: string, action: () => void) {
+    Toggle({ type: ToggleType.Button, isOn: this.fnPressed }) {
+      Text(name).fontSize(VKeyFontSize).fontWeight(FontWeight.Medium)
+    }
+    .height(VKeyHeight)
+    .width(VKeyWidth)
+    .borderRadius(VKeyRadius)
+    .margin(VKeyMargin)
+    .backgroundColor($r('sys.color.black'))
+    .selectedColor($r('sys.color.interactive_active'))
+    .onClick(() => action())
+  }
+
+  @Builder
   settingsButton() {
     Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
       Image($r('app.media.gearshape')).width(16).height(16).padding(0)
@@ -136,7 +155,7 @@ export default struct WebTerminal {
   private settingsButtonOptions(): MenuElement[] {
     const vncOptions: MenuElement[] = this.vncEnabled ? [{
       value: $r('app.string.vnc_console_title'),
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.display')).fontSize($r('sys.float.Title_S')),
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => {
         const vncPort = AppStorage.get<number>('vncWebSocketPort');
         if (vncPort) {
@@ -240,34 +259,66 @@ export default struct WebTerminal {
   @Builder
   buildVirtualKeys() {
     Column() {
-      Row() {
-        this.buildVKey('ESC', '\x1b');
-        this.toggleShiftKey('SHIFT', () => this.toggleShift());
+      if (this.fnPressed) {
+        Row() {
+          this.toggleFnKey('FN', () => this.toggleFn());
+          this.buildVKey('F1', FunctionKeySequences.F1);
+          this.buildVKey('F2', FunctionKeySequences.F2);
+          this.buildVKey('F3', FunctionKeySequences.F3);
 
-        Row().layoutWeight(1);
+          Row().layoutWeight(1);
 
-        this.buildVKey('PGUP', '\x1b[5~');
-        this.buildVKey('HOME', '\x1b[H');
-        this.buildVKey('↑', '\x1b[A', '\x1bOA');
-        this.buildVKey('END', '\x1b[F');
+          this.buildVKey('F4', FunctionKeySequences.F4);
+          this.buildVKey('F5', FunctionKeySequences.F5);
+          this.buildVKey('F6', FunctionKeySequences.F6);
+          this.settingsButton();
+        }
+        .margin({ left: 5, right: 5 })
 
-        this.settingsButton();
+        Row() {
+          this.buildVKey('F7', FunctionKeySequences.F7);
+          this.buildVKey('F8', FunctionKeySequences.F8);
+          this.buildVKey('F9', FunctionKeySequences.F9);
+
+          Row().layoutWeight(1);
+
+          this.buildVKey('F10', FunctionKeySequences.F10);
+          this.buildVKey('F11', FunctionKeySequences.F11);
+          this.buildVKey('F12', FunctionKeySequences.F12);
+          this.hideVKeyButton();
+        }
+        .margin({ left: 5, right: 5 })
+      } else {
+        Row() {
+          this.buildVKey('ESC', NormalKeySequences.ESC);
+          this.toggleShiftKey('SHIFT', () => this.toggleShift());
+          this.toggleFnKey('FN', () => this.toggleFn());
+
+          Row().layoutWeight(1);
+
+          this.buildVKey('PGUP', NormalKeySequences.PGUP);
+          this.buildVKey('HOME', NormalKeySequences.HOME);
+          this.buildVKey('↑', NormalKeySequences.UP, NormalKeySequences.UP_APP);
+          this.buildVKey('END', NormalKeySequences.END);
+
+          this.settingsButton();
+        }
+        .margin({ left: 5, right: 5 })
+
+        Row() {
+          this.buildVKey('TAB', NormalKeySequences.TAB);
+          this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
+
+          Row().layoutWeight(1);
+
+          this.buildVKey('PGDN', NormalKeySequences.PGDN);
+          this.buildVKey('←', NormalKeySequences.LEFT, NormalKeySequences.LEFT_APP);
+          this.buildVKey('↓', NormalKeySequences.DOWN, NormalKeySequences.DOWN_APP);
+          this.buildVKey('→', NormalKeySequences.RIGHT, NormalKeySequences.RIGHT_APP);
+          this.hideVKeyButton();
+        }
+        .margin({ left: 5, right: 5 })
       }
-      .margin({ left: 5, right: 5 })
-
-      Row() {
-        this.buildVKey('TAB', '\t');
-        this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
-
-        Row().layoutWeight(1);
-
-        this.buildVKey('PGDN', '\x1b[6~');
-        this.buildVKey('←', '\x1b[D', '\x1bOD');
-        this.buildVKey('↓', '\x1b[B', '\x1bOB');
-        this.buildVKey('→', '\x1b[C', '\x1bOC');
-        this.hideVKeyButton();
-      }
-      .margin({ left: 5, right: 5 })
     }
   }
 
@@ -288,29 +339,26 @@ export default struct WebTerminal {
   private toggleShift(): void {
     this.shiftPressed = !this.shiftPressed;
   }
+
+  private toggleFn(): void {
+    this.fnPressed = !this.fnPressed;
+  }
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
     hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
 
-    // 处理 Ctrl 状态：将小写字母转换为控制字符（一次性，发送后自动重置）
-    if (this.ctrlPressed && data.length === 1) {
-      const char = data.charAt(0);
-      if (char >= 'a' && char <= 'z') {
-        data = String.fromCharCode(char.charCodeAt(0) - 'a'.charCodeAt(0) + 1);
-        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
-      }
-      // 一次性发送后自动重置 Ctrl 状态
+    const modifierResult = applyVirtualKeyModifiers(data, this.ctrlPressed, this.shiftPressed)
+    data = modifierResult.data
+
+    if (modifierResult.ctrlConverted) {
+      hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
+    }
+    if (modifierResult.shouldResetCtrl) {
       this.toggleCtrl()
     }
-
-    // 处理 Shift 状态：将小写字母转换为大写
-    if (this.shiftPressed && data.length === 1) {
-      const char = data.charAt(0);
-      if (char >= 'a' && char <= 'z') {
-        data = char.toUpperCase();
-        hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
-      }
+    if (modifierResult.shiftConverted) {
+      hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
     }
 
     let buffer = stringToArrayBuffer(data, 'utf-8');
@@ -321,8 +369,18 @@ export default struct WebTerminal {
 
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
-    napi.onData((d: ArrayBuffer) => this.onData(d))
-    napi.onShutdown(() => this.onShutdown())
+    napi.onData((d: ArrayBuffer): void => this.onData(d))
+    napi.onShutdown((): void => {
+      void this.onShutdown()
+    })
+    const vmStatus = AppStorage.get(appOption.currentEmulatorStatus) as string | undefined
+    if (vmStatus === 'ABNORMAL') {
+      const message = this.getUIContext().getHostContext()?.resourceManager.getStringByNameSync('pm_status_qmp_connect_failed')
+        ?? 'Failed to connect to QMP (please restart app)'
+      const text = util.TextEncoder.create('utf-8').encodeInto('\r\n' + message + '\r\n')
+      const base64 = new util.Base64Helper().encodeToStringSync(text)
+      this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`)
+    }
   }
 
   async resize(width: number, height: number): Promise<void> {

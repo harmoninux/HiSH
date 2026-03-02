@@ -84,7 +84,7 @@ struct PcIndex {
             buttonStyle: ButtonStyleMode.TEXTUAL,
             controlSize: ControlSize.SMALL
           }) {
-            SymbolGlyph($r('sys.symbol.display'))
+            SymbolGlyph($r('sys.symbol.more'))
               .fontSize('20vp')
               .width(20)
               .height(20)
