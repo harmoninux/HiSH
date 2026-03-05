@@ -11,18 +11,8 @@ import { BackButton } from "./BackButton"
 
 @Component
 export default struct EditEmulatorContent {
-  @Require emulator: Emulator = {
-    id: defaultEmulator.id,
-    name: defaultEmulator.name,
-    cpu: defaultEmulator.cpu,
-    memory: defaultEmulator.memory,
-    init: defaultEmulator.init,
-    portMapping: [...defaultEmulator.portMapping],
-    rootVda: defaultEmulator.rootVda,
-    rootFilesystem: defaultEmulator.rootFilesystem,
-    sharedFolderReadonly: defaultEmulator.sharedFolderReadonly
-  }
-  @Require onFinished: (item: Emulator) => void = (_item: Emulator): void => {}
+  @Require emulator: Emulator
+  @Require onFinished: (item: Emulator) => void
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
   @State cpuOptions: SelectOption[] = []
   @State memOptions: SelectOption[] = []

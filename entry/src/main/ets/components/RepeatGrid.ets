@@ -3,7 +3,7 @@ export struct RepeatGrid {
   @Prop items: object[] = []
   @Prop specifiedBreak?: string = undefined
   @Require @BuilderParam contentBuilder: (item: object, index: number) => void
-  @Require getKey: (item: object, index: number) => string = (_item: object, index: number): string => index.toString()
+  @Require getKey: (item: object, index: number) => string
   @State private gridMargin: number = 24
 
   build() {

@@ -493,11 +493,11 @@ export default struct RootfsManagementContent {
 
 @Component
 struct RootFilesystemItem {
-  @Prop value: RootfsItem = { model: defaultRootfs, fileSize: '-', virtualSize: '-' }
-  @Require onEdit: (item: RootFilesystem) => void = (_item: RootFilesystem): void => {}
-  @Require onDelete: (item: RootFilesystem) => void = (_item: RootFilesystem): void => {}
-  @Require onExport: (item: RootFilesystem) => void = (_item: RootFilesystem): void => {}
-  @Require onShowInfo: (item: RootFilesystem) => void = (_item: RootFilesystem): void => {}
+ @State @Require value: RootfsItem
+  @Require onEdit: (item: RootFilesystem) => void
+  @Require onDelete: (item: RootFilesystem) => void
+  @Require onExport: (item: RootFilesystem) => void
+  @Require onShowInfo: (item: RootFilesystem) => void
   @State storageSize: number = 0
 
   aboutToAppear(): void {

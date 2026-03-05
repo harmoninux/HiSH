@@ -54,7 +54,7 @@ const CANDIDATES: MappingCandidate[] = [{
 @Component
 export struct PortMappingEdit {
   @Watch('onItemsChanged') @State items: PortMappingItem[] = []
-  @Require onChanged: (value: PortMappingItem[]) => void = (_value: PortMappingItem[]): void => {}
+  @Require onChanged: (value: PortMappingItem[]) => void
   @State indexToRemove: number = -1
   @Watch('onCandidateToAdd') @State candidateToAdd: number | undefined = undefined
   confirmController: CustomDialogController = new CustomDialogController({
