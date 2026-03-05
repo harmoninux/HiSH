@@ -94,7 +94,7 @@
     },
     {
       "name": "setting_port_should_larger",
-      "value": "端口映射第%d项Host端口号应大于1000"
+      "value": "端口映射第%d项Host端口号应大于0"
     },
     {
       "name": "setting_keep_screen_on",

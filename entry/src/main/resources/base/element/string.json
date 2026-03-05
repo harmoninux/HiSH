@@ -94,7 +94,7 @@
     },
     {
       "name": "setting_port_should_larger",
-      "value": "The host port of %d in port mapping should larger than 1000"
+      "value": "The host port of %d in port mapping should larger than 0"
     },
     {
       "name": "setting_reset_linux",

@@ -338,7 +338,7 @@ export default struct EditEmulatorContent {
 
     i = mappings
       .findIndex(it => {
-        return (it.host || 0) <= 1000
+        return (it.host || 0) <= 0
       })
     if (i >= 0) {
       const temp = this.getResourceString('setting_port_should_larger')
