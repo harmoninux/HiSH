@@ -20,7 +20,7 @@ interface VmOptions {
   vncWebSocketPort?: number // VNC WebSocket 端口 (可选，由外部传入)
 }
 
-function startVm(options: VmOptions) {
+function startVm(options: VmOptions): boolean {
   const root = options.rootVda ? options.rootVda : defaultEmulator.rootVda;
   const sharedFolderOption = options.sharedFolderReadonly ? ",readonly" : ""
 
@@ -107,11 +107,12 @@ function startVm(options: VmOptions) {
     fs.mkdirSync(options.sharedFolder)
   }
 
-  napi.startVM({
+  const started: boolean = napi.startVM({
     argsLines: args.join('\n'),
     unixSocket: options.serialUnixSocket,
     qmpSocket: options.qmpUnixSocket
   });
+  return started === true
 }
 
 export { startVm, VmOptions }

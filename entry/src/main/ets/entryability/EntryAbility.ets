@@ -17,6 +17,7 @@ const DOMAIN = 0x0000;
 
 interface StartResult {
   portsSkipped: number[]
+  vmStarted: boolean
 }
 
 /**
@@ -89,6 +90,7 @@ export default class EntryAbility extends UIAbility {
 
       this.promptRootVdaMessage(uiContext)
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
+      this.promptVmStartFailedMessage(uiContext, result.vmStarted)
       this.startRunInBackground(uiContext)
     });
   }
@@ -128,8 +130,8 @@ export default class EntryAbility extends UIAbility {
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernelFile = AppStorage.get(appOption.kernel) as string
 
-    const portUsed = portMappingRaw.map(it => it.host!!).filter(p => napi.checkPortUsed(p))
-    const portMapping = portMappingRaw.filter(it => portUsed.indexOf(it.host!!) < 0)
+    const portUsed = portMappingRaw.map((it): number => it.host!!).filter((p): boolean => napi.checkPortUsed(p))
+    const portMapping = portMappingRaw.filter((it): boolean => portUsed.indexOf(it.host!!) < 0)
 
     hilog.info(DOMAIN, 'testTag', 'host port %{public}s of PortMapping is used by others', portUsed)
     AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed)
@@ -142,7 +144,6 @@ export default class EntryAbility extends UIAbility {
     const qgaUnixSocket = appTempDir + '/qga_socket'
 
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
-    AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
 
     // 读取 VNC 启用配置
     const vncEnabled =  AppStorage.get<boolean>(appOption.vncEnabled)
@@ -158,7 +159,7 @@ export default class EntryAbility extends UIAbility {
       hilog.warn(DOMAIN, 'testTag', 'No free VNC port found, VNC will be disabled');
     }
 
-    startVm({
+    const vmStarted = startVm({
       baseDir: vmBaseDir,
       cpu: cpuCount,
       memory: memSize,
@@ -175,7 +176,15 @@ export default class EntryAbility extends UIAbility {
       vncWebSocketPort: vncPort
     })
 
-    return { portsSkipped: portUsed }
+    if (vmStarted) {
+      AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+    } else {
+      AppStorage.set(appOption.currentRunningEmulator, undefined)
+      AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'ABNORMAL')
+      hilog.error(DOMAIN, 'testTag', 'VM failed to start: qemu runtime is unavailable')
+    }
+
+    return { portsSkipped: portUsed, vmStarted }
   }
 
   private getEmulatorToStart() {
@@ -307,11 +316,17 @@ export default class EntryAbility extends UIAbility {
     const filesDir = AppStorage.get(appOption.appFilesDir)!!
     const filePath = toFileName.startsWith('/') ? toFileName : (filesDir + "/" + toFileName);
     if (!fs.accessSync(filePath, fs.AccessModeType.EXIST) || forceOverride) {
-      let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
-      let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-      fs.writeSync(file.fd, value.buffer);
-      fs.closeSync(file);
-      hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
+      try {
+        let value: Uint8Array = appContext.resourceManager.getRawFileContentSync(filename);
+        let file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+        fs.writeSync(file.fd, value.buffer);
+        fs.closeSync(file);
+        hilog.info(DOMAIN, 'testTag', 'Extract resource file: %{public}s', filePath);
+      } catch (e) {
+        hilog.warn(DOMAIN, 'testTag',
+          'Skip extracting missing resource %{public}s to %{public}s: %{public}s',
+          filename, filePath, JSON.stringify(e))
+      }
     }
   }
 
@@ -376,6 +391,22 @@ export default class EntryAbility extends UIAbility {
       } catch (e) {
         hilog.error(DOMAIN, 'testTag', 'showToast error: %{public}s', JSON.stringify(e));
       }
+    }
+  }
+
+  private promptVmStartFailedMessage(uiContext: UIContext, vmStarted: boolean) {
+    if (vmStarted) {
+      return
+    }
+    try {
+      const promptAction: PromptAction = uiContext.getPromptAction();
+      const message = uiContext.getHostContext()?.resourceManager.getStringByNameSync('pm_status_qmp_connect_failed');
+      promptAction.showToast({
+        message,
+        duration: 8000
+      });
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'showToast error: %{public}s', JSON.stringify(e));
     }
   }
 

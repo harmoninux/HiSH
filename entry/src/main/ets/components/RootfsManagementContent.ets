@@ -493,7 +493,7 @@ export default struct RootfsManagementContent {
 
 @Component
 struct RootFilesystemItem {
-  @State @Require value: RootfsItem
+ @State @Require value: RootfsItem
   @Require onEdit: (item: RootFilesystem) => void
   @Require onDelete: (item: RootFilesystem) => void
   @Require onExport: (item: RootFilesystem) => void

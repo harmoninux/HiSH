@@ -990,7 +990,15 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
     OH_LOG_INFO(LOG_APP, "run qemuEntry with: %{public}s", argsLines.c_str());
 
-    std::thread vm_loop([argsVector]() {
+    auto qemuEntry = getQemuSystemEntry();
+    if (qemuEntry == nullptr) {
+        OH_LOG_ERROR(LOG_APP, "qemuEntry is null, skip starting VM");
+        napi_value result = nullptr;
+        napi_get_boolean(env, false, &result);
+        return result;
+    }
+
+    std::thread vm_loop([argsVector, qemuEntry]() {
 
         const char **argv = new const char *[argsVector.size() + 1];
         for (auto i = 0; i < argsVector.size(); i += 1) {
@@ -1000,7 +1008,6 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
         int argc = argsVector.size();
 
-        auto qemuEntry = getQemuSystemEntry();
         int status = qemuEntry(argc, argv);
 
         delete[] argv;
@@ -1016,7 +1023,9 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
     std::thread worker([=]() { serial_output_worker(unixSocket.c_str()); });
     worker.detach();
 
-    return nullptr;
+    napi_value result = nullptr;
+    napi_get_boolean(env, true, &result);
+    return result;
 }
 
 static napi_value sendInput(napi_env env, napi_callback_info info) {

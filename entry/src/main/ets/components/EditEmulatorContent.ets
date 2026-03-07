@@ -1,5 +1,5 @@
 import { cpuOptions, getCpuCount, getMemSize, memOptions } from "../lib/systemProfile"
-import { defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
+import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from "../model/Emulator"
 import { PortMappingEdit, PortMappingItem } from "./PortMappingEdit"
 import ReactiveGrid from "./ReactiveGrid"
 import { BlockTitle, SettingBlockStyle, SettingItem } from "./SettingsBase"
