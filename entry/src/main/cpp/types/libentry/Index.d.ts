@@ -4,7 +4,7 @@ export type NapiVmOptions = {
   qmpSocket: string
 }
 
-export const startVM: (options: NapiVmOptions) => void;
+export const startVM: (options: NapiVmOptions) => boolean;
 
 export const onData: (callback: (ArrayBuffer) => void) => void;
 
