@@ -291,7 +291,7 @@ export default struct WebTerminal {
       } else {
         Row() {
           this.buildVKey('ESC', NormalKeySequences.ESC);
-          this.toggleShiftKey('SHIFT', () => this.toggleShift());
+          this.toggleShiftKey('SHFT', () => this.toggleShift());
           this.toggleFnKey('FN', () => this.toggleFn());
 
           Row().layoutWeight(1);

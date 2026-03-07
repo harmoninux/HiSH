@@ -13,8 +13,8 @@ export function getVirtualKeyMetrics(deviceType: string): VirtualKeyMetrics {
     margin: isPhone ? 1 : 2,
     padding: isPhone ? 2 : 4,
     height: 28,
-    width: isPhone ? 48 : 60,
-    fontSize: isPhone ? 11 : 14,
+    width: isPhone ? 42 : 60,
+    fontSize: isPhone ? 10 : 14,
     radius: 5
   }
 }
