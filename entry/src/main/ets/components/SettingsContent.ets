@@ -126,6 +126,7 @@ export default struct SettingsContent {
       .select(this.displayStatusBar)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.displayStatusBar, value)
+        this.showDisplayStatusBarToast(value)
       })
   }
 
@@ -227,7 +228,9 @@ export default struct SettingsContent {
                 this.setDisplayStatusBar()
               }
             }).onClick(() => {
-              AppStorage.setOrCreate(appOption.displayStatusBar, !this.displayStatusBar)
+              const value: boolean = !this.displayStatusBar;
+              AppStorage.setOrCreate(appOption.displayStatusBar, value)
+              this.showDisplayStatusBarToast(value)
             })
           }
           .attributeModifier(this.blockStyle)
@@ -363,7 +366,7 @@ export default struct SettingsContent {
       if (!success) {
         this.getUIContext().getPromptAction().showToast({
           message: $r('app.string.failed_to_force_background'),
-          duration: 3000
+          duration: 5000
         })
       }
     }
@@ -372,6 +375,15 @@ export default struct SettingsContent {
 
   async saveDisplayStatusBar() {
     await savePreference(appOption.displayStatusBar, this.displayStatusBar, this.getUIContext())
+  }
+
+  showDisplayStatusBarToast(value: boolean) {
+    if(value) {
+      this.getUIContext().getPromptAction().showToast({
+        message: $r('app.string.guest_status_bar_toast'),
+        duration: 5000
+      })
+    }
   }
 
   async saveVncEnabled() {
