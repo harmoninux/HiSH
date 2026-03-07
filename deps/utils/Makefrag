@@ -15,7 +15,7 @@ endif
 ifeq ($(OHOS_ARCH), aarch64)
 export ARCH_FLAGS := -march=armv8.5-a+crc+crypto+lse+sve+fp16+rcpc+dotprod+sm4+sha3+bf16+i8mm
 export OPT_LEVEL := -O3
-export LTO_FLAG := -flto
+export LTO_FLAG := 
 else
 export ARCH_FLAGS := 
 export OPT_LEVEL := -O2

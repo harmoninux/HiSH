@@ -20,7 +20,7 @@ export PATH=$TOOL_HOME/bin:$PATH
 export PATH=$TOOL_HOME/tool/node/bin:$PATH
 # set default to x86_64 for emulator
 # to build for arm64, set OHOS_ARCH=aarch64, OHOS_ABI=arm64-v8a
-export OHOS_ARCH=x86_64
-export OHOS_ABI=x86_64
+export OHOS_ARCH=aarch64
+export OHOS_ABI=arm64-v8a
 
 make
