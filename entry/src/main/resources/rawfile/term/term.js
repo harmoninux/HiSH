@@ -26,6 +26,41 @@ window.exports = {};
 // Helper for decoding Latin1/Binary string from ArkTS to UTF-8
 const decoder = new TextDecoder('utf-8');
 const encoder = new TextEncoder();
+let imeListenerBound = false;
+let imeComposing = false;
+
+function clearTerminalTextareaBuffer() {
+    if (!term.textarea) {
+        return;
+    }
+    term.textarea.value = '';
+    if (typeof term.textarea.setSelectionRange === 'function') {
+        term.textarea.setSelectionRange(0, 0);
+    }
+}
+
+function setupImeGuard() {
+    if (!term.textarea) {
+        return;
+    }
+    const textarea = term.textarea;
+    textarea.setAttribute('autocomplete', 'off');
+    textarea.setAttribute('autocorrect', 'off');
+    textarea.setAttribute('spellcheck', 'false');
+    if (imeListenerBound) {
+        return;
+    }
+    textarea.addEventListener('compositionstart', () => {
+        imeComposing = true;
+    }, true);
+    textarea.addEventListener('compositionend', () => {
+        imeComposing = false;
+    }, true);
+    textarea.addEventListener('blur', () => {
+        imeComposing = false;
+    }, true);
+    imeListenerBound = true;
+}
 
 // Function to convert "binary string" (where charCode < 256) to Uint8Array
 // ArkTS sends data as a string where each char is a byte.
@@ -43,6 +78,8 @@ window.term = term;
 // Main initialization function
 window.onload = function () {
     term.open(document.getElementById('terminal'));
+    setupImeGuard();
+    clearTerminalTextareaBuffer();
 
     // Retry mechanism for native object injection
     let retryCount = 0;
@@ -152,7 +189,13 @@ function setupEventListeners() {
     term.onData(data => {
         // Pass data directly to native (matching original hterm behavior)
         if (native && native.sendInput) {
+            if (data === '\x7f') {
+                clearTerminalTextareaBuffer();
+            }
             native.sendInput(data);
+            if (!imeComposing) {
+                clearTerminalTextareaBuffer();
+            }
         }
     });
 
@@ -321,6 +364,15 @@ exports.setCursorShape = (shape) => {
 
 exports.setCursorBlink = (blink) => {
     term.options.cursorBlink = blink;
+};
+
+exports.setFocused = (focus) => {
+    if (focus) {
+        setupImeGuard();
+        term.focus();
+    } else {
+        term.blur();
+    }
 };
 
 // Mock hterm.openUrl for compatibility if something calls it directly
