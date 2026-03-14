@@ -55,11 +55,11 @@ sudo apt install -y build-essential cmake curl wget unzip python3 libncurses-dev
 ```
 - Download "Command Line Tools" for Linux from https://developer.huawei.com/consumer/cn/download/
 - Extract downloaded zip and set TOOL_HOME env variable to `command-line-tools` directory
-- Change current directory to `deps` and run `build.sh`, for x86_64 emulator default
-  - For real devices, you can change target to arm64 in build.sh by modifying OHOS_ARCH and OHOS_ABI
+- Change current directory to `deps` and run `make`, for x86_64 emulator default
+  - For real devices(aarch64), you can run `make aarch64`
 ```shell
 cd deps
-./build.sh
+make
 ```
 - See `*.so` files in `deps/output`
 ```shell

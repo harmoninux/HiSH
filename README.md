@@ -71,11 +71,11 @@ sudo apt install -y build-essential cmake curl wget unzip python3 libncurses-dev
 
 * 从[华为开发者官网](https://developer.huawei.com/consumer/cn/download/)下载Linux版"Command Line Tools"
 * 解压后将`TOOL_HOME`环境变量设置为解压目录
-* 进入`deps`目录运行构建脚本`build.sh`（默认针对x86_64模拟器）：
-    * 针对真机的构建（arm64-v8a），需要将`build.sh`脚本中的`OHOS_ARCH`改为`aarch64`，`OHOS_ABI`改为`arm64-v8a`
+* 进入`deps`目录运行`make`（默认针对x86_64模拟器）：
+    * 针对真机的构建（arm64-v8a），需要执行`make aarch64`
 ```shell 
 cd deps 
-./build.sh 
+make
 ```
 * 构建产物位于`deps/output`目录
 
