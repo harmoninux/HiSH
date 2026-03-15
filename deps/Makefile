@@ -28,7 +28,6 @@ x86_64: clean_libqemu
 
 # Build for aarch64 platform
 aarch64: clean_libqemu
-	$(MAKE) copy
 	$(MAKE) copy OHOS_ARCH=aarch64 OHOS_ABI=arm64-v8a
 
 clean_libqemu:
