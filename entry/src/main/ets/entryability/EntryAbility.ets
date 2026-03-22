@@ -150,8 +150,8 @@ export default class EntryAbility extends UIAbility {
 
     // 获取随机 VNC 端口 (startPort ~ startPort + 5000)
     const bundleInfo = AppStorage.get('bundleInfo') as bundleManager.BundleInfo
-    const startPort = bundleInfo.name.startsWith('dev.hackeris') ? 70000 : 60000
-    const vncPort = vncEnabled ? getFreeVncPort(startPort, startPort+5000) : undefined;
+    const startPort = bundleInfo.name.startsWith('dev.hackeris') ? 5000 : 9999
+    const vncPort = vncEnabled ? getFreeVncPort(startPort, startPort + 1000) : undefined;
     if (vncPort) {
       AppStorage.setOrCreate('vncWebSocketPort', vncPort);
       hilog.info(DOMAIN, 'testTag', 'VNC WebSocket port: %{public}d', vncPort);
