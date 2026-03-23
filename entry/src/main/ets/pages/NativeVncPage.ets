@@ -11,7 +11,7 @@ interface NativeVncPageParams {
 @Entry
 @Component
 struct NativeVncPage {
-  @State vncPort: number = 5900; // 默认 VNC 端口
+  @State vncPort: number = 5900
   @State connected: boolean = false
   @State errorMessage: string = ''
 
@@ -30,65 +30,35 @@ struct NativeVncPage {
 
   build() {
     Column() {
-      // 顶部工具栏
-      Row() {
-        Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-          SymbolGlyph($r('sys.symbol.arrow_left'))
-            .fontSize(24)
-            .fontColor([$r('sys.color.font_primary')])
-        }
+      Button('Back')
         .onClick(() => {
           router.back();
         })
 
-        Text('Native VNC')
-          .fontSize(18)
-          .fontWeight(FontWeight.Medium)
-          .layoutWeight(1)
-          .textAlign(TextAlign.Center)
+      Divider()
 
-        // 占位，保持标题居中
-        Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-          SymbolGlyph($r('sys.symbol.arrow_left'))
-            .fontSize(24)
-            .fontColor([Color.Transparent])
-        }
-        .visibility(Visibility.Hidden)
-      }
-      .width('100%')
-      .height(48)
-      .padding({ left: 8, right: 8 })
-      .backgroundColor($r('sys.color.background_primary'))
+      if (this.errorMessage) {
+        Text(this.errorMessage)
+          .fontSize(16)
+          .fontColor(Color.Red)
+          .padding(20)
 
-      // VNC 查看器
-      Column() {
-        if (this.errorMessage) {
-          Text(this.errorMessage)
-            .fontSize(16)
-            .fontColor(Color.Red)
-            .textAlign(TextAlign.Center)
-            .padding(20)
-            .margin({ top: 20 })
-
-          Button('Retry')
-            .onClick(() => {
-              this.errorMessage = '';
-            })
-        } else {
-          NativeVncViewer({
-            address: '127.0.0.1',
-            port: this.vncPort,
-            password: '',
-            connected: this.connected,
-            onConnectionFailed: () => this.onConnectionFailed()
+        Button('Retry')
+          .onClick(() => {
+            this.errorMessage = '';
           })
-        }
+      } else {
+        NativeVncViewer({
+          address: '127.0.0.1',
+          port: this.vncPort,
+          password: '',
+          connected: this.connected,
+        })
       }
-      .width('100%')
-      .layoutWeight(1)
     }
     .width('100%')
     .height('100%')
+    .padding(20)
     .backgroundColor($r('sys.color.background_primary'))
   }
 }

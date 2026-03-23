@@ -62,3 +62,46 @@ export const deleteSnapshot: (imagePath: string, snapshotName: string) => string
  * @returns JSON 格式的结果
  */
 export const optimizeImage: (imagePath: string, outputPath: string, mode: 'sparse' | 'prealloc' | 'cleanup' | 'optimize') => string;
+
+// ================== VNC Viewer Functions ==================
+
+/**
+ * VNC 更新处理
+ * @param onResize 回调函数，当 VNC 缓冲区大小改变时调用
+ * @param onUpdate 回调函数，当 VNC 有新的帧更新时调用
+ * @returns 返回值表示消息处理状态
+ */
+export const vncUpdate: (
+  onResize: (size: number) => ArrayBuffer,
+  onUpdate: (updateInfo: ArrayBuffer) => void
+) => number;
+
+/**
+ * 初始化 VNC 连接
+ * @param address VNC 服务器地址
+ * @param port VNC 端口
+ * @param password VNC 密码（可为空）
+ * @returns ArrayBuffer 类型的帧缓冲区，连接失败时返回 null
+ */
+export const vncInit: (address: string, port: number, password: string) => ArrayBuffer | null;
+
+/**
+ * 关闭 VNC 连接
+ * @returns 0 表示成功
+ */
+export const vncClose: () => number;
+
+/**
+ * 发送鼠标事件到 VNC 服务器
+ * @param x 鼠标 X 坐标
+ * @param y 鼠标 Y 坐标
+ * @param buttonMask 按钮掩码（RFB_BUTTON1-5）
+ */
+export const vncMouseEvent: (x: number, y: number, buttonMask: number) => void;
+
+/**
+ * 发送键盘事件到 VNC 服务器
+ * @param key RFB 按键码（X11 keysym）
+ * @param down true 表示按下，false 表示释放
+司 */
+export const vncKeyEvent: (key: number, down: boolean) => void;
