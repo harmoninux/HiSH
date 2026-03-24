@@ -56,6 +56,9 @@ private:
     static rfbBool resize(rfbClient *);
     static char passwd[RFB_BUF_SIZE];
     static bool checkConnection();
+    // Track current frame buffer to ensure it stays valid
+    static uint8_t *currentFrameBuffer;
+    static size_t currentBufferSize;
 };
 
 #endif // HISH_VNC_VIEWER_H

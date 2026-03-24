@@ -1,4 +1,7 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { image } from '@kit.ImageKit';
+import { display } from '@kit.ArkUI';
+import { ArkTSUtils } from '@kit.ArkTS';
 import napi from 'libentry.so';
 
 const DOMAIN = 0x0001;
@@ -15,7 +18,23 @@ export default struct NativeVncViewer {
   @State errorMessage: string = ''
   @State statusMessage: string = ''
 
+  private canvasSize: Size = display.getDefaultDisplaySync()
+  private settings: RenderingContextSettings = new RenderingContextSettings(false)
+  private context: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings)
   private updateInterval?: number = undefined
+  private checkVncUpdateFlag: boolean = false
+  private checkVncUpdateLock: ArkTSUtils.locks.AsyncLock = new ArkTSUtils.locks.AsyncLock()
+
+  // VNC frame buffer and rendering state
+  private pixelArray: Uint8Array = new Uint8Array([])
+  private vncWidth: number = 0
+  private vncHeight: number = 0
+  private leftShift: number = -1
+  private upShift: number = -1
+  private windowScale: number = 1
+  private mouseX: number = -1
+  private mouseY: number = -1
+  private mouseStat: number = 0
 
   aboutToAppear() {
     hilog.info(DOMAIN, LOG_TAG, 'NativeVncViewer initializing: %{public}s:%{public}d', this.address, this.port);
@@ -69,36 +88,114 @@ export default struct NativeVncViewer {
     }
   }
 
-  private startUpdateLoop() {
-    this.updateInterval = setInterval(() => {
-      try {
-        const result = napi.vncUpdate(
-          (size: number) => {
-            hilog.info(DOMAIN, LOG_TAG, 'VNC resize: %{public}d bytes', size);
-            const newBuffer = new ArrayBuffer(size);
-            return newBuffer;
-          },
-          (updateInfo: Uint8Array) => {
-            const view = new DataView(updateInfo.buffer);
-            const width = view.getInt32(0, true);
-            const height = view.getInt32(4, true);
-            const x = view.getInt32(8, true);
-            const y = view.getInt32(12, true);
-            const w = view.getInt32(16, true);
-            const h = view.getInt32(20, true);
+  private getUpdatePixelMap(x: number, y: number, w: number, h: number): image.PixelMap | null {
+    // RGB565: 2 bytes per pixel
+    const bitsPerPixel = 2;
+    let freshAreaArray = new Uint8Array(h * w * bitsPerPixel);
 
-            hilog.info(DOMAIN, LOG_TAG, 'VNC update: %{public}dx%{public}d at (%{public}d,%{public}d), %{public}dx%{public}d',
-                      width, height, x, y, w, h);
-            this.statusMessage = 'Update: ' + w + 'x' + h + ' at ' + x + ',' + y;
+    for (let i = 0; i < h; i++) {
+      const srcStart = ((y) * this.vncWidth + x + i * this.vncWidth) * bitsPerPixel;
+      const srcEnd = srcStart + w * bitsPerPixel;
+      const desStart = (i * w) * bitsPerPixel;
+
+      if (srcEnd <= this.pixelArray.length && srcStart >= 0) {
+        freshAreaArray.set(this.pixelArray.subarray(srcStart, srcEnd), desStart);
+      }
+    }
+
+    let opts: image.InitializationOptions = {
+      alphaType: image.AlphaType.OPAQUE,
+      size: { height: h, width: w },
+      srcPixelFormat: image.PixelMapFormat.RGB_565,
+      scaleMode: image.ScaleMode.CENTER_CROP,
+      pixelFormat: image.PixelMapFormat.RGB_565,
+      editable: false
+    }
+
+    try {
+      return image.createPixelMapSync(freshAreaArray.buffer, opts);
+    } catch (e) {
+      hilog.error(DOMAIN, LOG_TAG, 'Failed to create PixelMap: %{public}s', JSON.stringify(e));
+      return null;
+    }
+  }
+
+  private checkVncUpdate() {
+    try {
+      const result = napi.vncUpdate(
+        (size: number) => {
+          hilog.info(DOMAIN, LOG_TAG, 'VNC resize: %{public}d bytes', size);
+          this.pixelArray = new Uint8Array(size);
+          return this.pixelArray.buffer;
+        },
+        (updateInfo: Uint8Array) => {
+          const view = new DataView(updateInfo.buffer);
+          const width = view.getInt32(0, true);
+          const height = view.getInt32(4, true);
+          const x = view.getInt32(8, true);
+          const y = view.getInt32(12, true);
+          const w = view.getInt32(16, true);
+          const h = view.getInt32(20, true);
+
+          hilog.info(DOMAIN, LOG_TAG, 'VNC update: %{public}dx%{public}d at (%{public}d,%{public}d), %{public}dx%{public}d',
+                    width, height, x, y, w, h);
+
+          // Update VNC dimensions on resize
+          if (width !== this.vncWidth || height !== this.vncHeight ||
+              this.leftShift === -1 || this.upShift === -1) {
+            this.vncWidth = width;
+            this.vncHeight = height;
+
+            // Calculate scale to fit canvas
+            this.windowScale = Math.min(this.canvasSize.width / width, this.canvasSize.height / height);
+            hilog.info(DOMAIN, LOG_TAG, 'window_scale: %{public}d', this.windowScale);
+
+            // Center of VNC display
+            this.leftShift = (this.canvasSize.width - width * this.windowScale) / 2;
+            this.upShift = (this.canvasSize.height - height * this.windowScale) / 2;
+
+            // Reset canvas transform
+            this.context.resetTransform();
+            this.context.translate(this.leftShift, this.upShift);
+            this.context.scale(this.windowScale, this.windowScale);
           }
-        );
-      } catch (e) {
-        hilog.error(DOMAIN, LOG_TAG, 'VNC update error: %{public}s', JSON.stringify(e));
-        this.errorMessage = 'Update error: ' + JSON.stringify(e);
+
+          // Get PixelMap for updated region
+          const pixelMap = this.getUpdatePixelMap(x, y, w, h);
+          if (pixelMap) {
+            // Draw updated region
+            this.context.drawImage(pixelMap, x, y);
+          }
+        }
+      );
+
+      // Check for connection error
+      if (result < 0) {
+        hilog.error(DOMAIN, LOG_TAG, 'VNC connection error');
         this.isConnected = false;
         this.stopUpdateLoop();
       }
-    }, 100);
+    } catch (e) {
+      hilog.error(DOMAIN, LOG_TAG, 'VNC update error: %{public}s', JSON.stringify(e));
+      this.errorMessage = 'Update error: ' + JSON.stringify(e);
+      this.isConnected = false;
+      this.stopUpdateLoop();
+    }
+  }
+
+  private startUpdateLoop() {
+    this.checkVncUpdateFlag = true;
+
+    // 60 FPS update loop
+    this.updateInterval = setInterval(() => {
+      if (this.checkVncUpdateFlag) {
+        this.checkVncUpdateLock.lockAsync(() => {
+          this.checkVncUpdateFlag = false;
+          this.checkVncUpdate();
+          this.checkVncUpdateFlag = true;
+        })
+      }
+    }, 1000 / 60);
   }
 
   private stopUpdateLoop() {
@@ -106,9 +203,29 @@ export default struct NativeVncViewer {
       clearInterval(this.updateInterval);
       this.updateInterval = undefined;
     }
+    this.checkVncUpdateFlag = false;
   }
 
   build() {
-    Text(this.errorMessage || this.statusMessage || 'Ready')
+    Stack() {
+      Canvas(this.context)
+        .onReady(() => {
+          hilog.info(DOMAIN, LOG_TAG, 'Canvas ready: %{public}dx%{public}d',
+                   this.canvasSize.width, this.canvasSize.height);
+        })
+        .width('100%')
+        .height('100%')
+        .backgroundColor(Color.Black)
+
+      if (this.errorMessage) {
+        Text(this.errorMessage)
+          .fontSize(16)
+          .fontColor(Color.Red)
+          .padding(20)
+          .backgroundColor(Color.Transparent)
+      }
+    }
+    .width('100%')
+    .height('100%')
   }
 }

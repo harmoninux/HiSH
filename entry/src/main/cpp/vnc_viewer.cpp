@@ -11,11 +11,16 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <cstring>
 
 rfbClient *VncViewer::cl = nullptr;
 VncViewer::onResizeCallback VncViewer::onResize = nullptr;
 VncViewer::onUpdateCallback VncViewer::onUpdate = nullptr;
 char VncViewer::passwd[] = {};
+
+// Track the current frame buffer to ensure it stays valid during updates
+uint8_t *VncViewer::currentFrameBuffer = nullptr;
+size_t VncViewer::currentBufferSize = 0;
 
 void VncViewer::update(rfbClient *cl, int x, int y, int w, int h) {
     struct RfbUpdateInfo info = {.width = cl->width, .height = cl->height, .x = x, .y = y, .w = w, .h = h};
@@ -88,12 +93,27 @@ void VncViewer::closeViewer() {
 rfbBool VncViewer::resize(rfbClient *cl) {
     OH_LOG_INFO(LOG_APP, "VNC resize: width=%{public}d, height=%{public}d", cl->width, cl->height);
     size_t num = cl->height * cl->width * cl->format.bitsPerPixel / 8;
+
     if (onResize) {
+        // Call the resize callback to get new buffer from JavaScript
         uint8_t *ptr = onResize(num);
-        cl->frameBuffer = ptr;
-        return TRUE;
-    } else
+
+        // Only update frameBuffer if we got a valid pointer
+        if (ptr != nullptr) {
+            cl->frameBuffer = ptr;
+            // Track the current buffer
+            VncViewer::currentFrameBuffer = ptr;
+            VncViewer::currentBufferSize = num;
+            OH_LOG_INFO(LOG_APP, "Frame buffer updated: ptr=%{public}p, size=%{public}zu", ptr, num);
+            return TRUE;
+        } else {
+            OH_LOG_ERROR(LOG_APP, "Resize callback returned null pointer");
+            return FALSE;
+        }
+    } else {
+        OH_LOG_ERROR(LOG_APP, "No resize callback set");
         return FALSE;
+    }
 }
 
 void VncViewer::setViewer(const char *address, int port, const char *passwd) {
