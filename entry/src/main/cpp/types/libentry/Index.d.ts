@@ -73,7 +73,7 @@ export const optimizeImage: (imagePath: string, outputPath: string, mode: 'spars
  */
 export const vncUpdate: (
   onResize: (size: number) => ArrayBuffer,
-  onUpdate: (updateInfo: ArrayBuffer) => void
+  onUpdate: (updateInfo: Uint8Array) => void
 ) => number;
 
 /**

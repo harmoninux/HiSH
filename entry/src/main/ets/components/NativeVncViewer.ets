@@ -78,9 +78,8 @@ export default struct NativeVncViewer {
             const newBuffer = new ArrayBuffer(size);
             return newBuffer;
           },
-          (updateInfo: ArrayBuffer) => {
-            const data = new Uint8Array(updateInfo);
-            const view = new DataView(updateInfo);
+          (updateInfo: Uint8Array) => {
+            const view = new DataView(updateInfo.buffer);
             const width = view.getInt32(0, true);
             const height = view.getInt32(4, true);
             const x = view.getInt32(8, true);

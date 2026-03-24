@@ -161,7 +161,7 @@ export default struct WebTerminal {
         if (vncPort) {
           this.getUIContext().getRouter().pushUrl({
             url: 'pages/VncPage',
-            params: { vncPort: vncPort }
+            params: { vncPort: 5900 }
           });
         } else {
           this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
