@@ -979,7 +979,7 @@ static napi_value vncKeyEvent(napi_env env, napi_callback_info info) {
     }
     napi_get_value_bool(env, args[1], &down);
 
-    VncViewer::keyEvent((rfbKeySym)key, down ? TRUE : FALSE);
+    VncViewer::keyEvent(ohKeyCode2RFBKeyCode((Input_KeyCode)key, down ? TRUE : FALSE), down ? TRUE : FALSE);
     return nullptr;
 }
 

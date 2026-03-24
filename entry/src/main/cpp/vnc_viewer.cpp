@@ -76,9 +76,11 @@ char *VncViewer::getPasswd(rfbClient *cl) {
 }
 
 void VncViewer::closeViewer() {
-    if (checkConnection()) {
-        rfbCloseSocket(cl->sock);
-        delete VncViewer::cl;
+    if (cl) {
+        if (cl->sock >= 0) {
+            rfbCloseSocket(cl->sock);
+        }
+        rfbClientCleanup(cl);
         VncViewer::cl = nullptr;
     }
 }
