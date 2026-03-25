@@ -72,7 +72,7 @@ export const optimizeImage: (imagePath: string, outputPath: string, mode: 'spars
  * @returns 返回值表示消息处理状态
  */
 export const vncUpdate: (
-  onResize: (size: number) => ArrayBuffer,
+  onResize: (size: Uint8Array) => void,
   onUpdate: (updateInfo: Uint8Array) => void
 ) => number;
 
@@ -81,9 +81,9 @@ export const vncUpdate: (
  * @param address VNC 服务器地址
  * @param port VNC 端口
  * @param password VNC 密码（可为空）
- * @returns ArrayBuffer 类型的帧缓冲区，连接失败时返回 null
+ * @returns Uint8Array 类型的帧缓冲区，连接失败时返回 null
  */
-export const vncInit: (address: string, port: number, password: string) => ArrayBuffer | null;
+export const vncInit: (address: string, port: number, password: string) => Uint8Array | null;
 
 /**
  * 关闭 VNC 连接

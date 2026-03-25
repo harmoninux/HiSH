@@ -55,17 +55,18 @@ export default struct NativeVncViewer {
     try {
       this.statusMessage = 'Connecting to VNC server...';
       const result = napi.vncInit(this.address, this.port, this.password);
-      hilog.info(DOMAIN, LOG_TAG, 'vncInit result: %{public}s', JSON.stringify(result));
 
-      if (result) {
+      // vncInit returns Uint8Array (framebuffer) or null
+      if (result && result instanceof Uint8Array) {
+        this.pixelArray = result;
         this.isConnected = true;
         this.statusMessage = 'Connected! Waiting for VNC updates...';
-        hilog.info(DOMAIN, LOG_TAG, 'VNC connected successfully');
+        hilog.info(DOMAIN, LOG_TAG, 'VNC connected successfully, framebuffer size: %{public}d', result.length);
         this.startUpdateLoop();
       } else {
         this.errorMessage = 'Connection failed';
         this.statusMessage = 'Connection failed';
-        hilog.error(DOMAIN, LOG_TAG, 'VNC init failed');
+        hilog.error(DOMAIN, LOG_TAG, 'VNC init failed, result: %{public}s', JSON.stringify(result));
       }
     } catch (e) {
       this.errorMessage = 'Error: ' + JSON.stringify(e);
@@ -123,11 +124,11 @@ export default struct NativeVncViewer {
   private checkVncUpdate() {
     try {
       const result = napi.vncUpdate(
-        (size: number) => {
-          hilog.info(DOMAIN, LOG_TAG, 'VNC resize: %{public}d bytes', size);
-          this.pixelArray = new Uint8Array(size);
-          return this.pixelArray.buffer;
+        // First callback: receives updated framebuffer (Uint8Array)
+        (framebuffer: Uint8Array) => {
+          this.pixelArray = framebuffer;
         },
+        // Second callback: receives update info (RfbUpdateInfo)
         (updateInfo: Uint8Array) => {
           const view = new DataView(updateInfo.buffer);
           const width = view.getInt32(0, true);
@@ -137,7 +138,7 @@ export default struct NativeVncViewer {
           const w = view.getInt32(16, true);
           const h = view.getInt32(20, true);
 
-          hilog.info(DOMAIN, LOG_TAG, 'VNC update: %{public}dx%{public}d at (%{public}d,%{public}d), %{public}dx%{public}d',
+          hilog.debug(DOMAIN, LOG_TAG, 'VNC update: %{public}dx%{public}d at (%{public}d,%{public}d), %{public}dx%{public}d',
                     width, height, x, y, w, h);
 
           // Update VNC dimensions on resize
@@ -148,23 +149,22 @@ export default struct NativeVncViewer {
 
             // Calculate scale to fit canvas
             this.windowScale = Math.min(this.canvasSize.width / width, this.canvasSize.height / height);
-            hilog.info(DOMAIN, LOG_TAG, 'window_scale: %{public}d', this.windowScale);
+            hilog.info(DOMAIN, LOG_TAG, 'window_scale: %{public}f, vncSize: %{public}dx%{public}d',
+                     this.windowScale, width, height);
 
             // Center of VNC display
             this.leftShift = (this.canvasSize.width - width * this.windowScale) / 2;
             this.upShift = (this.canvasSize.height - height * this.windowScale) / 2;
 
-            // Reset canvas transform
-            this.context.resetTransform();
-            this.context.translate(this.leftShift, this.upShift);
-            this.context.scale(this.windowScale, this.windowScale);
+            hilog.info(DOMAIN, LOG_TAG, 'Canvas transform: scale=%{public}f, leftShift=%{public}d, upShift=%{public}d',
+                     this.windowScale, this.leftShift, this.upShift);
           }
 
           // Get PixelMap for updated region
           const pixelMap = this.getUpdatePixelMap(x, y, w, h);
           if (pixelMap) {
-            // Draw updated region
-            this.context.drawImage(pixelMap, x, y);
+            // Draw updated region with px2vp conversion
+            this.context.drawImage(pixelMap, px2vp(x + this.leftShift), px2vp(y + this.upShift));
           }
         }
       );
