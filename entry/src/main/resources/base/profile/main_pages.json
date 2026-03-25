@@ -8,7 +8,6 @@
     "pages/SharedFolderPage",
     "pages/UserGuidePage",
     "pages/GuideWebPage",
-    "pages/VncPage",
-    "pages/NativeVncPage"
+    "pages/VncPage"
   ]
 }
