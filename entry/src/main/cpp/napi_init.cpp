@@ -31,6 +31,10 @@
 #define LOG_DOMAIN 0x3300
 #define LOG_TAG "HiSH"
 
+// VNC Viewer includes
+#include "include/vnc_viewer.hpp"
+#include "include/utils.hpp"
+
 struct data_buffer {
     char *buf;
     size_t size;
@@ -787,6 +791,199 @@ static napi_value optimizeImage(napi_env env, napi_callback_info info)
 }
 
 
+// ================== VNC Viewer Functions ==================
+
+static napi_value vncUpdate(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2] = {};
+
+    napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (status != napi_ok || argc < 2) {
+        napi_throw_error(env, "-10", "Invalid arguments");
+        return nullptr;
+    }
+
+    napi_valuetype val_type;
+    napi_typeof(env, args[0], &val_type);
+
+    if (val_type != napi_function) {
+        napi_throw_error(env, "-12", "Expected function for onResize");
+        return nullptr;
+    }
+
+    napi_typeof(env, args[1], &val_type);
+    if (val_type != napi_function) {
+        napi_throw_error(env, "-12", "Expected function for onUpdate");
+        return nullptr;
+    }
+
+    auto onResize = [&](size_t size) {
+        auto ret = createNewBuffer(env, size);
+        napi_value frameBufferNV;
+        uint8_t *ptr = std::get<1>(ret);
+        frameBufferNV = std::get<0>(ret);
+
+        if (napi_ok != napi_call_function(env, nullptr, args[0], 1, &frameBufferNV, nullptr)) {
+            napi_throw_error(env, "-10", "Failed to call onResize");
+            return (uint8_t *)nullptr;
+        }
+
+        return ptr;
+    };
+
+    auto onUpdate = [&](RfbUpdateInfo &info) {
+        napi_value jsInfo = parseRfbUpdateInfo(env, info);
+        napi_call_function(env, nullptr, args[1], 1, &jsInfo, nullptr);
+    };
+
+    int retVal = VncViewer::waitForMessage(onResize, onUpdate);
+    napi_value ret;
+    napi_create_int32(env, retVal, &ret);
+    return ret;
+}
+
+static std::string value2String(napi_env env, napi_value value) {
+    size_t stringSize = 0;
+    napi_get_value_string_utf8(env, value, nullptr, 0, &stringSize);
+    std::string valueString;
+    valueString.resize(stringSize + 1);
+    napi_get_value_string_utf8(env, value, &valueString[0], stringSize + 1, &stringSize);
+    return valueString;
+}
+
+static napi_value vncInit(napi_env env, napi_callback_info info) {
+    napi_value frameBufferNV = nullptr;
+    auto onResize = [&](size_t size) {
+        auto ret = createNewBuffer(env, size);
+        uint8_t *ptr = std::get<1>(ret);
+        frameBufferNV = std::get<0>(ret);
+        return ptr;
+    };
+
+    size_t argc = 3;
+    napi_value args[3] = {};
+
+    napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (status != napi_ok || argc < 3) {
+        napi_throw_error(env, "-10", "Invalid arguments");
+        return nullptr;
+    }
+
+    napi_valuetype val_type;
+    napi_typeof(env, args[0], &val_type);
+    if (napi_string != val_type) {
+        napi_throw_error(env, "-12", "Expected string for address");
+        return nullptr;
+    }
+    std::string address = value2String(env, args[0]);
+
+    napi_typeof(env, args[1], &val_type);
+    if (napi_number != val_type) {
+        napi_throw_error(env, "-12", "Expected number for port");
+        return nullptr;
+    }
+    int32_t port = 0;
+    napi_get_value_int32(env, args[1], &port);
+
+    napi_typeof(env, args[2], &val_type);
+    if (napi_string != val_type) {
+        napi_throw_error(env, "-12", "Expected string for password");
+        return nullptr;
+    }
+    std::string passwd = value2String(env, args[2]);
+
+    OH_LOG_INFO(LOG_APP, "VNC init: address=%{public}s, port=%{public}d", address.c_str(), port);
+
+    VncViewer::setViewer(address.c_str(), port, passwd.c_str());
+
+    try {
+        VncViewer::initViewer(onResize);
+    } catch (std::runtime_error e) {
+        OH_LOG_ERROR(LOG_APP, "VNC connect error: %{public}s", e.what());
+        napi_throw_error(env, "-1", e.what());
+        return nullptr;
+    }
+
+    return frameBufferNV;
+}
+
+static napi_value vncClose(napi_env env, napi_callback_info info) {
+    VncViewer::closeViewer();
+
+    napi_value ret;
+    napi_create_int32(env, 0, &ret);
+    return ret;
+}
+
+static napi_value vncMouseEvent(napi_env env, napi_callback_info info) {
+    size_t argc = 3;
+    napi_value args[3] = {};
+    int x, y, buttonMask;
+
+    napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (status != napi_ok || argc < 3) {
+        napi_throw_error(env, "-10", "Invalid arguments");
+        return nullptr;
+    }
+
+    napi_valuetype val_type;
+    napi_typeof(env, args[0], &val_type);
+    if (napi_number != val_type) {
+        napi_throw_error(env, "-12", "Expected number for x");
+        return nullptr;
+    }
+    napi_get_value_int32(env, args[0], &x);
+
+    napi_typeof(env, args[1], &val_type);
+    if (napi_number != val_type) {
+        napi_throw_error(env, "-12", "Expected number for y");
+        return nullptr;
+    }
+    napi_get_value_int32(env, args[1], &y);
+
+    napi_typeof(env, args[2], &val_type);
+    if (napi_number != val_type) {
+        napi_throw_error(env, "-12", "Expected number for buttonMask");
+        return nullptr;
+    }
+    napi_get_value_int32(env, args[2], &buttonMask);
+
+    VncViewer::mouseEvent(x, y, buttonMask);
+    return nullptr;
+}
+
+static napi_value vncKeyEvent(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2] = {};
+    uint32_t key;
+    bool down;
+
+    napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (status != napi_ok || argc < 2) {
+        napi_throw_error(env, "-10", "Invalid arguments");
+        return nullptr;
+    }
+
+    napi_valuetype val_type;
+    napi_typeof(env, args[0], &val_type);
+    if (napi_number != val_type) {
+        napi_throw_error(env, "-12", "Expected number for key");
+        return nullptr;
+    }
+    napi_get_value_uint32(env, args[0], &key);
+
+    napi_typeof(env, args[1], &val_type);
+    if (napi_boolean != val_type) {
+        napi_throw_error(env, "-12", "Expected boolean for down");
+        return nullptr;
+    }
+    napi_get_value_bool(env, args[1], &down);
+
+    VncViewer::keyEvent(ohKeyCode2RFBKeyCode((Input_KeyCode)key, down ? TRUE : FALSE), down ? TRUE : FALSE);
+    return nullptr;
+}
+
+
 static void call_on_data_callback(napi_env env, napi_value js_callback, void *context, void *data) {
 
     data_buffer *buffer = static_cast<data_buffer *>(data);
@@ -1192,7 +1389,13 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"createSnapshot", nullptr, createSnapshot, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"applySnapshot", nullptr, applySnapshot, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"deleteSnapshot", nullptr, deleteSnapshot, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"optimizeImage", nullptr, optimizeImage, nullptr, nullptr, nullptr, napi_default, nullptr}
+        {"optimizeImage", nullptr, optimizeImage, nullptr, nullptr, nullptr, napi_default, nullptr},
+        // VNC Viewer functions
+        {"vncUpdate", nullptr, vncUpdate, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"vncInit", nullptr, vncInit, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"vncClose", nullptr, vncClose, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"vncMouseEvent", nullptr, vncMouseEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"vncKeyEvent", nullptr, vncKeyEvent, nullptr, nullptr, nullptr, napi_default, nullptr}
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
