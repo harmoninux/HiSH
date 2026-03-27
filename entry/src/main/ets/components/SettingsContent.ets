@@ -199,7 +199,7 @@ export default struct SettingsContent {
           BlockTitle({ content: $r('app.string.setting_vnc') })
           Column() {
             SettingItem({
-              title: $r('app.string.setting_enable_novnc'),
+              title: $r('app.string.setting_enable_vnc'),
               subTitle: $r('app.string.setting_vnc_restart_hint'),
               content: () => {
                 this.buildVncEnabled()

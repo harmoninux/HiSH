@@ -16,8 +16,8 @@ interface VmOptions {
   qmpUnixSocket: string
   qgaUnixSocket: string
   sharedFolderReadonly: boolean
-  init: string
-  vncWebSocketPort?: number // VNC WebSocket 端口 (可选，由外部传入)
+  init: string,
+  vncEnabled: boolean
 }
 
 function startVm(options: VmOptions): boolean {
@@ -70,9 +70,8 @@ function startVm(options: VmOptions): boolean {
     ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
       "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
 
-  // VNC 服务器 (仅当 vncWebSocketPort 已设置时启用)
-  const vnc: string[] = options.vncWebSocketPort ? [
-    '-vnc', `127.0.0.1:0,websocket=${options.vncWebSocketPort}`,
+  const vnc: string[] = options.vncEnabled ? [
+    '-vnc', `127.0.0.1:0`,
     '-device', 'virtio-gpu-pci',
     '-device', 'virtio-keyboard-pci',
     '-device', 'virtio-tablet-pci'

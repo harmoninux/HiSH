@@ -257,8 +257,8 @@
       "value": "VNC"
     },
     {
-      "name": "setting_enable_novnc",
-      "value": "启用 noVNC"
+      "name": "setting_enable_vnc",
+      "value": "启用VNC"
     },
     {
       "name": "setting_vnc_restart_hint",
@@ -650,7 +650,7 @@
     },
     {
       "name": "vnc_console_title",
-      "value": "noVNC控制台"
+      "value": "VNC控制台"
     },
     {
       "name": "guide_basic_title",
