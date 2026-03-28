@@ -39,6 +39,7 @@ struct VncPage {
   private mouseX: number = -1
   private mouseY: number = -1
   private mouseStat: number = 0
+  private needsFullRedraw: boolean = false
 
   aboutToAppear() {
     this.connectVnc();
@@ -118,6 +119,32 @@ struct VncPage {
     }
   }
 
+  private redrawFullCanvas() {
+    if (this.vncWidth <= 0 || this.vncHeight <= 0 || this.pixelArray.length === 0) {
+      hilog.warn(DOMAIN, LOG_TAG, 'Cannot redraw: invalid VNC dimensions or empty buffer');
+      return;
+    }
+
+    hilog.info(DOMAIN, LOG_TAG, 'Performing full canvas redraw: %{public}dx%{public}d', this.vncWidth, this.vncHeight);
+
+    const pixelMap = this.getUpdatePixelMap(0, 0, this.vncWidth, this.vncHeight);
+    if (pixelMap) {
+      // Reset transform and apply scale
+      this.context.resetTransform();
+      this.context.scale(this.windowScale, this.windowScale);
+
+      // Draw full VNC screen with centering offset
+      const vncLeftShift = this.leftShift / this.windowScale;
+      const vncUpShift = this.upShift / this.windowScale;
+      this.context.drawImage(pixelMap, px2vp(vncLeftShift), px2vp(vncUpShift));
+
+      this.needsFullRedraw = false;
+      hilog.info(DOMAIN, LOG_TAG, 'Full canvas redraw completed');
+    } else {
+      hilog.error(DOMAIN, LOG_TAG, 'Failed to create PixelMap for full redraw');
+    }
+  }
+
   private checkVncUpdate() {
     try {
       const result = napi.vncUpdate(
@@ -169,6 +196,12 @@ struct VncPage {
                 this.canvasWidth, this.canvasHeight);
             }
             this.transformNeedsReset = false;
+          }
+
+          // Check if we need a full redraw (e.g., after screen rotation)
+          if (this.needsFullRedraw) {
+            this.redrawFullCanvas();
+            return;
           }
 
           // Get PixelMap for updated region
@@ -234,9 +267,10 @@ struct VncPage {
           this.canvasHeight = vp2px(Number(newArea.height));
           hilog.info(DOMAIN, LOG_TAG, 'Canvas area changed: %{public}dx%{public}d',
             this.canvasWidth, this.canvasHeight);
-          // Trigger scale recalculation
+          // Trigger scale recalculation and full redraw
           if (this.vncWidth > 0 && this.vncHeight > 0) {
             this.transformNeedsReset = true;
+            this.needsFullRedraw = true;
           }
         })
         .width('100%')
