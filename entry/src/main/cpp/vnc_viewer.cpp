@@ -6,11 +6,10 @@
 #include "rfb/rfb.h"
 #include <cstddef>
 #include <cstdint>
-#include <signal.h>
 #include <stdexcept>
 #include <unistd.h>
-#include <sys/wait.h>
-#include <fcntl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <cstring>
 
 rfbClient *VncViewer::cl = nullptr;
@@ -33,23 +32,19 @@ bool VncViewer::checkConnection() {
     if (!cl || cl->sock < 0) {
         return false;
     }
-    pid_t pid = fork();
-    if (pid == 0) {
-        // Child process
-        int flags = fcntl(cl->sock, F_GETFL, 0);
-        if (flags == -1) {
-            _exit(EXIT_FAILURE);
-        }
-        _exit(0);
+
+    // Use getpeername() to check if socket is connected
+    // Returns 0 if connected, error (ENOTCONN or others) if not
+    struct sockaddr_in peer_addr;
+    socklen_t addr_len = sizeof(peer_addr);
+    int result = getpeername(cl->sock, (struct sockaddr *)&peer_addr, &addr_len);
+
+    if (result == 0) {
+        return true;
     } else {
-        // Parent process
-        int status;
-        waitpid(pid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            return true;
-        } else {
-            return false;
-        }
+        int err = errno;
+        OH_LOG_WARN(LOG_APP, "VNC socket not connected: errno=%{public}d", err);
+        return false;
     }
 }
 
@@ -117,6 +112,16 @@ rfbBool VncViewer::resize(rfbClient *cl) {
 }
 
 void VncViewer::setViewer(const char *address, int port, const char *passwd) {
+    // Clean up any existing connection first
+    if (cl) {
+        OH_LOG_INFO(LOG_APP, "Cleaning up existing VNC connection before creating new one");
+        if (cl->sock >= 0) {
+            rfbCloseSocket(cl->sock);
+        }
+        rfbClientCleanup(cl);
+        VncViewer::cl = nullptr;
+    }
+
     VncViewer::cl = rfbGetClient(8, 3, 2);
 
     strncpy(VncViewer::passwd, passwd, RFB_BUF_SIZE - 1);
