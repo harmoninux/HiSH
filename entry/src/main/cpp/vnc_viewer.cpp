@@ -117,6 +117,16 @@ rfbBool VncViewer::resize(rfbClient *cl) {
 }
 
 void VncViewer::setViewer(const char *address, int port, const char *passwd) {
+    // Clean up any existing connection first
+    if (cl) {
+        OH_LOG_INFO(LOG_APP, "Cleaning up existing VNC connection before creating new one");
+        if (cl->sock >= 0) {
+            rfbCloseSocket(cl->sock);
+        }
+        rfbClientCleanup(cl);
+        VncViewer::cl = nullptr;
+    }
+
     VncViewer::cl = rfbGetClient(8, 3, 2);
 
     strncpy(VncViewer::passwd, passwd, RFB_BUF_SIZE - 1);
