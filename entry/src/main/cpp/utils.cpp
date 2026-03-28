@@ -3,6 +3,7 @@
 //
 
 #include "include/utils.hpp"
+#include <cstring>
 
 std::tuple<napi_value, uint8_t *> createNewBuffer(napi_env env, size_t num) {
     napi_value buffer;
@@ -21,20 +22,6 @@ std::tuple<napi_value, uint8_t *> createNewBuffer(napi_env env, size_t num) {
     memset(arrayPtr, 0, num);
 
     return std::make_tuple(array, arrayPtr);
-}
-
-napi_value parseRfbUpdateInfo(napi_env env, struct RfbUpdateInfo &info) {
-    napi_value jsInfo;
-    uint8_t *infoPtr = NULL;
-    constexpr size_t num = sizeof(info);
-    auto ret = createNewBuffer(env, num);
-
-    jsInfo = std::get<0>(ret);
-    infoPtr = std::get<1>(ret);
-
-    memcpy(infoPtr, &info, sizeof(info));
-
-    return jsInfo;
 }
 
 rfbKeySym ohKeyCode2RFBKeyCode(Input_KeyCode k, rfbBool down) {

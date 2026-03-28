@@ -94,9 +94,17 @@ include_directories(
 # HiSH sources
 add_library(entry SHARED
     napi_init.cpp
-    vnc_viewer.cpp
+    napi_vnc.cpp
+    vnc_client.cpp
+    vnc_renderer.cpp
     utils.cpp
     ${LIBVNCCLIENT_SOURCES}
 )
 
-target_link_libraries(entry PUBLIC libace_napi.z.so libhilog_ndk.z.so)
+target_link_libraries(entry PUBLIC
+    libace_napi.z.so
+    libhilog_ndk.z.so
+    libEGL.so
+    libGLESv3.so
+    libnative_window.so
+)
