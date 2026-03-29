@@ -1,9 +1,10 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { image } from '@kit.ImageKit';
-import { display, router } from '@kit.ArkUI';
+import { ComposeTitleBar } from '@kit.ArkUI'
 import { ArkTSUtils } from '@kit.ArkTS';
 import napi from 'libentry.so';
 import { button2rfb } from '../utils/KeyMap';
+import deviceInfo from '@ohos.deviceInfo';
 
 const DOMAIN = 0x0001;
 const LOG_TAG = 'NativeVnc';
@@ -39,6 +40,7 @@ struct VncPage {
   private mouseX: number = -1
   private mouseY: number = -1
   private mouseStat: number = 0
+  private needsFullRedraw: boolean = false
 
   aboutToAppear() {
     this.connectVnc();
@@ -118,6 +120,32 @@ struct VncPage {
     }
   }
 
+  private redrawFullCanvas() {
+    if (this.vncWidth <= 0 || this.vncHeight <= 0 || this.pixelArray.length === 0) {
+      hilog.warn(DOMAIN, LOG_TAG, 'Cannot redraw: invalid VNC dimensions or empty buffer');
+      return;
+    }
+
+    hilog.info(DOMAIN, LOG_TAG, 'Performing full canvas redraw: %{public}dx%{public}d', this.vncWidth, this.vncHeight);
+
+    const pixelMap = this.getUpdatePixelMap(0, 0, this.vncWidth, this.vncHeight);
+    if (pixelMap) {
+      // Reset transform and apply scale
+      this.context.resetTransform();
+      this.context.scale(this.windowScale, this.windowScale);
+
+      // Draw full VNC screen with centering offset
+      const vncLeftShift = this.leftShift / this.windowScale;
+      const vncUpShift = this.upShift / this.windowScale;
+      this.context.drawImage(pixelMap, px2vp(vncLeftShift), px2vp(vncUpShift));
+
+      this.needsFullRedraw = false;
+      hilog.info(DOMAIN, LOG_TAG, 'Full canvas redraw completed');
+    } else {
+      hilog.error(DOMAIN, LOG_TAG, 'Failed to create PixelMap for full redraw');
+    }
+  }
+
   private checkVncUpdate() {
     try {
       const result = napi.vncUpdate(
@@ -169,6 +197,12 @@ struct VncPage {
                 this.canvasWidth, this.canvasHeight);
             }
             this.transformNeedsReset = false;
+          }
+
+          // Check if we need a full redraw (e.g., after screen rotation)
+          if (this.needsFullRedraw) {
+            this.redrawFullCanvas();
+            return;
           }
 
           // Get PixelMap for updated region
@@ -224,6 +258,11 @@ struct VncPage {
 
   build() {
     Column() {
+      if (deviceInfo.deviceType === '2in1') {
+        ComposeTitleBar({
+          title: $r('app.string.vnc_console_title')
+        })
+      }
       Canvas(this.context)
         .onReady(() => {
           hilog.info(DOMAIN, LOG_TAG, 'Canvas ready: %{public}dx%{public}d',
@@ -234,9 +273,10 @@ struct VncPage {
           this.canvasHeight = vp2px(Number(newArea.height));
           hilog.info(DOMAIN, LOG_TAG, 'Canvas area changed: %{public}dx%{public}d',
             this.canvasWidth, this.canvasHeight);
-          // Trigger scale recalculation
+          // Trigger scale recalculation and full redraw
           if (this.vncWidth > 0 && this.vncHeight > 0) {
             this.transformNeedsReset = true;
+            this.needsFullRedraw = true;
           }
         })
         .width('100%')
@@ -246,10 +286,10 @@ struct VncPage {
         .defaultFocus(true)
         .onMouse((event: MouseEvent) => {
           event.stopPropagation();
-          let x = vp2px(event.displayX) / this.windowScale;
-          let y = vp2px(event.displayY) / this.windowScale;
+          let x = vp2px(event.x) / this.windowScale;
+          let y = vp2px(event.y) / this.windowScale;
 
-          if (event.displayX !== 0 || event.displayY !== 0 || event.action === MouseAction.Move) {
+          if (event.x !== 0 || event.y !== 0 || event.action === MouseAction.Move) {
             this.mouseX = x - this.leftShift;
             this.mouseY = y - this.upShift;
           }
@@ -268,10 +308,10 @@ struct VncPage {
           event.stopPropagation();
           let equivalentMouseBtn = MouseButton.None;
 
-          let x = vp2px(event.touches[0].displayX) / this.windowScale;
-          let y = vp2px(event.touches[0].displayY) / this.windowScale;
+          let x = vp2px(event.touches[0].x) / this.windowScale;
+          let y = vp2px(event.touches[0].y) / this.windowScale;
 
-          if (event.touches[0].displayX !== 0 || event.touches[0].displayY !== 0 ||
+          if (event.touches[0].x !== 0 || event.touches[0].y !== 0 ||
             event.touches[0].type === TouchType.Move) {
             this.mouseX = x - this.leftShift;
             this.mouseY = y - this.upShift;
@@ -306,7 +346,7 @@ struct VncPage {
           this.sendMouseEvent();
         })
         .width('100%')
-        .height('100%')
+        .layoutWeight(1)
     }
     .width('100%')
     .height('100%')
