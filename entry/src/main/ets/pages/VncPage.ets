@@ -1,9 +1,10 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { image } from '@kit.ImageKit';
-import { display, router } from '@kit.ArkUI';
+import { ComposeTitleBar } from '@kit.ArkUI'
 import { ArkTSUtils } from '@kit.ArkTS';
 import napi from 'libentry.so';
 import { button2rfb } from '../utils/KeyMap';
+import deviceInfo from '@ohos.deviceInfo';
 
 const DOMAIN = 0x0001;
 const LOG_TAG = 'NativeVnc';
@@ -257,6 +258,11 @@ struct VncPage {
 
   build() {
     Column() {
+      if (deviceInfo.deviceType === '2in1') {
+        ComposeTitleBar({
+          title: $r('app.string.vnc_console_title')
+        })
+      }
       Canvas(this.context)
         .onReady(() => {
           hilog.info(DOMAIN, LOG_TAG, 'Canvas ready: %{public}dx%{public}d',
@@ -340,7 +346,7 @@ struct VncPage {
           this.sendMouseEvent();
         })
         .width('100%')
-        .height('100%')
+        .layoutWeight(1)
     }
     .width('100%')
     .height('100%')
