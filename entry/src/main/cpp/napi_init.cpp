@@ -948,6 +948,9 @@ static napi_value vncMouseEvent(napi_env env, napi_callback_info info) {
     }
     napi_get_value_int32(env, args[2], &buttonMask);
 
+    OH_LOG_INFO(LOG_APP, "mouseEvent: %{public}d,%{public}d %{public}d",
+                x, y, buttonMask);
+    
     VncViewer::mouseEvent(x, y, buttonMask);
     return nullptr;
 }

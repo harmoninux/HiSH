@@ -286,10 +286,10 @@ struct VncPage {
         .defaultFocus(true)
         .onMouse((event: MouseEvent) => {
           event.stopPropagation();
-          let x = vp2px(event.displayX) / this.windowScale;
-          let y = vp2px(event.displayY) / this.windowScale;
+          let x = vp2px(event.x) / this.windowScale;
+          let y = vp2px(event.y) / this.windowScale;
 
-          if (event.displayX !== 0 || event.displayY !== 0 || event.action === MouseAction.Move) {
+          if (event.x !== 0 || event.y !== 0 || event.action === MouseAction.Move) {
             this.mouseX = x - this.leftShift;
             this.mouseY = y - this.upShift;
           }
@@ -308,10 +308,10 @@ struct VncPage {
           event.stopPropagation();
           let equivalentMouseBtn = MouseButton.None;
 
-          let x = vp2px(event.touches[0].displayX) / this.windowScale;
-          let y = vp2px(event.touches[0].displayY) / this.windowScale;
+          let x = vp2px(event.touches[0].x) / this.windowScale;
+          let y = vp2px(event.touches[0].y) / this.windowScale;
 
-          if (event.touches[0].displayX !== 0 || event.touches[0].displayY !== 0 ||
+          if (event.touches[0].x !== 0 || event.touches[0].y !== 0 ||
             event.touches[0].type === TouchType.Move) {
             this.mouseX = x - this.leftShift;
             this.mouseY = y - this.upShift;
