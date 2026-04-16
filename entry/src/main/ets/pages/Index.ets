@@ -94,11 +94,10 @@ struct PcIndex {
           .padding(4)
           .margin({ right: 10 })
           .onClick((event: ClickEvent) => {
-            const vncPort = AppStorage.get<number>('vncWebSocketPort');
-            if (vncPort) {
+            const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)!!
+            if (vncEnabled) {
               this.getUIContext().getRouter().pushUrl({
-                url: 'pages/VncPage',
-                params: { vncPort: vncPort }
+                url: 'pages/VncPage'
               });
             } else {
               this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });

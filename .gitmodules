@@ -1,0 +1,3 @@
+[submodule "entry/src/main/cpp/libvncserver"]
+	path = entry/src/main/cpp/libvncserver
+	url = https://github.com/LibVNC/libvncserver.git

@@ -265,8 +265,8 @@
       "value": "VNC"
     },
     {
-      "name": "setting_enable_novnc",
-      "value": "Enable noVNC"
+      "name": "setting_enable_vnc",
+      "value": "Enable VNC"
     },
     {
       "name": "setting_vnc_restart_hint",
@@ -650,7 +650,7 @@
     },
     {
       "name": "vnc_console_title",
-      "value": "noVNC Console"
+      "value": "VNC Console"
     },
     {
       "name": "guide_basic_title",
