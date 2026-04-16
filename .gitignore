@@ -18,3 +18,7 @@ build-profile.json5.*
 .idea
 
 .bitfun
+
+.claude
+.vscode
+.temp
