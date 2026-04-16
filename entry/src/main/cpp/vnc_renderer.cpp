@@ -1,0 +1,770 @@
+//
+// VNC OpenGL ES3 Renderer Implementation for HiSH
+// Renders RGB565 VNC framebuffer via XComponent + EGL + OpenGL ES
+//
+// Threading: All GL/EGL calls MUST be on the JS/main thread.
+// The poll thread only marks dirty regions via markDirty().
+// Frame rendering is triggered directly from tsfnCallJs (no JS→NAPI round-trip).
+//
+
+#include "include/vnc_renderer.hpp"
+#include "include/vnc_client.hpp"
+#include <native_window/external_window.h>
+#include <cstring>
+#include <vector>
+#include "hilog/log.h"
+
+#undef LOG_DOMAIN
+#undef LOG_TAG
+#define LOG_DOMAIN 0x3303
+#define LOG_TAG "VNCRender"
+
+// Vertex shader: fullscreen quad in NDC (GLES 3.0)
+static const char* VERTEX_SHADER_ES3 = R"(#version 300 es
+layout(location = 0) in vec2 a_pos;
+layout(location = 1) in vec2 a_texCoord;
+out vec2 v_texCoord;
+void main() {
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+    v_texCoord = a_texCoord;
+}
+)";
+
+// Fragment shader: sample RGB565 texture (GLES 3.0)
+static const char* FRAGMENT_SHADER_ES3 = R"(#version 300 es
+precision mediump float;
+in vec2 v_texCoord;
+out vec4 fragColor;
+uniform sampler2D u_tex;
+void main() {
+    fragColor = texture(u_tex, v_texCoord);
+}
+)";
+
+// Vertex shader (GLES 2.0 fallback)
+static const char* VERTEX_SHADER_ES2 = R"(#version 100 es
+attribute vec2 a_pos;
+attribute vec2 a_texCoord;
+varying vec2 v_texCoord;
+void main() {
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+    v_texCoord = a_texCoord;
+}
+)";
+
+// Fragment shader (GLES 2.0 fallback)
+static const char* FRAGMENT_SHADER_ES2 = R"(#version 100 es
+precision mediump float;
+varying vec2 v_texCoord;
+uniform sampler2D u_tex;
+void main() {
+    gl_FragColor = texture2D(u_tex, v_texCoord);
+}
+)";
+
+// Static member initialization
+EGLDisplay VncRenderer::eglDisplay_ = EGL_NO_DISPLAY;
+EGLSurface VncRenderer::eglSurface_ = nullptr;
+EGLContext VncRenderer::eglContext_ = nullptr;
+EGLConfig VncRenderer::eglConfig_ = nullptr;
+OHNativeWindow* VncRenderer::nativeWindow_ = nullptr;
+
+GLuint VncRenderer::shaderProgram_ = 0;
+GLuint VncRenderer::vao_ = 0;
+GLuint VncRenderer::vbo_ = 0;
+GLuint VncRenderer::textureId_ = 0;
+
+GLint VncRenderer::posLoc_ = -1;
+GLint VncRenderer::texCoordLoc_ = -1;
+GLint VncRenderer::texLoc_ = -1;
+
+int VncRenderer::vncWidth_ = 0;
+int VncRenderer::vncHeight_ = 0;
+int VncRenderer::surfaceWidth_ = 0;
+int VncRenderer::surfaceHeight_ = 0;
+
+std::atomic<bool> VncRenderer::dirty_(false);
+int VncRenderer::dirtyX_ = 0;
+int VncRenderer::dirtyY_ = 0;
+int VncRenderer::dirtyW_ = 0;
+int VncRenderer::dirtyH_ = 0;
+std::mutex VncRenderer::dirtyMutex_;
+
+std::mutex VncRenderer::renderMutex_;
+std::atomic<bool> VncRenderer::initialized_(false);
+
+// Diagnostics: frame counter
+std::atomic<int> g_renderFrameCount{0};
+std::atomic<int> g_dirtyMarkCount{0};
+std::atomic<int> g_tsfnCallCount{0};
+
+// ---- Helper: compile a GL shader ----
+static GLuint compileShader(GLenum type, const char* source) {
+    GLuint shader = glCreateShader(type);
+    if (shader == 0) {
+        OH_LOG_ERROR(LOG_APP, "glCreateShader failed: %{public}d", glGetError());
+        return 0;
+    }
+
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+    GLint compiled = 0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+    if (!compiled) {
+        GLint infoLen = 0;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
+        if (infoLen > 1) {
+            char* infoLog = new char[infoLen];
+            glGetShaderInfoLog(shader, infoLen, nullptr, infoLog);
+            OH_LOG_ERROR(LOG_APP, "Shader compile error: %{public}s", infoLog);
+            delete[] infoLog;
+        }
+        glDeleteShader(shader);
+        return 0;
+    }
+    return shader;
+}
+
+// ---- Helper: calculate letterbox viewport ----
+static void calcViewport(int surfaceW, int surfaceH, int vncW, int vncH,
+                         int& outX, int& outY, int& outW, int& outH) {
+    outX = 0;
+    outY = 0;
+    outW = surfaceW;
+    outH = surfaceH;
+    if (surfaceW > 0 && surfaceH > 0 && vncW > 0 && vncH > 0) {
+        float surfaceAspect = static_cast<float>(surfaceW) / surfaceH;
+        float vncAspect = static_cast<float>(vncW) / vncH;
+        if (surfaceAspect > vncAspect) {
+            outW = static_cast<int>(surfaceH * vncAspect);
+            outX = (surfaceW - outW) / 2;
+        } else {
+            outH = static_cast<int>(surfaceW / vncAspect);
+            outY = (surfaceH - outH) / 2;
+        }
+    }
+}
+
+bool VncRenderer::initEGL(int64_t surfaceId) {
+    OH_LOG_INFO(LOG_APP, "initEGL: surfaceId=%{public}lld", static_cast<long long>(surfaceId));
+
+    OHNativeWindow* nativeWindow = nullptr;
+    int ret = OH_NativeWindow_CreateNativeWindowFromSurfaceId(surfaceId, &nativeWindow);
+    if (ret != 0 || nativeWindow == nullptr) {
+        OH_LOG_ERROR(LOG_APP, "Failed to create native window: ret=%{public}d", ret);
+        return false;
+    }
+
+    eglDisplay_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (eglDisplay_ == EGL_NO_DISPLAY) {
+        OH_LOG_ERROR(LOG_APP, "Failed to get EGL display");
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow);
+        return false;
+    }
+
+    EGLint majorVersion = 0, minorVersion = 0;
+    if (!eglInitialize(eglDisplay_, &majorVersion, &minorVersion)) {
+        OH_LOG_ERROR(LOG_APP, "Failed to initialize EGL");
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow);
+        return false;
+    }
+    OH_LOG_INFO(LOG_APP, "EGL %{public}d.%{public}d", majorVersion, minorVersion);
+
+    // Log EGL client extensions for diagnostics
+    const char* eglExts = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+    OH_LOG_INFO(LOG_APP, "EGL extensions: %{public}s", eglExts ? eglExts : "(null)");
+
+    // Config with alpha (OpenHarmony real devices typically require alpha channel in window buffer)
+    // and both ES2+ES3 renderable to support version fallback
+    const EGLint configAttribs[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT | EGL_OPENGL_ES3_BIT,
+        EGL_RED_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_NONE
+    };
+
+    // Try to find a config that also works with the native window.
+    // eglChooseConfig may return a config that doesn't match the window format,
+    // causing EGL_BAD_MATCH on eglCreateWindowSurface. We iterate candidates.
+    EGLint numConfigs = 0;
+    if (!eglChooseConfig(eglDisplay_, configAttribs, nullptr, 0, &numConfigs) || numConfigs < 1) {
+        OH_LOG_ERROR(LOG_APP, "No EGL configs found: err=%{public}d", eglGetError());
+        eglTerminate(eglDisplay_);
+        eglDisplay_ = EGL_NO_DISPLAY;
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow);
+        return false;
+    }
+
+    OH_LOG_INFO(LOG_APP, "Found %{public}d EGL configs, searching for compatible one", numConfigs);
+
+    std::vector<EGLConfig> configs(numConfigs);
+    if (!eglChooseConfig(eglDisplay_, configAttribs, configs.data(), numConfigs, &numConfigs)) {
+        OH_LOG_ERROR(LOG_APP, "eglChooseConfig failed: err=%{public}d", eglGetError());
+        eglTerminate(eglDisplay_);
+        eglDisplay_ = EGL_NO_DISPLAY;
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow);
+        return false;
+    }
+
+    // Try each config until we find one that creates a surface successfully
+    eglConfig_ = nullptr;
+    for (int i = 0; i < numConfigs; i++) {
+        EGLint redSize = 0, greenSize = 0, blueSize = 0, alphaSize = 0, renderable = 0, depthSize = 0, stencilSize = 0;
+        eglGetConfigAttrib(eglDisplay_, configs[i], EGL_RED_SIZE, &redSize);
+        eglGetConfigAttrib(eglDisplay_, configs[i], EGL_GREEN_SIZE, &greenSize);
+        eglGetConfigAttrib(eglDisplay_, configs[i], EGL_BLUE_SIZE, &blueSize);
+        eglGetConfigAttrib(eglDisplay_, configs[i], EGL_ALPHA_SIZE, &alphaSize);
+        eglGetConfigAttrib(eglDisplay_, configs[i], EGL_RENDERABLE_TYPE, &renderable);
+        eglGetConfigAttrib(eglDisplay_, configs[i], EGL_DEPTH_SIZE, &depthSize);
+        eglGetConfigAttrib(eglDisplay_, configs[i], EGL_STENCIL_SIZE, &stencilSize);
+
+        OH_LOG_INFO(LOG_APP, "  Config[%{public}d]: R%{public}dG%{public}dB%{public}dA%{public}d D%{public}dS%{public}d renderable=0x%{public}x",
+                    i, redSize, greenSize, blueSize, alphaSize, depthSize, stencilSize, renderable);
+
+        // Prefer configs with no depth/stencil (less memory)
+        if (depthSize > 0 || stencilSize > 0) continue;
+
+        eglSurface_ = eglCreateWindowSurface(eglDisplay_, configs[i], (EGLNativeWindowType)nativeWindow, nullptr);
+        if (eglSurface_ != nullptr) {
+            eglConfig_ = configs[i];
+            OH_LOG_INFO(LOG_APP, "Using config[%{public}d]", i);
+            break;
+        }
+        EGLint surfErr = eglGetError();
+        OH_LOG_WARN(LOG_APP, "  Config[%{public}d] surface failed: 0x%{public}x", i, surfErr);
+    }
+
+    if (eglConfig_ == nullptr) {
+        // Last resort: try all configs including those with depth/stencil
+        OH_LOG_WARN(LOG_APP, "No config without depth/stencil worked, trying all configs");
+        for (int i = 0; i < numConfigs; i++) {
+            eglSurface_ = eglCreateWindowSurface(eglDisplay_, configs[i], (EGLNativeWindowType)nativeWindow, nullptr);
+            if (eglSurface_ != nullptr) {
+                eglConfig_ = configs[i];
+                OH_LOG_INFO(LOG_APP, "Fallback: using config[%{public}d]", i);
+                break;
+            }
+        }
+    }
+
+    if (eglConfig_ == nullptr || eglSurface_ == nullptr) {
+        OH_LOG_ERROR(LOG_APP, "No EGL config works with native window (EGL_BAD_MATCH)");
+        eglTerminate(eglDisplay_);
+        eglDisplay_ = EGL_NO_DISPLAY;
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow);
+        return false;
+    }
+
+    // Log chosen config details
+    EGLint redSize = 0, greenSize = 0, blueSize = 0, alphaSize = 0, renderable = 0;
+    eglGetConfigAttrib(eglDisplay_, eglConfig_, EGL_RED_SIZE, &redSize);
+    eglGetConfigAttrib(eglDisplay_, eglConfig_, EGL_GREEN_SIZE, &greenSize);
+    eglGetConfigAttrib(eglDisplay_, eglConfig_, EGL_BLUE_SIZE, &blueSize);
+    eglGetConfigAttrib(eglDisplay_, eglConfig_, EGL_ALPHA_SIZE, &alphaSize);
+    eglGetConfigAttrib(eglDisplay_, eglConfig_, EGL_RENDERABLE_TYPE, &renderable);
+    OH_LOG_INFO(LOG_APP, "Chosen EGL config: R%{public}dG%{public}dB%{public}dA%{public}d renderable=0x%{public}x",
+                redSize, greenSize, blueSize, alphaSize, renderable);
+
+    // Try GLES 3.x first, fallback to GLES 2.0
+    const EGLint contextAttribs3[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_NONE
+    };
+    eglContext_ = eglCreateContext(eglDisplay_, eglConfig_, EGL_NO_CONTEXT, contextAttribs3);
+    if (eglContext_ == nullptr) {
+        OH_LOG_WARN(LOG_APP, "GLES 3.x context failed (err=%{public}d), trying GLES 2.0", eglGetError());
+        const EGLint contextAttribs2[] = {
+            EGL_CONTEXT_CLIENT_VERSION, 2,
+            EGL_NONE
+        };
+        eglContext_ = eglCreateContext(eglDisplay_, eglConfig_, EGL_NO_CONTEXT, contextAttribs2);
+    }
+    if (eglContext_ == nullptr) {
+        OH_LOG_ERROR(LOG_APP, "Failed to create EGL context: err=%{public}d", eglGetError());
+        eglDestroySurface(eglDisplay_, eglSurface_);
+        eglSurface_ = nullptr;
+        eglTerminate(eglDisplay_);
+        eglDisplay_ = EGL_NO_DISPLAY;
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow);
+        return false;
+    }
+
+    if (!eglMakeCurrent(eglDisplay_, eglSurface_, eglSurface_, eglContext_)) {
+        OH_LOG_ERROR(LOG_APP, "Failed to make EGL context current: err=%{public}d", eglGetError());
+        eglDestroyContext(eglDisplay_, eglContext_);
+        eglContext_ = nullptr;
+        eglDestroySurface(eglDisplay_, eglSurface_);
+        eglSurface_ = nullptr;
+        eglTerminate(eglDisplay_);
+        eglDisplay_ = EGL_NO_DISPLAY;
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow);
+        return false;
+    }
+
+    // Keep native window alive for the lifetime of the EGL surface
+    nativeWindow_ = nativeWindow;
+
+    // Log GL version and renderer for diagnostics
+    const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    const char* glRenderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+    const char* glVendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    const char* glslVersion = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+    OH_LOG_INFO(LOG_APP, "GL_VERSION: %{public}s", glVersion ? glVersion : "(null)");
+    OH_LOG_INFO(LOG_APP, "GL_RENDERER: %{public}s", glRenderer ? glRenderer : "(null)");
+    OH_LOG_INFO(LOG_APP, "GL_VENDOR: %{public}s", glVendor ? glVendor : "(null)");
+    OH_LOG_INFO(LOG_APP, "GLSL_VERSION: %{public}s", glslVersion ? glslVersion : "(null)");
+
+    EGLint eglWidth = 0, eglHeight = 0;
+    eglQuerySurface(eglDisplay_, eglSurface_, EGL_WIDTH, &eglWidth);
+    eglQuerySurface(eglDisplay_, eglSurface_, EGL_HEIGHT, &eglHeight);
+    if (eglWidth > 0 && eglHeight > 0) {
+        surfaceWidth_ = eglWidth;
+        surfaceHeight_ = eglHeight;
+    }
+
+    OH_LOG_INFO(LOG_APP, "EGL initialized: surface %{public}dx%{public}d", surfaceWidth_, surfaceHeight_);
+    return true;
+}
+
+bool VncRenderer::createShaders() {
+    // Detect GL version to choose appropriate shader
+    const char* glVersionStr = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    bool isGLES3 = false;
+    if (glVersionStr) {
+        // GL_VERSION string format: "OpenGL ES 3.x ..." or "OpenGL ES 2.x ..."
+        int major = 0;
+        if (sscanf(glVersionStr, "OpenGL ES %d.", &major) == 1) {
+            isGLES3 = (major >= 3);
+        }
+    }
+    OH_LOG_INFO(LOG_APP, "GL version detected: %{public}s, using %{public}s shaders",
+                glVersionStr ? glVersionStr : "(null)", isGLES3 ? "ES3" : "ES2");
+
+    const char* vertSrc = isGLES3 ? VERTEX_SHADER_ES3 : VERTEX_SHADER_ES2;
+    const char* fragSrc = isGLES3 ? FRAGMENT_SHADER_ES3 : FRAGMENT_SHADER_ES2;
+
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertSrc);
+    if (vertexShader == 0) {
+        OH_LOG_ERROR(LOG_APP, "Vertex shader compilation failed");
+        return false;
+    }
+
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragSrc);
+    if (fragmentShader == 0) {
+        OH_LOG_ERROR(LOG_APP, "Fragment shader compilation failed");
+        glDeleteShader(vertexShader);
+        return false;
+    }
+
+    shaderProgram_ = glCreateProgram();
+    if (shaderProgram_ == 0) {
+        OH_LOG_ERROR(LOG_APP, "glCreateProgram failed: %{public}d", glGetError());
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+        return false;
+    }
+
+    // For ES2 shaders, bind attribute locations explicitly (ES2 doesn't support layout qualifier)
+    if (!isGLES3) {
+        glBindAttribLocation(shaderProgram_, 0, "a_pos");
+        glBindAttribLocation(shaderProgram_, 1, "a_texCoord");
+    }
+
+    glAttachShader(shaderProgram_, vertexShader);
+    glAttachShader(shaderProgram_, fragmentShader);
+    glLinkProgram(shaderProgram_);
+
+    GLint linked = 0;
+    glGetProgramiv(shaderProgram_, GL_LINK_STATUS, &linked);
+    if (!linked) {
+        GLint infoLen = 0;
+        glGetProgramiv(shaderProgram_, GL_INFO_LOG_LENGTH, &infoLen);
+        if (infoLen > 1) {
+            char* infoLog = new char[infoLen];
+            glGetProgramInfoLog(shaderProgram_, infoLen, nullptr, infoLog);
+            OH_LOG_ERROR(LOG_APP, "Program link error: %{public}s", infoLog);
+            delete[] infoLog;
+        }
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+        glDeleteProgram(shaderProgram_);
+        shaderProgram_ = 0;
+        return false;
+    }
+
+    // Shaders are linked into the program; detachable now
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    posLoc_ = glGetAttribLocation(shaderProgram_, "a_pos");
+    texCoordLoc_ = glGetAttribLocation(shaderProgram_, "a_texCoord");
+    texLoc_ = glGetUniformLocation(shaderProgram_, "u_tex");
+
+    OH_LOG_INFO(LOG_APP, "Shader locations: pos=%{public}d texCoord=%{public}d tex=%{public}d",
+                posLoc_, texCoordLoc_, texLoc_);
+
+    if (posLoc_ < 0 || texCoordLoc_ < 0 || texLoc_ < 0) {
+        OH_LOG_ERROR(LOG_APP, "Invalid shader attribute/uniform locations");
+        return false;
+    }
+
+    return true;
+}
+
+bool VncRenderer::initGL() {
+    // Fullscreen quad: position (x,y) + texcoord (s,t)
+    const float vertices[] = {
+        -1.0f,  1.0f,    0.0f, 0.0f,   // top-left
+         1.0f,  1.0f,    1.0f, 0.0f,   // top-right
+        -1.0f, -1.0f,    0.0f, 1.0f,   // bottom-left
+         1.0f, -1.0f,    1.0f, 1.0f,   // bottom-right
+    };
+
+    // Try to create VAO (available in GLES 3.0+ and as extension in GLES 2.0)
+    glGenVertexArrays(1, &vao_);
+    if (vao_ != 0) {
+        glBindVertexArray(vao_);
+    }
+
+    glGenBuffers(1, &vbo_);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(posLoc_);
+    glVertexAttribPointer(posLoc_, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+
+    glEnableVertexAttribArray(texCoordLoc_);
+    glVertexAttribPointer(texCoordLoc_, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                          reinterpret_cast<void*>(2 * sizeof(float)));
+
+    if (vao_ != 0) {
+        glBindVertexArray(0);
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDisableVertexAttribArray(posLoc_);
+    glDisableVertexAttribArray(texCoordLoc_);
+
+    // Create texture with default parameters
+    glGenTextures(1, &textureId_);
+    if (textureId_ == 0) {
+        OH_LOG_ERROR(LOG_APP, "glGenTextures failed: %{public}d", glGetError());
+        return false;
+    }
+    glBindTexture(GL_TEXTURE_2D, textureId_);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Set proper unpack alignment for RGB565 (2 bytes per pixel)
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    OH_LOG_INFO(LOG_APP, "OpenGL initialized: VAO=%{public}u VBO=%{public}u TEX=%{public}u",
+                vao_, vbo_, textureId_);
+    return true;
+}
+
+void VncRenderer::markDirty(int x, int y, int w, int h) {
+    {
+        std::lock_guard<std::mutex> lock(dirtyMutex_);
+        if (!dirty_.load()) {
+            dirtyX_ = x;
+            dirtyY_ = y;
+            dirtyW_ = w;
+            dirtyH_ = h;
+        } else {
+            // Merge into bounding box
+            int nx2 = x + w;
+            int ny2 = y + h;
+            int ox2 = dirtyX_ + dirtyW_;
+            int oy2 = dirtyY_ + dirtyH_;
+            dirtyX_ = std::min(dirtyX_, x);
+            dirtyY_ = std::min(dirtyY_, y);
+            dirtyW_ = std::max(ox2, nx2) - dirtyX_;
+            dirtyH_ = std::max(oy2, ny2) - dirtyY_;
+        }
+    }
+    dirty_.store(true, std::memory_order_release);
+    g_dirtyMarkCount.fetch_add(1, std::memory_order_relaxed);
+}
+
+void VncRenderer::renderDirtyFrame() {
+    if (!initialized_.load(std::memory_order_acquire)) return;
+    if (!dirty_.load(std::memory_order_acquire)) return;
+
+    // Grab and clear dirty region
+    int x, y, w, h;
+    {
+        std::lock_guard<std::mutex> lock(dirtyMutex_);
+        x = dirtyX_;
+        y = dirtyY_;
+        w = dirtyW_;
+        h = dirtyH_;
+        dirty_.store(false, std::memory_order_release);
+    }
+
+    std::lock_guard<std::mutex> lock(renderMutex_);
+    if (!initialized_.load(std::memory_order_acquire)) return;
+
+    // Always make context current — some devices may lose context between frames
+    if (!eglMakeCurrent(eglDisplay_, eglSurface_, eglSurface_, eglContext_)) {
+        EGLint err = eglGetError();
+        OH_LOG_ERROR(LOG_APP, "renderDirtyFrame: eglMakeCurrent failed: 0x%{public}x", err);
+        return;
+    }
+
+    // Verify surface is still valid
+    EGLint surfWidth = 0, surfHeight = 0;
+    eglQuerySurface(eglDisplay_, eglSurface_, EGL_WIDTH, &surfWidth);
+    eglQuerySurface(eglDisplay_, eglSurface_, EGL_HEIGHT, &surfHeight);
+    if (surfWidth <= 0 || surfHeight <= 0) {
+        OH_LOG_WARN(LOG_APP, "renderDirtyFrame: surface has zero size (%{public}dx%{public}d)", surfWidth, surfHeight);
+        return;
+    }
+
+    // Upload dirty region to texture
+    updateTexture(x, y, w, h);
+
+    if (vncWidth_ <= 0 || vncHeight_ <= 0) {
+        OH_LOG_WARN(LOG_APP, "renderDirtyFrame: vnc dims zero (%{public}dx%{public}d)", vncWidth_, vncHeight_);
+        return;
+    }
+
+    // Draw with letterbox viewport
+    int vpX, vpY, vpW, vpH;
+    calcViewport(surfaceWidth_, surfaceHeight_, vncWidth_, vncHeight_, vpX, vpY, vpW, vpH);
+
+    // Clear entire surface (including letterbox bars)
+    glViewport(0, 0, surfaceWidth_, surfaceHeight_);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Set viewport for VNC content
+    glViewport(vpX, vpY, vpW, vpH);
+
+    glUseProgram(shaderProgram_);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureId_);
+    glUniform1i(texLoc_, 0);
+
+    if (vao_ != 0) {
+        // GLES 3.0+ path: use VAO
+        glBindVertexArray(vao_);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glBindVertexArray(0);
+    } else {
+        // GLES 2.0 fallback: set up vertex attribs manually
+        glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+        glEnableVertexAttribArray(posLoc_);
+        glVertexAttribPointer(posLoc_, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        glEnableVertexAttribArray(texCoordLoc_);
+        glVertexAttribPointer(texCoordLoc_, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                              reinterpret_cast<void*>(2 * sizeof(float)));
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glDisableVertexAttribArray(posLoc_);
+        glDisableVertexAttribArray(texCoordLoc_);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Check for GL errors after draw
+    GLenum glErr = glGetError();
+
+    if (!eglSwapBuffers(eglDisplay_, eglSurface_)) {
+        EGLint err = eglGetError();
+        OH_LOG_ERROR(LOG_APP, "eglSwapBuffers failed: 0x%{public}x", err);
+    }
+
+    int frameNum = g_renderFrameCount.fetch_add(1, std::memory_order_relaxed);
+    // Log every 60th frame for diagnostics
+    if (frameNum < 5 || frameNum % 60 == 0) {
+        OH_LOG_INFO(LOG_APP, "renderDirtyFrame #%{public}d: dirty=(%{public}d,%{public}d,%{public}d,%{public}d) "
+                    "vnc=%{public}dx%{public}d surface=%{public}dx%{public}d vp=(%{public}d,%{public}d,%{public}d,%{public}d) "
+                    "glErr=0x%{public}x dirtyMarks=%{public}d tsfnCalls=%{public}d",
+                    frameNum, x, y, w, h, vncWidth_, vncHeight_, surfaceWidth_, surfaceHeight_,
+                    vpX, vpY, vpW, vpH, glErr,
+                    g_dirtyMarkCount.load(), g_tsfnCallCount.load());
+    }
+}
+
+void VncRenderer::updateTexture(int x, int y, int w, int h) {
+    if (textureId_ == 0) return;
+
+    uint8_t* fb = VncClient::getFrameBuffer();
+    if (!fb) return;
+
+    int vw = VncClient::getFrameWidth();
+    int vh = VncClient::getFrameHeight();
+    if (vw <= 0 || vh <= 0) return;
+
+    glBindTexture(GL_TEXTURE_2D, textureId_);
+
+    // Ensure correct unpack alignment for RGB565
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+
+    if (vw != vncWidth_ || vh != vncHeight_) {
+        // VNC dimensions changed — reallocate texture with full framebuffer
+        OH_LOG_INFO(LOG_APP, "Texture realloc: %{public}dx%{public}d -> %{public}dx%{public}d",
+                    vncWidth_, vncHeight_, vw, vh);
+        vncWidth_ = vw;
+        vncHeight_ = vh;
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, vncWidth_, vncHeight_, 0,
+                     GL_RGB, GL_UNSIGNED_SHORT_5_6_5, fb);
+    } else if (vao_ != 0) {
+        // GLES 3.0+ path: use pixel storage parameters for partial update
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, vncWidth_);
+        glPixelStorei(GL_UNPACK_SKIP_PIXELS, x);
+        glPixelStorei(GL_UNPACK_SKIP_ROWS, y);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h,
+                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5, fb);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+        glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    } else {
+        // GLES 2.0 fallback: GL_UNPACK_ROW_LENGTH/SKIP not available.
+        // For partial updates, we need to upload row by row from the correct offset.
+        // Simple approach: just upload the full framebuffer on GLES 2.0.
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, vncWidth_, vncHeight_,
+                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5, fb);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void VncRenderer::cleanupGL() {
+    OH_LOG_INFO(LOG_APP, "Cleaning up GL resources");
+
+    // Must make context current before deleting GL objects
+    if (eglDisplay_ != EGL_NO_DISPLAY && eglSurface_ != nullptr && eglContext_ != nullptr) {
+        eglMakeCurrent(eglDisplay_, eglSurface_, eglSurface_, eglContext_);
+    }
+
+    if (vao_ != 0) { glDeleteVertexArrays(1, &vao_); vao_ = 0; }
+    if (vbo_ != 0) { glDeleteBuffers(1, &vbo_); vbo_ = 0; }
+    if (shaderProgram_ != 0) { glDeleteProgram(shaderProgram_); shaderProgram_ = 0; }
+    if (textureId_ != 0) { glDeleteTextures(1, &textureId_); textureId_ = 0; }
+
+    vncWidth_ = 0;
+    vncHeight_ = 0;
+    surfaceWidth_ = 0;
+    surfaceHeight_ = 0;
+
+    if (eglDisplay_ != EGL_NO_DISPLAY) {
+        eglMakeCurrent(eglDisplay_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    }
+
+    if (eglSurface_ != nullptr && eglDisplay_ != EGL_NO_DISPLAY) {
+        eglDestroySurface(eglDisplay_, eglSurface_);
+        eglSurface_ = nullptr;
+    }
+    if (eglContext_ != nullptr && eglDisplay_ != EGL_NO_DISPLAY) {
+        eglDestroyContext(eglDisplay_, eglContext_);
+        eglContext_ = nullptr;
+    }
+    if (eglDisplay_ != EGL_NO_DISPLAY) {
+        eglTerminate(eglDisplay_);
+        eglDisplay_ = EGL_NO_DISPLAY;
+    }
+
+    if (nativeWindow_ != nullptr) {
+        OH_NativeWindow_DestroyNativeWindow(nativeWindow_);
+        nativeWindow_ = nullptr;
+    }
+
+    initialized_.store(false, std::memory_order_release);
+    OH_LOG_INFO(LOG_APP, "GL cleanup done");
+}
+
+bool VncRenderer::init(int64_t surfaceId) {
+    OH_LOG_INFO(LOG_APP, "VncRenderer::init surfaceId=%{public}lld", static_cast<long long>(surfaceId));
+
+    if (initialized_.load(std::memory_order_acquire)) {
+        OH_LOG_WARN(LOG_APP, "Renderer already initialized, shutting down first");
+        shutdown();
+    }
+
+    if (!initEGL(surfaceId)) {
+        OH_LOG_ERROR(LOG_APP, "Failed to initialize EGL");
+        return false;
+    }
+    if (!createShaders()) {
+        OH_LOG_ERROR(LOG_APP, "Failed to create shaders");
+        cleanupGL();
+        return false;
+    }
+    if (!initGL()) {
+        OH_LOG_ERROR(LOG_APP, "Failed to initialize GL");
+        cleanupGL();
+        return false;
+    }
+
+    initialized_.store(true, std::memory_order_release);
+
+    // === DIAGNOSTIC: Render a solid color test frame to verify the pipeline ===
+    // If you see blue, EGL+GL pipeline works. If black, the problem is upstream.
+    {
+        OH_LOG_INFO(LOG_APP, "DIAG: Rendering blue test frame to verify pipeline...");
+        glViewport(0, 0, surfaceWidth_, surfaceHeight_);
+        glClearColor(0.0f, 0.0f, 1.0f, 1.0f);  // Blue
+        glClear(GL_COLOR_BUFFER_BIT);
+        GLenum clearErr = glGetError();
+        EGLBoolean swapOk = eglSwapBuffers(eglDisplay_, eglSurface_);
+        EGLint swapErr = eglGetError();
+        OH_LOG_INFO(LOG_APP, "DIAG: Blue test frame: glClear err=0x%{public}x, eglSwapBuffers ok=%{public}d err=0x%{public}x",
+                    clearErr, swapOk, swapErr);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Reset to black
+    }
+
+    // Upload existing VNC framebuffer if already available
+    int vw = VncClient::getFrameWidth();
+    int vh = VncClient::getFrameHeight();
+    if (vw > 0 && vh > 0) {
+        uint8_t* fb = VncClient::getFrameBuffer();
+        if (fb) {
+            vncWidth_ = vw;
+            vncHeight_ = vh;
+            glBindTexture(GL_TEXTURE_2D, textureId_);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, vncWidth_, vncHeight_, 0,
+                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5, fb);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            OH_LOG_INFO(LOG_APP, "Uploaded initial framebuffer: %{public}dx%{public}d", vw, vh);
+        }
+    }
+
+    OH_LOG_INFO(LOG_APP, "VNC renderer initialized: fb=%{public}dx%{public}d, surface=%{public}dx%{public}d",
+                vncWidth_, vncHeight_, surfaceWidth_, surfaceHeight_);
+    return true;
+}
+
+void VncRenderer::shutdown() {
+    OH_LOG_INFO(LOG_APP, "VncRenderer::shutdown");
+
+    std::lock_guard<std::mutex> lock(renderMutex_);
+    if (!initialized_.load(std::memory_order_acquire)) return;
+
+    cleanupGL();
+}
+
+void VncRenderer::resize(int width, int height) {
+    if (width > 0 && height > 0) {
+        surfaceWidth_ = width;
+        surfaceHeight_ = height;
+    }
+
+    if (!initialized_.load(std::memory_order_acquire)) return;
+
+    // Mark full framebuffer as dirty so next renderDirtyFrame picks it up
+    int vw = VncClient::getFrameWidth();
+    int vh = VncClient::getFrameHeight();
+    if (vw > 0 && vh > 0) {
+        markDirty(0, 0, vw, vh);
+    }
+}
