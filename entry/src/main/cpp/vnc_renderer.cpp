@@ -92,6 +92,7 @@ std::mutex VncRenderer::dirtyMutex_;
 
 std::mutex VncRenderer::renderMutex_;
 std::atomic<bool> VncRenderer::initialized_(false);
+std::atomic<bool> VncRenderer::surfaceResized_(false);
 
 // Diagnostics: frame counter
 std::atomic<int> g_renderFrameCount{0};
@@ -498,7 +499,7 @@ void VncRenderer::markDirty(int x, int y, int w, int h) {
 
 void VncRenderer::renderDirtyFrame() {
     if (!initialized_.load(std::memory_order_acquire)) return;
-    if (!dirty_.load(std::memory_order_acquire)) return;
+    if (!dirty_.load(std::memory_order_acquire) && !surfaceResized_.load(std::memory_order_acquire)) return;
 
     // Grab and clear dirty region
     int x, y, w, h;
@@ -521,17 +522,37 @@ void VncRenderer::renderDirtyFrame() {
         return;
     }
 
-    // Verify surface is still valid
+    // Verify surface is still valid and get actual dimensions
     EGLint surfWidth = 0, surfHeight = 0;
     eglQuerySurface(eglDisplay_, eglSurface_, EGL_WIDTH, &surfWidth);
     eglQuerySurface(eglDisplay_, eglSurface_, EGL_HEIGHT, &surfHeight);
+
+    // Handle surface resize: detect dimension changes
+    bool needFullUpload = surfaceResized_.load(std::memory_order_acquire);
+    if (needFullUpload) {
+        surfaceResized_.store(false, std::memory_order_release);
+        OH_LOG_INFO(LOG_APP, "renderDirtyFrame: surface resize flagged, eglQuerySurface=%{public}dx%{public}d",
+                    surfWidth, surfHeight);
+    }
+
+    // Always sync surface dimensions from EGL — the source of truth
+    if (surfWidth > 0 && surfHeight > 0 && (surfWidth != surfaceWidth_ || surfHeight != surfaceHeight_)) {
+        OH_LOG_INFO(LOG_APP, "renderDirtyFrame: surface dims changed %{public}dx%{public}d -> %{public}dx%{public}d",
+                    surfaceWidth_, surfaceHeight_, surfWidth, surfHeight);
+        surfaceWidth_ = surfWidth;
+        surfaceHeight_ = surfHeight;
+        needFullUpload = true;  // dimension change implies full re-upload
+    }
+
     if (surfWidth <= 0 || surfHeight <= 0) {
-        OH_LOG_WARN(LOG_APP, "renderDirtyFrame: surface has zero size (%{public}dx%{public}d)", surfWidth, surfHeight);
+        // Surface not ready — retry on next frame
+        dirty_.store(true, std::memory_order_release);
+        OH_LOG_WARN(LOG_APP, "renderDirtyFrame: surface has zero size, retrying");
         return;
     }
 
-    // Upload dirty region to texture
-    updateTexture(x, y, w, h);
+    // Upload dirty region to texture (full re-upload if surface was resized)
+    updateTexture(x, y, w, h, needFullUpload);
 
     if (vncWidth_ <= 0 || vncHeight_ <= 0) {
         OH_LOG_WARN(LOG_APP, "renderDirtyFrame: vnc dims zero (%{public}dx%{public}d)", vncWidth_, vncHeight_);
@@ -594,7 +615,7 @@ void VncRenderer::renderDirtyFrame() {
     }
 }
 
-void VncRenderer::updateTexture(int x, int y, int w, int h) {
+void VncRenderer::updateTexture(int x, int y, int w, int h, bool forceFull) {
     if (textureId_ == 0) return;
 
     uint8_t* fb = VncClient::getFrameBuffer();
@@ -609,10 +630,14 @@ void VncRenderer::updateTexture(int x, int y, int w, int h) {
     // Ensure correct unpack alignment for RGB565
     glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
 
-    if (vw != vncWidth_ || vh != vncHeight_) {
-        // VNC dimensions changed — reallocate texture with full framebuffer
-        OH_LOG_INFO(LOG_APP, "Texture realloc: %{public}dx%{public}d -> %{public}dx%{public}d",
-                    vncWidth_, vncHeight_, vw, vh);
+    if (forceFull || vw != vncWidth_ || vh != vncHeight_) {
+        // Full re-upload: either forced by surface resize, or VNC dimensions changed
+        if (forceFull) {
+            OH_LOG_INFO(LOG_APP, "Full texture re-upload (surface resize): %{public}dx%{public}d", vw, vh);
+        } else {
+            OH_LOG_INFO(LOG_APP, "Texture realloc: %{public}dx%{public}d -> %{public}dx%{public}d",
+                        vncWidth_, vncHeight_, vw, vh);
+        }
         vncWidth_ = vw;
         vncHeight_ = vh;
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, vncWidth_, vncHeight_, 0,
@@ -679,6 +704,7 @@ void VncRenderer::cleanupGL() {
     }
 
     initialized_.store(false, std::memory_order_release);
+    surfaceResized_.store(false, std::memory_order_release);
     OH_LOG_INFO(LOG_APP, "GL cleanup done");
 }
 
@@ -754,17 +780,21 @@ void VncRenderer::shutdown() {
 }
 
 void VncRenderer::resize(int width, int height) {
-    if (width > 0 && height > 0) {
-        surfaceWidth_ = width;
-        surfaceHeight_ = height;
-    }
-
     if (!initialized_.load(std::memory_order_acquire)) return;
+
+    // Mark surface resized — next renderDirtyFrame will force full texture re-upload
+    surfaceResized_.store(true, std::memory_order_release);
 
     // Mark full framebuffer as dirty so next renderDirtyFrame picks it up
     int vw = VncClient::getFrameWidth();
     int vh = VncClient::getFrameHeight();
     if (vw > 0 && vh > 0) {
         markDirty(0, 0, vw, vh);
+    } else {
+        // No VNC framebuffer yet — set a generic dirty flag to trigger the resize check
+        dirty_.store(true, std::memory_order_release);
     }
+
+    OH_LOG_INFO(LOG_APP, "resize: %{public}dx%{public}d, marked surfaceResized, vnc=%{public}dx%{public}d",
+                width, height, vw, vh);
 }

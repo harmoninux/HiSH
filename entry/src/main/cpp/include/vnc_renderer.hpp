@@ -70,13 +70,14 @@ private:
     // Render state
     static std::mutex renderMutex_;
     static std::atomic<bool> initialized_;
+    static std::atomic<bool> surfaceResized_;  // set by resize(), cleared after full-texture re-upload
 
     // Internal methods (all called on JS thread)
     static bool initEGL(int64_t surfaceId);
     static bool initGL();
     static bool createShaders();
     static void cleanupGL();
-    static void updateTexture(int x, int y, int w, int h);
+    static void updateTexture(int x, int y, int w, int h, bool forceFull = false);
 };
 
 #endif // HISH_VNC_RENDERER_H

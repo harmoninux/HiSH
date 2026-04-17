@@ -166,6 +166,20 @@ struct VncPage {
         .onDestroy(() => {
           this.surfaceReady = false;
         })
+        .onAreaChange((_oldValue: Area, newValue: Area) => {
+          const newWidth = Number(newValue.width);
+          const newHeight = Number(newValue.height);
+          if (newWidth > 0 && newHeight > 0 && this.surfaceReady) {
+            const sid = BigInt(this.xComponentController.getXComponentSurfaceId());
+            const pxWidth = vp2px(newWidth);
+            const pxHeight = vp2px(newHeight);
+            if (pxWidth !== this.surfaceWidth || pxHeight !== this.surfaceHeight) {
+              this.surfaceWidth = pxWidth;
+              this.surfaceHeight = pxHeight;
+              napi.vncResizeSurface(sid, pxWidth, pxHeight);
+            }
+          }
+        })
         .width('100%')
         .layoutWeight(1)
         .backgroundColor(Color.Black)
