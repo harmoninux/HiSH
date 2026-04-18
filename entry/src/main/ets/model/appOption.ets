@@ -30,6 +30,8 @@ class appOption {
   static showVirtKey = 'showVirtKey';
   static isPowerManagementOpen = 'isPowerManagementOpen';
   static vncEnabled = 'vncEnabled';
+  static vncPortMode = 'vncPortMode'; // 'local' | 'lan'
+  static vncPort = 'vncPort';         // VNC port number (e.g. 5900)
   // qemu-img 后台任务状态
   static qemuImgTaskRunning = 'qemuImgTaskRunning';
   static qemuImgTaskDescription = 'qemuImgTaskDescription';

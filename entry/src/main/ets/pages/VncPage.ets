@@ -3,6 +3,7 @@ import { ComposeTitleBar } from '@kit.ArkUI'
 import napi from 'libentry.so';
 import { button2rfb } from '../utils/KeyMap';
 import deviceInfo from '@ohos.deviceInfo';
+import appOption from '../model/appOption';
 
 const DOMAIN = 0x0001;
 const LOG_TAG = 'NativeVnc';
@@ -16,7 +17,7 @@ interface VncPollResult {
 @Entry
 @Component
 struct VncPage {
-  @State port: number = 5900
+  @StorageProp(appOption.vncPort) vncPort: number = 5900
   @State connected: boolean = false
   @State isConnected: boolean = false
   @State errorMessage: string = ''
@@ -51,7 +52,7 @@ struct VncPage {
   private connectVnc() {
     try {
       this.statusMessage = 'Connecting to VNC server...';
-      const result = napi.vncInit('127.0.0.1', this.port, '');
+      const result = napi.vncInit('127.0.0.1', this.vncPort, '');
 
       if (result) {
         this.vncConnected = true;

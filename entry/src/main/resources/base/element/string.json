@@ -273,6 +273,30 @@
       "value": "Takes effect after restarting the app"
     },
     {
+      "name": "setting_vnc_port_mode",
+      "value": "VNC listen mode"
+    },
+    {
+      "name": "setting_vnc_port_mode_desc",
+      "value": "Local: only this device, LAN: other devices can connect"
+    },
+    {
+      "name": "setting_vnc_port_mode_local",
+      "value": "Local"
+    },
+    {
+      "name": "setting_vnc_port_mode_lan",
+      "value": "LAN"
+    },
+    {
+      "name": "setting_vnc_port",
+      "value": "VNC port"
+    },
+    {
+      "name": "setting_vnc_port_desc",
+      "value": "Port range 5900-5999, takes effect after restart"
+    },
+    {
       "name": "failed_to_force_background",
       "value": "Simulated background location failed. Please grant the app location permission and enable location in system settings"
     },

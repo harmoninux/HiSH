@@ -265,6 +265,30 @@
       "value": "下一次重新打开软件生效"
     },
     {
+      "name": "setting_vnc_port_mode",
+      "value": "VNC监听模式"
+    },
+    {
+      "name": "setting_vnc_port_mode_desc",
+      "value": "本地：仅本设备可连接，局域网：其他设备也可连接"
+    },
+    {
+      "name": "setting_vnc_port_mode_local",
+      "value": "本地"
+    },
+    {
+      "name": "setting_vnc_port_mode_lan",
+      "value": "局域网"
+    },
+    {
+      "name": "setting_vnc_port",
+      "value": "VNC端口"
+    },
+    {
+      "name": "setting_vnc_port_desc",
+      "value": "端口范围5900-5999，重启后生效"
+    },
+    {
       "name": "root_outdated_prompt",
       "value": "当前模拟器的root路径为%s，可能导致Linux无法正常启动\n可以前往模拟器管理中修改模拟器的root设置，例如修改为/dev/sda"
     },

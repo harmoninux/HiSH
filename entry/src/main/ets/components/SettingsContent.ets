@@ -31,6 +31,11 @@ const fontSizeOptions: SelectOption[] = [{
 
 const cursorShapeOptions: SelectOption[] = [{ value: 'BLOCK' }, { value: 'BEAM' }, { value: 'UNDERLINE' }]
 
+const vncPortModeOptions: SelectOption[] = [
+  { value: $r('app.string.setting_vnc_port_mode_local') },
+  { value: $r('app.string.setting_vnc_port_mode_lan') }
+]
+
 @Component
 export default struct SettingsContent {
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
@@ -40,6 +45,8 @@ export default struct SettingsContent {
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
   @Watch('saveDisplayStatusBar') @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
   @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
+  @Watch('saveVncPortMode') @StorageProp(appOption.vncPortMode) vncPortMode: string = 'local'
+  @Watch('saveVncPort') @StorageProp(appOption.vncPort) vncPort: number = 5900
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -140,6 +147,31 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private buildVncPortMode() {
+    Select(vncPortModeOptions)
+      .width(100)
+      .value(this.vncPortMode === 'lan' ?
+        $r('app.string.setting_vnc_port_mode_lan') :
+        $r('app.string.setting_vnc_port_mode_local'))
+      .onSelect((_i, _value) => {
+        const mode = _i === 1 ? 'lan' : 'local'
+        AppStorage.setOrCreate(appOption.vncPortMode, mode)
+      })
+  }
+
+  @Builder
+  private buildVncPort() {
+    TextInput({ text: this.vncPort.toString(), placeholder: '5900' })
+      .width(80)
+      .type(InputType.Number)
+      .onChange((value) => {
+        const port = value ? parseInt(value) : 5900
+        const clamped = Math.min(Math.max(port, 5900), 5999)
+        AppStorage.setOrCreate(appOption.vncPort, clamped)
+      })
+  }
+
+  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -206,6 +238,20 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.vncEnabled, !this.vncEnabled)
+            })
+            SettingItem({
+              title: $r('app.string.setting_vnc_port_mode'),
+              subTitle: $r('app.string.setting_vnc_port_mode_desc'),
+              content: () => {
+                this.buildVncPortMode()
+              }
+            })
+            SettingItem({
+              title: $r('app.string.setting_vnc_port'),
+              subTitle: $r('app.string.setting_vnc_port_desc'),
+              content: () => {
+                this.buildVncPort()
+              }
             })
           }
           .attributeModifier(this.blockStyle)
@@ -388,5 +434,22 @@ export default struct SettingsContent {
 
   async saveVncEnabled() {
     await savePreference(appOption.vncEnabled, this.vncEnabled, this.getUIContext())
+  }
+
+  showVncRestartToast() {
+    this.getUIContext().getPromptAction().showToast({
+      message: $r('app.string.setting_vnc_restart_hint'),
+      duration: 3000
+    })
+  }
+
+  async saveVncPortMode() {
+    await savePreference(appOption.vncPortMode, this.vncPortMode, this.getUIContext())
+    this.showVncRestartToast()
+  }
+
+  async saveVncPort() {
+    await savePreference(appOption.vncPort, this.vncPort, this.getUIContext())
+    this.showVncRestartToast()
   }
 }

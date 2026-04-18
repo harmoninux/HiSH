@@ -147,6 +147,8 @@ export default class EntryAbility extends UIAbility {
 
     // 读取 VNC 启用配置
     const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)!!
+    const vncPortMode = AppStorage.get<string>(appOption.vncPortMode) ?? 'local'
+    const vncPort = AppStorage.get<number>(appOption.vncPort) ?? 5900
 
     const vmStarted = startVm({
       baseDir: vmBaseDir,
@@ -162,7 +164,9 @@ export default class EntryAbility extends UIAbility {
       init,
       qmpUnixSocket,
       qgaUnixSocket,
-      vncEnabled
+      vncEnabled,
+      vncPortMode,
+      vncPort
     })
 
     if (vmStarted) {
@@ -221,6 +225,10 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalCursorBlink, terminalCursorBlink);
     const vncEnabled = await appPref.get(appOption.vncEnabled, true) as boolean;
     AppStorage.setOrCreate(appOption.vncEnabled, vncEnabled);
+    const vncPortMode = await appPref.get(appOption.vncPortMode, 'local') as string;
+    AppStorage.setOrCreate(appOption.vncPortMode, vncPortMode);
+    const vncPort = await appPref.get(appOption.vncPort, 5900) as number;
+    AppStorage.setOrCreate(appOption.vncPort, vncPort);
 
     const defaultStart = await appPref.get(appOption.defaultStartEmulator, undefined) as (string | undefined)
     AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultStart || defaultEmulator.id)

@@ -18,6 +18,8 @@ interface VmOptions {
   sharedFolderReadonly: boolean
   init: string,
   vncEnabled: boolean
+  vncPortMode: string  // 'local' | 'lan'
+  vncPort: number      // VNC port number (e.g. 5900)
 }
 
 function startVm(options: VmOptions): boolean {
@@ -71,7 +73,7 @@ function startVm(options: VmOptions): boolean {
       "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
 
   const vnc: string[] = options.vncEnabled ? [
-    '-vnc', `127.0.0.1:0`,
+    '-vnc', `${options.vncPortMode === 'lan' ? '0.0.0.0' : '127.0.0.1'}:${options.vncPort - 5900}`,
     '-device', 'virtio-gpu-pci',
     '-device', 'virtio-keyboard-pci',
     '-device', 'virtio-tablet-pci'
