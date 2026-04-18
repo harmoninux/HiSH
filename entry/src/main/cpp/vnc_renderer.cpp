@@ -2,9 +2,11 @@
 // VNC OpenGL ES3 Renderer Implementation for HiSH
 // Renders RGB565 VNC framebuffer via XComponent + EGL + OpenGL ES
 //
-// Threading: All GL/EGL calls MUST be on the JS/main thread.
-// The poll thread only marks dirty regions via markDirty().
-// Frame rendering is triggered directly from tsfnCallJs (no JS→NAPI round-trip).
+// Threading:
+//   - Render thread owns the EGL context and performs all GL operations.
+//     It sleeps on a condition variable and wakes when dirty or resized.
+//   - Poll thread calls markDirty() which wakes the render thread.
+//   - JS thread calls init/shutdown/resize — no GL calls except during init().
 //
 
 #include "include/vnc_renderer.hpp"
@@ -12,6 +14,7 @@
 #include <native_window/external_window.h>
 #include <cstring>
 #include <vector>
+#include <chrono>
 #include "hilog/log.h"
 
 #undef LOG_DOMAIN
@@ -90,7 +93,11 @@ int VncRenderer::dirtyW_ = 0;
 int VncRenderer::dirtyH_ = 0;
 std::mutex VncRenderer::dirtyMutex_;
 
-std::mutex VncRenderer::renderMutex_;
+std::thread VncRenderer::renderThread_;
+std::atomic<bool> VncRenderer::renderRunning_(false);
+std::mutex VncRenderer::renderWakeMutex_;
+std::condition_variable VncRenderer::renderWakeCv_;
+std::atomic<bool> VncRenderer::surfaceResized_(false);
 std::atomic<bool> VncRenderer::initialized_(false);
 
 // Diagnostics: frame counter
@@ -171,12 +178,9 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
     }
     OH_LOG_INFO(LOG_APP, "EGL %{public}d.%{public}d", majorVersion, minorVersion);
 
-    // Log EGL client extensions for diagnostics
     const char* eglExts = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
     OH_LOG_INFO(LOG_APP, "EGL extensions: %{public}s", eglExts ? eglExts : "(null)");
 
-    // Config with alpha (OpenHarmony real devices typically require alpha channel in window buffer)
-    // and both ES2+ES3 renderable to support version fallback
     const EGLint configAttribs[] = {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT | EGL_OPENGL_ES3_BIT,
@@ -187,9 +191,6 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
         EGL_NONE
     };
 
-    // Try to find a config that also works with the native window.
-    // eglChooseConfig may return a config that doesn't match the window format,
-    // causing EGL_BAD_MATCH on eglCreateWindowSurface. We iterate candidates.
     EGLint numConfigs = 0;
     if (!eglChooseConfig(eglDisplay_, configAttribs, nullptr, 0, &numConfigs) || numConfigs < 1) {
         OH_LOG_ERROR(LOG_APP, "No EGL configs found: err=%{public}d", eglGetError());
@@ -210,7 +211,6 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
         return false;
     }
 
-    // Try each config until we find one that creates a surface successfully
     eglConfig_ = nullptr;
     for (int i = 0; i < numConfigs; i++) {
         EGLint redSize = 0, greenSize = 0, blueSize = 0, alphaSize = 0, renderable = 0, depthSize = 0, stencilSize = 0;
@@ -225,7 +225,6 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
         OH_LOG_INFO(LOG_APP, "  Config[%{public}d]: R%{public}dG%{public}dB%{public}dA%{public}d D%{public}dS%{public}d renderable=0x%{public}x",
                     i, redSize, greenSize, blueSize, alphaSize, depthSize, stencilSize, renderable);
 
-        // Prefer configs with no depth/stencil (less memory)
         if (depthSize > 0 || stencilSize > 0) continue;
 
         eglSurface_ = eglCreateWindowSurface(eglDisplay_, configs[i], (EGLNativeWindowType)nativeWindow, nullptr);
@@ -239,7 +238,6 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
     }
 
     if (eglConfig_ == nullptr) {
-        // Last resort: try all configs including those with depth/stencil
         OH_LOG_WARN(LOG_APP, "No config without depth/stencil worked, trying all configs");
         for (int i = 0; i < numConfigs; i++) {
             eglSurface_ = eglCreateWindowSurface(eglDisplay_, configs[i], (EGLNativeWindowType)nativeWindow, nullptr);
@@ -259,7 +257,6 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
         return false;
     }
 
-    // Log chosen config details
     EGLint redSize = 0, greenSize = 0, blueSize = 0, alphaSize = 0, renderable = 0;
     eglGetConfigAttrib(eglDisplay_, eglConfig_, EGL_RED_SIZE, &redSize);
     eglGetConfigAttrib(eglDisplay_, eglConfig_, EGL_GREEN_SIZE, &greenSize);
@@ -293,6 +290,7 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
         return false;
     }
 
+    // Make context current for init (render thread not started yet)
     if (!eglMakeCurrent(eglDisplay_, eglSurface_, eglSurface_, eglContext_)) {
         OH_LOG_ERROR(LOG_APP, "Failed to make EGL context current: err=%{public}d", eglGetError());
         eglDestroyContext(eglDisplay_, eglContext_);
@@ -305,10 +303,8 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
         return false;
     }
 
-    // Keep native window alive for the lifetime of the EGL surface
     nativeWindow_ = nativeWindow;
 
-    // Log GL version and renderer for diagnostics
     const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
     const char* glRenderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     const char* glVendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
@@ -331,11 +327,9 @@ bool VncRenderer::initEGL(int64_t surfaceId) {
 }
 
 bool VncRenderer::createShaders() {
-    // Detect GL version to choose appropriate shader
     const char* glVersionStr = reinterpret_cast<const char*>(glGetString(GL_VERSION));
     bool isGLES3 = false;
     if (glVersionStr) {
-        // GL_VERSION string format: "OpenGL ES 3.x ..." or "OpenGL ES 2.x ..."
         int major = 0;
         if (sscanf(glVersionStr, "OpenGL ES %d.", &major) == 1) {
             isGLES3 = (major >= 3);
@@ -368,7 +362,6 @@ bool VncRenderer::createShaders() {
         return false;
     }
 
-    // For ES2 shaders, bind attribute locations explicitly (ES2 doesn't support layout qualifier)
     if (!isGLES3) {
         glBindAttribLocation(shaderProgram_, 0, "a_pos");
         glBindAttribLocation(shaderProgram_, 1, "a_texCoord");
@@ -396,7 +389,6 @@ bool VncRenderer::createShaders() {
         return false;
     }
 
-    // Shaders are linked into the program; detachable now
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
@@ -416,15 +408,13 @@ bool VncRenderer::createShaders() {
 }
 
 bool VncRenderer::initGL() {
-    // Fullscreen quad: position (x,y) + texcoord (s,t)
     const float vertices[] = {
-        -1.0f,  1.0f,    0.0f, 0.0f,   // top-left
-         1.0f,  1.0f,    1.0f, 0.0f,   // top-right
-        -1.0f, -1.0f,    0.0f, 1.0f,   // bottom-left
-         1.0f, -1.0f,    1.0f, 1.0f,   // bottom-right
+        -1.0f,  1.0f,    0.0f, 0.0f,
+         1.0f,  1.0f,    1.0f, 0.0f,
+        -1.0f, -1.0f,    0.0f, 1.0f,
+         1.0f, -1.0f,    1.0f, 1.0f,
     };
 
-    // Try to create VAO (available in GLES 3.0+ and as extension in GLES 2.0)
     glGenVertexArrays(1, &vao_);
     if (vao_ != 0) {
         glBindVertexArray(vao_);
@@ -448,7 +438,6 @@ bool VncRenderer::initGL() {
     glDisableVertexAttribArray(posLoc_);
     glDisableVertexAttribArray(texCoordLoc_);
 
-    // Create texture with default parameters
     glGenTextures(1, &textureId_);
     if (textureId_ == 0) {
         OH_LOG_ERROR(LOG_APP, "glGenTextures failed: %{public}d", glGetError());
@@ -459,10 +448,7 @@ bool VncRenderer::initGL() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    // Set proper unpack alignment for RGB565 (2 bytes per pixel)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-
     glBindTexture(GL_TEXTURE_2D, 0);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -481,7 +467,6 @@ void VncRenderer::markDirty(int x, int y, int w, int h) {
             dirtyW_ = w;
             dirtyH_ = h;
         } else {
-            // Merge into bounding box
             int nx2 = x + w;
             int ny2 = y + h;
             int ox2 = dirtyX_ + dirtyW_;
@@ -493,12 +478,64 @@ void VncRenderer::markDirty(int x, int y, int w, int h) {
         }
     }
     dirty_.store(true, std::memory_order_release);
-    g_dirtyMarkCount.fetch_add(1, std::memory_order_relaxed);
+    int cnt = g_dirtyMarkCount.fetch_add(1, std::memory_order_relaxed);
+
+    /* HiSH diagnostic: log markDirty calls */
+    if (cnt < 10 || cnt % 100 == 0) {
+        OH_LOG_INFO(LOG_APP, "markDirty #%{public}d: (%{public}d,%{public}d %{public}dx%{public}d)",
+                    cnt, x, y, w, h);
+    }
+
+    // Wake render thread
+    renderWakeCv_.notify_one();
 }
 
-void VncRenderer::renderDirtyFrame() {
-    if (!initialized_.load(std::memory_order_acquire)) return;
-    if (!dirty_.load(std::memory_order_acquire)) return;
+// ---- Render thread main loop ----
+void VncRenderer::renderLoop() {
+    OH_LOG_INFO(LOG_APP, "Render thread started");
+
+    // Make EGL context current on this thread
+    if (!eglMakeCurrent(eglDisplay_, eglSurface_, eglSurface_, eglContext_)) {
+        OH_LOG_ERROR(LOG_APP, "Render thread: eglMakeCurrent failed: 0x%{public}x", eglGetError());
+        return;
+    }
+
+    while (renderRunning_.load(std::memory_order_acquire)) {
+        // Wait for wakeup signal (dirty or resize)
+        {
+            std::unique_lock<std::mutex> lk(renderWakeMutex_);
+            renderWakeCv_.wait_for(lk, std::chrono::milliseconds(100),
+                [] { return dirty_.load(std::memory_order_acquire) ||
+                             surfaceResized_.load(std::memory_order_acquire) ||
+                             !renderRunning_.load(std::memory_order_acquire); });
+        }
+
+        if (!renderRunning_.load(std::memory_order_acquire)) break;
+
+        /* HiSH diagnostic: log wake reasons periodically */
+        {
+            static std::atomic<int> wakeCount{0};
+            int wc = wakeCount.fetch_add(1, std::memory_order_relaxed);
+            if (wc < 10 || wc % 100 == 0) {
+                OH_LOG_INFO(LOG_APP, "renderLoop wake #%{public}d: dirty=%{public}d resized=%{public}d "
+                            "dirtyMarkTotal=%{public}d renderFrameTotal=%{public}d",
+                            wc, dirty_.load() ? 1 : 0, surfaceResized_.load() ? 1 : 0,
+                            g_dirtyMarkCount.load(std::memory_order_relaxed),
+                            g_renderFrameCount.load(std::memory_order_relaxed));
+            }
+        }
+
+        renderFrameInternal();
+    }
+
+    // Release context from this thread
+    eglMakeCurrent(eglDisplay_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    OH_LOG_INFO(LOG_APP, "Render thread stopped");
+}
+
+// ---- Render a single frame (render thread only) ----
+void VncRenderer::renderFrameInternal() {
+    if (!dirty_.load(std::memory_order_acquire) && !surfaceResized_.load(std::memory_order_acquire)) return;
 
     // Grab and clear dirty region
     int x, y, w, h;
@@ -511,42 +548,45 @@ void VncRenderer::renderDirtyFrame() {
         dirty_.store(false, std::memory_order_release);
     }
 
-    std::lock_guard<std::mutex> lock(renderMutex_);
-    if (!initialized_.load(std::memory_order_acquire)) return;
-
-    // Always make context current — some devices may lose context between frames
-    if (!eglMakeCurrent(eglDisplay_, eglSurface_, eglSurface_, eglContext_)) {
-        EGLint err = eglGetError();
-        OH_LOG_ERROR(LOG_APP, "renderDirtyFrame: eglMakeCurrent failed: 0x%{public}x", err);
-        return;
-    }
-
-    // Verify surface is still valid
+    // Verify surface is still valid and get actual dimensions
     EGLint surfWidth = 0, surfHeight = 0;
     eglQuerySurface(eglDisplay_, eglSurface_, EGL_WIDTH, &surfWidth);
     eglQuerySurface(eglDisplay_, eglSurface_, EGL_HEIGHT, &surfHeight);
+
+    // Handle surface resize: detect dimension changes
+    bool needFullUpload = surfaceResized_.load(std::memory_order_acquire);
+    if (needFullUpload) {
+        surfaceResized_.store(false, std::memory_order_release);
+        OH_LOG_INFO(LOG_APP, "renderFrame: surface resize flagged, eglQuerySurface=%{public}dx%{public}d",
+                    surfWidth, surfHeight);
+    }
+
+    // Always sync surface dimensions from EGL — the source of truth
+    if (surfWidth > 0 && surfHeight > 0 && (surfWidth != surfaceWidth_ || surfHeight != surfaceHeight_)) {
+        OH_LOG_INFO(LOG_APP, "renderFrame: surface dims changed %{public}dx%{public}d -> %{public}dx%{public}d",
+                    surfaceWidth_, surfaceHeight_, surfWidth, surfHeight);
+        surfaceWidth_ = surfWidth;
+        surfaceHeight_ = surfHeight;
+        needFullUpload = true;
+    }
+
     if (surfWidth <= 0 || surfHeight <= 0) {
-        OH_LOG_WARN(LOG_APP, "renderDirtyFrame: surface has zero size (%{public}dx%{public}d)", surfWidth, surfHeight);
+        dirty_.store(true, std::memory_order_release);
         return;
     }
 
     // Upload dirty region to texture
-    updateTexture(x, y, w, h);
+    updateTexture(x, y, w, h, needFullUpload);
 
-    if (vncWidth_ <= 0 || vncHeight_ <= 0) {
-        OH_LOG_WARN(LOG_APP, "renderDirtyFrame: vnc dims zero (%{public}dx%{public}d)", vncWidth_, vncHeight_);
-        return;
-    }
+    if (vncWidth_ <= 0 || vncHeight_ <= 0) return;
 
     // Draw with letterbox viewport
     int vpX, vpY, vpW, vpH;
     calcViewport(surfaceWidth_, surfaceHeight_, vncWidth_, vncHeight_, vpX, vpY, vpW, vpH);
 
-    // Clear entire surface (including letterbox bars)
     glViewport(0, 0, surfaceWidth_, surfaceHeight_);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Set viewport for VNC content
     glViewport(vpX, vpY, vpW, vpH);
 
     glUseProgram(shaderProgram_);
@@ -555,12 +595,10 @@ void VncRenderer::renderDirtyFrame() {
     glUniform1i(texLoc_, 0);
 
     if (vao_ != 0) {
-        // GLES 3.0+ path: use VAO
         glBindVertexArray(vao_);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
     } else {
-        // GLES 2.0 fallback: set up vertex attribs manually
         glBindBuffer(GL_ARRAY_BUFFER, vbo_);
         glEnableVertexAttribArray(posLoc_);
         glVertexAttribPointer(posLoc_, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
@@ -574,7 +612,6 @@ void VncRenderer::renderDirtyFrame() {
     }
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // Check for GL errors after draw
     GLenum glErr = glGetError();
 
     if (!eglSwapBuffers(eglDisplay_, eglSurface_)) {
@@ -583,42 +620,56 @@ void VncRenderer::renderDirtyFrame() {
     }
 
     int frameNum = g_renderFrameCount.fetch_add(1, std::memory_order_relaxed);
-    // Log every 60th frame for diagnostics
     if (frameNum < 5 || frameNum % 60 == 0) {
-        OH_LOG_INFO(LOG_APP, "renderDirtyFrame #%{public}d: dirty=(%{public}d,%{public}d,%{public}d,%{public}d) "
+        OH_LOG_INFO(LOG_APP, "renderFrame #%{public}d: dirty=(%{public}d,%{public}d,%{public}d,%{public}d) "
                     "vnc=%{public}dx%{public}d surface=%{public}dx%{public}d vp=(%{public}d,%{public}d,%{public}d,%{public}d) "
-                    "glErr=0x%{public}x dirtyMarks=%{public}d tsfnCalls=%{public}d",
+                    "glErr=0x%{public}x",
                     frameNum, x, y, w, h, vncWidth_, vncHeight_, surfaceWidth_, surfaceHeight_,
-                    vpX, vpY, vpW, vpH, glErr,
-                    g_dirtyMarkCount.load(), g_tsfnCallCount.load());
+                    vpX, vpY, vpW, vpH, glErr);
     }
 }
 
-void VncRenderer::updateTexture(int x, int y, int w, int h) {
+void VncRenderer::updateTexture(int x, int y, int w, int h, bool forceFull) {
     if (textureId_ == 0) return;
 
     uint8_t* fb = VncClient::getFrameBuffer();
-    if (!fb) return;
+    if (!fb) {
+        OH_LOG_WARN(LOG_APP, "updateTexture: framebuffer is NULL");
+        return;
+    }
 
     int vw = VncClient::getFrameWidth();
     int vh = VncClient::getFrameHeight();
-    if (vw <= 0 || vh <= 0) return;
+    if (vw <= 0 || vh <= 0) {
+        OH_LOG_WARN(LOG_APP, "updateTexture: invalid dimensions vw=%{public}d vh=%{public}d", vw, vh);
+        return;
+    }
+
+    // Diagnostic: check if framebuffer has non-zero content
+    {
+        bool hasContent = false;
+        int checkBytes = std::min(vw * vh * 2, 256);
+        for (int i = 0; i < checkBytes; i++) {
+            if (fb[i] != 0) { hasContent = true; break; }
+        }
+        static std::atomic<int> uploadCount{0};
+        int cnt = uploadCount.fetch_add(1, std::memory_order_relaxed);
+        if (cnt < 5 || cnt % 60 == 0) {
+            OH_LOG_INFO(LOG_APP, "updateTexture #%{public}d: forceFull=%{public}d rect=(%{public}d,%{public}d,%{public}d,%{public}d) "
+                        "fbSize=%{public}dx%{public}d hasContent=%{public}d",
+                        cnt, forceFull, x, y, w, h, vw, vh, hasContent);
+        }
+    }
 
     glBindTexture(GL_TEXTURE_2D, textureId_);
-
-    // Ensure correct unpack alignment for RGB565
     glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
 
-    if (vw != vncWidth_ || vh != vncHeight_) {
-        // VNC dimensions changed — reallocate texture with full framebuffer
-        OH_LOG_INFO(LOG_APP, "Texture realloc: %{public}dx%{public}d -> %{public}dx%{public}d",
-                    vncWidth_, vncHeight_, vw, vh);
+    if (forceFull || vw != vncWidth_ || vh != vncHeight_) {
         vncWidth_ = vw;
         vncHeight_ = vh;
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, vncWidth_, vncHeight_, 0,
                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5, fb);
     } else if (vao_ != 0) {
-        // GLES 3.0+ path: use pixel storage parameters for partial update
         glPixelStorei(GL_UNPACK_ROW_LENGTH, vncWidth_);
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, x);
         glPixelStorei(GL_UNPACK_SKIP_ROWS, y);
@@ -628,9 +679,6 @@ void VncRenderer::updateTexture(int x, int y, int w, int h) {
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
         glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
     } else {
-        // GLES 2.0 fallback: GL_UNPACK_ROW_LENGTH/SKIP not available.
-        // For partial updates, we need to upload row by row from the correct offset.
-        // Simple approach: just upload the full framebuffer on GLES 2.0.
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, vncWidth_, vncHeight_,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5, fb);
     }
@@ -679,6 +727,7 @@ void VncRenderer::cleanupGL() {
     }
 
     initialized_.store(false, std::memory_order_release);
+    surfaceResized_.store(false, std::memory_order_release);
     OH_LOG_INFO(LOG_APP, "GL cleanup done");
 }
 
@@ -705,23 +754,6 @@ bool VncRenderer::init(int64_t surfaceId) {
         return false;
     }
 
-    initialized_.store(true, std::memory_order_release);
-
-    // === DIAGNOSTIC: Render a solid color test frame to verify the pipeline ===
-    // If you see blue, EGL+GL pipeline works. If black, the problem is upstream.
-    {
-        OH_LOG_INFO(LOG_APP, "DIAG: Rendering blue test frame to verify pipeline...");
-        glViewport(0, 0, surfaceWidth_, surfaceHeight_);
-        glClearColor(0.0f, 0.0f, 1.0f, 1.0f);  // Blue
-        glClear(GL_COLOR_BUFFER_BIT);
-        GLenum clearErr = glGetError();
-        EGLBoolean swapOk = eglSwapBuffers(eglDisplay_, eglSurface_);
-        EGLint swapErr = eglGetError();
-        OH_LOG_INFO(LOG_APP, "DIAG: Blue test frame: glClear err=0x%{public}x, eglSwapBuffers ok=%{public}d err=0x%{public}x",
-                    clearErr, swapOk, swapErr);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Reset to black
-    }
-
     // Upload existing VNC framebuffer if already available
     int vw = VncClient::getFrameWidth();
     int vh = VncClient::getFrameHeight();
@@ -739,6 +771,51 @@ bool VncRenderer::init(int64_t surfaceId) {
         }
     }
 
+    // Render initial frame (blue test + first VNC frame)
+    {
+        glViewport(0, 0, surfaceWidth_, surfaceHeight_);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        if (vncWidth_ > 0 && vncHeight_ > 0) {
+            int vpX, vpY, vpW, vpH;
+            calcViewport(surfaceWidth_, surfaceHeight_, vncWidth_, vncHeight_, vpX, vpY, vpW, vpH);
+            glViewport(vpX, vpY, vpW, vpH);
+            glUseProgram(shaderProgram_);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, textureId_);
+            glUniform1i(texLoc_, 0);
+            if (vao_ != 0) {
+                glBindVertexArray(vao_);
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+                glBindVertexArray(0);
+            } else {
+                glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+                glEnableVertexAttribArray(posLoc_);
+                glVertexAttribPointer(posLoc_, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+                glEnableVertexAttribArray(texCoordLoc_);
+                glVertexAttribPointer(texCoordLoc_, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                                      reinterpret_cast<void*>(2 * sizeof(float)));
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+                glDisableVertexAttribArray(posLoc_);
+                glDisableVertexAttribArray(texCoordLoc_);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+            }
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+
+        eglSwapBuffers(eglDisplay_, eglSurface_);
+    }
+
+    // Release context from JS thread — render thread will take ownership
+    eglMakeCurrent(eglDisplay_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+    initialized_.store(true, std::memory_order_release);
+
+    // Start render thread
+    renderRunning_.store(true, std::memory_order_release);
+    renderThread_ = std::thread(renderLoop);
+
     OH_LOG_INFO(LOG_APP, "VNC renderer initialized: fb=%{public}dx%{public}d, surface=%{public}dx%{public}d",
                 vncWidth_, vncHeight_, surfaceWidth_, surfaceHeight_);
     return true;
@@ -747,24 +824,39 @@ bool VncRenderer::init(int64_t surfaceId) {
 void VncRenderer::shutdown() {
     OH_LOG_INFO(LOG_APP, "VncRenderer::shutdown");
 
-    std::lock_guard<std::mutex> lock(renderMutex_);
+    // Stop render thread first
+    renderRunning_.store(false, std::memory_order_release);
+    renderWakeCv_.notify_one();
+    if (renderThread_.joinable()) {
+        renderThread_.join();
+    }
+
     if (!initialized_.load(std::memory_order_acquire)) return;
 
+    // Now safe to cleanup — no other thread touches GL
+    // Re-make context current on this thread for cleanup
+    if (eglDisplay_ != EGL_NO_DISPLAY && eglSurface_ != nullptr && eglContext_ != nullptr) {
+        eglMakeCurrent(eglDisplay_, eglSurface_, eglSurface_, eglContext_);
+    }
     cleanupGL();
 }
 
 void VncRenderer::resize(int width, int height) {
-    if (width > 0 && height > 0) {
-        surfaceWidth_ = width;
-        surfaceHeight_ = height;
-    }
-
     if (!initialized_.load(std::memory_order_acquire)) return;
 
-    // Mark full framebuffer as dirty so next renderDirtyFrame picks it up
+    surfaceResized_.store(true, std::memory_order_release);
+
     int vw = VncClient::getFrameWidth();
     int vh = VncClient::getFrameHeight();
     if (vw > 0 && vh > 0) {
         markDirty(0, 0, vw, vh);
+    } else {
+        dirty_.store(true, std::memory_order_release);
     }
+
+    // Wake render thread
+    renderWakeCv_.notify_one();
+
+    OH_LOG_INFO(LOG_APP, "resize: %{public}dx%{public}d, marked surfaceResized, vnc=%{public}dx%{public}d",
+                width, height, vw, vh);
 }
