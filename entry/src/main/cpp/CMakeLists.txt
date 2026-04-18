@@ -49,6 +49,15 @@ check_function_exists(vfork           LIBVNCSERVER_HAVE_VFORK)
 # Crypto - use builtin only (simplest for HarmonyOS)
 set(CRYPTO_SOURCES ${COMMON_DIR}/crypto_included.c ${COMMON_DIR}/sha1.c ${COMMON_DIR}/d3des.c)
 
+# zlib - required for zlib/tight/zrle encodings
+find_package(ZLIB)
+if(ZLIB_FOUND)
+    message(STATUS "zlib found: ${ZLIB_LIBRARIES}")
+    set(LIBVNCSERVER_HAVE_LIBZ 1)
+else()
+    message(WARNING "zlib not found — zlib/tight/zrle encodings will be unavailable")
+endif()
+
 check_type_size(pid_t     LIBVNCSERVER_PID_T)
 check_type_size(size_t    LIBVNCSERVER_SIZE_T)
 check_type_size(socklen_t LIBVNCSERVER_SOCKLEN_T)
@@ -107,4 +116,11 @@ target_link_libraries(entry PUBLIC
     libEGL.so
     libGLESv3.so
     libnative_window.so
+    ${ZLIB_LIBRARIES}
 )
+
+# Add zlib include if found
+if(ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    target_compile_definitions(entry PRIVATE LIBVNCSERVER_HAVE_LIBZ)
+endif()

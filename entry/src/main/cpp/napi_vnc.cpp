@@ -3,15 +3,15 @@
 //
 // Architecture:
 //   - Poll thread: VNC protocol only (WaitForMessage + HandleRFBServerMessage)
-//   - On frame update: markDirty() + TSFN notify(status=2)
-//     → tsfnCallJs calls VncRenderer::renderDirtyFrame() directly (no JS→NAPI round-trip)
-//   - On resize: VncRenderer::resize() + TSFN notify(status=1) → JS callback for UI update
-//   - On disconnect: TSFN notify(status=-1) → JS callback for UI update
+//   - On frame update: markDirty() wakes render thread directly (no TSFN needed)
+//   - On resize: VncRenderer::resize() wakes render thread + TSFN notify(status=1) for JS UI
+//   - On disconnect: TSFN notify(status=-1) for JS UI
+//   - Render thread: owns EGL context, renders on its own thread (never blocks JS)
 //
 // Thread safety:
 //   - libvncclient socket I/O is NOT thread-safe: poll cycle protected by socketMutex_
-//   - sendMouseEvent/sendKeyEvent use separate sendMutex_ to avoid blocking poll thread
-//   - sendMutex_ and socketMutex_ are never held simultaneously by the same thread
+//   - sendMouseEvent/sendKeyEvent use socketMutex_ to avoid blocking poll thread
+//   - Render thread only reads VNC framebuffer (no socket I/O)
 //
 
 #include "napi/native_api.h"
@@ -21,6 +21,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <chrono>
 
 #include "hilog/log.h"
 #undef LOG_DOMAIN
@@ -37,14 +38,13 @@ static std::atomic<bool> g_pollRunning(false);
 static std::thread g_pollThread;
 static std::mutex g_pollMutex;  // protects thread creation/joining
 
-// ---- TSFN for JS notifications ----
-// status: 2 = frame update (rendered directly in tsfnCallJs), 1 = resize, -1 = disconnected
+// ---- TSFN for JS notifications (resize/disconnect only — NOT for frame updates) ----
 static napi_threadsafe_function g_tsfn = nullptr;
 
-// Pre-allocated notify data pool to avoid per-frame heap allocation
+// Pre-allocated notify data pool
 static constexpr int NOTIFY_POOL_SIZE = 4;
 struct VncNotifyData {
-    int status;         // 2=frame, 1=resize, -1=disconnected
+    int status;         // 1=resize, -1=disconnected (no more 2=frame)
     int fbWidth;
     int fbHeight;
     bool inUse;
@@ -60,17 +60,16 @@ static VncNotifyData* allocNotifyData() {
             return &g_notifyPool[i];
         }
     }
-    // Pool exhausted — fall back to heap
     auto* nd = new VncNotifyData();
-    nd->inUse = true;  // marks as heap-allocated (never returned to pool)
+    nd->inUse = true;
     return nd;
 }
 
 static void freeNotifyData(VncNotifyData* nd) {
     if (nd >= g_notifyPool && nd < g_notifyPool + NOTIFY_POOL_SIZE) {
-        nd->inUse = false;  // Return to pool
+        nd->inUse = false;
     } else {
-        delete nd;  // Heap-allocated fallback
+        delete nd;
     }
 }
 
@@ -83,16 +82,7 @@ static void tsfnCallJs(napi_env env, napi_value js_cb, void* context, void* data
     VncNotifyData* nd = static_cast<VncNotifyData*>(data);
     g_tsfnCallCount.fetch_add(1, std::memory_order_relaxed);
 
-    if (nd->status == 2) {
-        // Frame update: render directly on the JS thread (skip JS→NAPI round-trip)
-        VncRenderer::renderDirtyFrame();
-        // No need to call JS callback for frame updates —
-        // dimension changes are handled by resize callback (status=1)
-        freeNotifyData(nd);
-        return;
-    }
-
-    // Resize / disconnect: forward to JS callback for UI state update
+    // All notifications go to JS callback (resize/disconnect only now)
     napi_value jsObj;
     napi_create_object(env, &jsObj);
 
@@ -115,15 +105,17 @@ static void tsfnCallJs(napi_env env, napi_value js_cb, void* context, void* data
 static void vncPollThread() {
     OH_LOG_INFO(LOG_APP, "VNC poll thread started");
 
-    // Send initial full framebuffer request inside poll thread (thread safety)
-    {
-        std::lock_guard<std::mutex> lock(VncClient::getSocketMutex());
-        rfbClient* cl = VncClient::getClient();
-        if (cl) {
-            OH_LOG_INFO(LOG_APP, "Requesting initial FB update: %{public}dx%{public}d", cl->width, cl->height);
-            SendFramebufferUpdateRequest(cl, 0, 0, cl->width, cl->height, FALSE);
-        }
-    }
+    // NOTE: Do NOT send an initial SendFramebufferUpdateRequest here.
+    // rfbInitClient -> rfbInitConnection already sends one (vncviewer.c line 422).
+    // Sending a duplicate would cause QEMU to send two full FramebufferUpdate
+    // responses, which can lead to stream desync.
+
+    // Poll loop diagnostics
+    static constexpr int LOG_EVERY_N = 500;
+    int pollCount = 0;
+    int msgCount = 0;
+    int errorCount = 0;
+    auto lastLogTime = std::chrono::steady_clock::now();
 
     while (g_pollRunning.load()) {
         rfbClient* cl = VncClient::getClient();
@@ -132,14 +124,18 @@ static void vncPollThread() {
             break;
         }
 
-        // Lock socket for the Wait+Handle cycle only
         {
             std::lock_guard<std::mutex> lock(VncClient::getSocketMutex());
             int i = WaitForMessage(cl, 50);
+            pollCount++;
+
             if (!g_pollRunning.load()) break;
 
             if (i < 0) {
-                OH_LOG_ERROR(LOG_APP, "Poll: WaitForMessage error");
+                errorCount++;
+                OH_LOG_ERROR(LOG_APP, "Poll: WaitForMessage error (sock=%{public}d errno=%{public}d) "
+                            "pollCount=%{public}d msgCount=%{public}d errorCount=%{public}d",
+                            cl->sock, errno, pollCount, msgCount, errorCount);
                 if (g_tsfn) {
                     auto* nd = allocNotifyData();
                     nd->status = -1; nd->fbWidth = 0; nd->fbHeight = 0;
@@ -149,8 +145,14 @@ static void vncPollThread() {
             }
 
             if (i > 0) {
+                msgCount++;
                 if (!HandleRFBServerMessage(cl)) {
-                    OH_LOG_ERROR(LOG_APP, "Poll: HandleRFBServerMessage failed");
+                    errorCount++;
+                    OH_LOG_ERROR(LOG_APP, "Poll: HandleRFBServerMessage returned FALSE "
+                                "(sock=%{public}d errno=%{public}d cl->width=%{public}d cl->height=%{public}d) "
+                                "pollCount=%{public}d msgCount=%{public}d errorCount=%{public}d",
+                                cl->sock, errno, cl->width, cl->height,
+                                pollCount, msgCount, errorCount);
                     if (g_tsfn) {
                         auto* nd = allocNotifyData();
                         nd->status = -1; nd->fbWidth = 0; nd->fbHeight = 0;
@@ -161,17 +163,24 @@ static void vncPollThread() {
             }
         }
 
-        // Request incremental update outside the main lock to reduce contention
-        // with sendMouseEvent/sendKeyEvent
-        {
-            std::lock_guard<std::mutex> lock(VncClient::getSocketMutex());
-            if (g_pollRunning.load() && cl) {
-                SendIncrementalFramebufferUpdateRequest(cl);
-            }
+        // NOTE: Do NOT send SendIncrementalFramebufferUpdateRequest here.
+        // HandleRFBServerMessage already sends one after each FramebufferUpdate
+        // (rfbclient.c line 2564). Sending a duplicate causes QEMU to produce
+        // extra responses that accumulate and eventually desync the stream.
+
+        // Periodic diagnostics log
+        if (pollCount % LOG_EVERY_N == 0) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastLogTime).count();
+            lastLogTime = now;
+            OH_LOG_INFO(LOG_APP, "Poll stats: polls=%{public}d msgs=%{public}d errors=%{public}d "
+                        "interval=%{public}lldms",
+                        pollCount, msgCount, errorCount, static_cast<long long>(elapsedMs));
         }
     }
 
-    OH_LOG_INFO(LOG_APP, "VNC poll thread stopped");
+    OH_LOG_INFO(LOG_APP, "VNC poll thread stopped (polls=%{public}d msgs=%{public}d errors=%{public}d)",
+                pollCount, msgCount, errorCount);
 }
 
 // ---- NAPI Functions ----
@@ -200,25 +209,14 @@ static napi_value vncInit(napi_env env, napi_callback_info info) {
 
     OH_LOG_INFO(LOG_APP, "vncInit: %{public}s:%{public}d", address.c_str(), port);
 
-    // Connect first (connect() calls disconnect() which clears callbacks,
-    // so callbacks MUST be set AFTER connect)
     bool ok = VncClient::connect(address.c_str(), port, password.c_str());
 
-    // Set frame callback: mark dirty + notify JS (NO GL calls on poll thread)
+    // Frame callback: markDirty() wakes render thread directly — no TSFN needed
     VncClient::setFrameCallback([](const VncFrameInfo& info) {
         VncRenderer::markDirty(info.x, info.y, info.w, info.h);
-        if (g_tsfn) {
-            auto* nd = allocNotifyData();
-            nd->status = 2;
-            nd->fbWidth = info.fbWidth;
-            nd->fbHeight = info.fbHeight;
-            napi_call_threadsafe_function(g_tsfn, nd, napi_tsfn_nonblocking);
-        } else {
-            OH_LOG_WARN(LOG_APP, "Frame callback but TSFN is null!");
-        }
     });
 
-    // Set resize callback
+    // Resize callback: wake render thread + notify JS
     VncClient::setResizeCallback([](int width, int height) {
         OH_LOG_INFO(LOG_APP, "VNC resize: %{public}dx%{public}d", width, height);
         VncRenderer::resize(-1, -1);
@@ -239,7 +237,7 @@ static napi_value vncInit(napi_env env, napi_callback_info info) {
 static napi_value vncClose(napi_env env, napi_callback_info info) {
     OH_LOG_INFO(LOG_APP, "vncClose");
 
-    // 1. Stop poll thread (must join before destroying client)
+    // 1. Stop poll thread
     {
         std::lock_guard<std::mutex> lock(g_pollMutex);
         g_pollRunning.store(false);
@@ -257,7 +255,7 @@ static napi_value vncClose(napi_env env, napi_callback_info info) {
     // 3. Destroy VNC client
     VncClient::disconnect();
 
-    // 4. Shutdown renderer
+    // 4. Shutdown renderer (stops render thread + cleans up GL)
     VncRenderer::shutdown();
 
     napi_value ret;
@@ -314,19 +312,16 @@ static napi_value vncStartUpdateLoop(napi_env env, napi_callback_info info) {
 
     std::lock_guard<std::mutex> lock(g_pollMutex);
 
-    // Release previous TSFN if exists
     if (g_tsfn != nullptr) {
         napi_release_threadsafe_function(g_tsfn, napi_tsfn_release);
         g_tsfn = nullptr;
     }
 
-    // Create TSFN for notifications
     napi_value tsfnName;
     napi_create_string_utf8(env, "vncNotify", NAPI_AUTO_LENGTH, &tsfnName);
     napi_create_threadsafe_function(env, args[0], nullptr, tsfnName, 0, 1,
                                     nullptr, nullptr, nullptr, tsfnCallJs, &g_tsfn);
 
-    // Join any previous thread
     if (g_pollThread.joinable()) {
         g_pollRunning.store(false);
         g_pollThread.join();
@@ -335,7 +330,7 @@ static napi_value vncStartUpdateLoop(napi_env env, napi_callback_info info) {
     g_pollRunning.store(true);
     g_pollThread = std::thread(vncPollThread);
 
-    // Send initial VNC dimensions to JS if already connected
+    // Send initial VNC dimensions to JS
     rfbClient* cl = VncClient::getClient();
     if (cl && g_tsfn) {
         auto* nd = allocNotifyData();
@@ -404,7 +399,6 @@ static napi_value vncResizeSurface(napi_env env, napi_callback_info info) {
     napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (status != napi_ok || argc < 3) return nullptr;
 
-    // args[0] is surfaceId (kept for API compatibility but unused by VncRenderer::resize)
     int32_t width = 0, height = 0;
     napi_get_value_int32(env, args[1], &width);
     napi_get_value_int32(env, args[2], &height);
@@ -424,14 +418,6 @@ static napi_value vncDestroySurface(napi_env env, napi_callback_info info) {
     return ret;
 }
 
-// vncRenderFrame is kept for backward compatibility but frame rendering now
-// happens directly in tsfnCallJs (status=2) without JS→NAPI round-trip.
-// JS code no longer needs to call this for frame updates.
-static napi_value vncRenderFrame(napi_env env, napi_callback_info info) {
-    VncRenderer::renderDirtyFrame();
-    return nullptr;
-}
-
 // ---- Register ----
 void registerVncFunctions(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
@@ -444,7 +430,6 @@ void registerVncFunctions(napi_env env, napi_value exports) {
         {"vncCreateSurface", nullptr, vncCreateSurface, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"vncResizeSurface", nullptr, vncResizeSurface, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"vncDestroySurface", nullptr, vncDestroySurface, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"vncRenderFrame", nullptr, vncRenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
 }

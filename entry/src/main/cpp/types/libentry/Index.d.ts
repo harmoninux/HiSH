@@ -137,9 +137,3 @@ export const vncResizeSurface: (surfaceId: bigint, width: number, height: number
  * @returns 0 表示成功
  */
 export const vncDestroySurface: () => number;
-
-/**
- * 渲染脏帧（在 JS 线程执行 GL 渲染）
- * 由 TSFN 回调触发，将 VNC framebuffer 更新绘制到 EGL surface
- */
-export const vncRenderFrame: () => void;

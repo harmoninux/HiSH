@@ -36,12 +36,15 @@ struct VncPage {
   private surfaceReady: boolean = false
   private vncConnected: boolean = false
   private updateLoopStarted: boolean = false
+  private reconnectTimer: number = -1
+  private reconnectAttempts: number = 0
 
   aboutToAppear() {
     this.connectVnc();
   }
 
   aboutToDisappear() {
+    this.cancelReconnect();
     this.disconnectVnc();
   }
 
@@ -53,6 +56,7 @@ struct VncPage {
       if (result) {
         this.vncConnected = true;
         this.isConnected = true;
+        this.reconnectAttempts = 0;
         this.statusMessage = 'Connected! Waiting for surface...';
       } else {
         this.errorMessage = 'Connection failed';
@@ -78,9 +82,12 @@ struct VncPage {
     try {
       napi.vncStartUpdateLoop((result: VncPollResult) => {
         if (result.status < 0) {
-          // Disconnected
+          // Disconnected — stream desync or connection lost
           this.isConnected = false;
-          this.errorMessage = 'Connection lost';
+          this.updateLoopStarted = false;
+          this.errorMessage = 'Connection lost — reconnecting...';
+          this.statusMessage = 'Reconnecting...';
+          this.scheduleReconnect();
         } else if (result.status === 1) {
           // Resize — also sent at startup with initial dimensions
           this.handleVncResize(result.fbWidth, result.fbHeight);
@@ -95,6 +102,7 @@ struct VncPage {
   }
 
   private disconnectVnc() {
+    this.cancelReconnect();
     if (!this.vncConnected && !this.isConnected) return;
 
     try {
@@ -107,7 +115,34 @@ struct VncPage {
     this.vncConnected = false;
     this.surfaceReady = false;
     this.updateLoopStarted = false;
+    this.reconnectAttempts = 0;
     this.statusMessage = 'Disconnected';
+  }
+
+  private cancelReconnect() {
+    if (this.reconnectTimer >= 0) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = -1;
+    }
+  }
+
+  private scheduleReconnect() {
+    this.cancelReconnect();
+    this.reconnectAttempts++;
+    const attempt = this.reconnectAttempts;
+    const delay = Math.min(1000 * attempt, 5000); // 1s, 2s, 3s... up to 5s
+    hilog.info(DOMAIN, LOG_TAG, 'Scheduling VNC reconnect attempt %{public}d in %{public}dms', attempt, delay);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = -1;
+      hilog.info(DOMAIN, LOG_TAG, 'Attempting VNC reconnect #%{public}d...', attempt);
+      this.disconnectVnc();
+      this.reconnectAttempts = attempt; // restore count cleared by disconnectVnc
+      this.connectVnc();
+      if (this.vncConnected && this.surfaceReady && !this.updateLoopStarted) {
+        this.startUpdateLoop();
+        this.reconnectAttempts = 0; // reset on success
+      }
+    }, delay);
   }
 
   private updateScaling() {
