@@ -90,6 +90,32 @@ clang-format -i entry/src/main/cpp/**/*.cpp
   - `checkPortUsed()` - Checks if a port is in use
   - Interacts with libqemu-system-aarch64.so
 
+### VNC Subsystem (`entry/src/main/cpp/`)
+Three-thread architecture for VNC display rendering:
+
+- **`napi_vnc.cpp`** - N-API bindings and poll thread management:
+  - Poll thread: `WaitForMessage` + `HandleRFBServerMessage` loop (protected by `socketMutex_`)
+  - TSFN notifications to JS for resize (status=1) and disconnect (status=-1)
+  - Frame updates go directly to render thread via `markDirty()` (no TSFN)
+  - **Critical**: Do NOT send duplicate `SendFramebufferUpdateRequest` or `SendIncrementalFramebufferUpdateRequest` — `rfbInitConnection` and `HandleRFBServerMessage` already send these; duplicates cause QEMU stream desync
+
+- **`vnc_client.cpp`** / **`include/vnc_client.hpp`** - libvncclient wrapper:
+  - RGB565 pixel format (16bpp, redMax=0x1f, greenMax=0x3f, blueMax=0x1f, shifts 11/5/0)
+  - Encodings: zrle ultra hextile zlib copyrect raw (when LIBZ available)
+  - `readTimeout=0` (infinite): non-zero causes spurious timeouts during ZRLE/zlib decode
+  - `useRemoteCursor=FALSE`: QEMU cursor pseudo-encodings may cause stream desync
+  - All socket I/O serialized via `socketMutex_` (libvncclient is NOT thread-safe)
+  - `rfbClientLog`/`rfbClientErr` redirected to HiLog
+
+- **`vnc_renderer.cpp`** / **`include/vnc_renderer.hpp`** - OpenGL ES renderer:
+  - Render thread owns EGL context (JS thread releases after `init()`)
+  - Condition variable wakeup on `markDirty()` or `surfaceResized_`
+  - GLES 3.0 with GLES 2.0 fallback (VAO available on GLES 3.0)
+  - Letterbox viewport via `calcViewport()` for aspect ratio preservation
+  - `updateTexture()`: full `glTexImage2D` on resize, partial `glTexSubImage2D` for dirty regions (GLES 3.0), full fallback (GLES 2.0)
+
+- **`utils.cpp`** / **`include/utils.hpp`** - HarmonyOS keycode to RFB keysym mapping
+
 ### Resources
 - `entry/src/main/resources/rawfile/vm/` - Kernel and root filesystem images
 - `entry/src/main/resources/rawfile/novnc/` - NoVNC web VNC client

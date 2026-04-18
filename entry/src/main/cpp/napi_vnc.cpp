@@ -13,6 +13,12 @@
 //   - sendMouseEvent/sendKeyEvent use socketMutex_ to avoid blocking poll thread
 //   - Render thread only reads VNC framebuffer (no socket I/O)
 //
+// Protocol notes:
+//   - Do NOT send SendFramebufferUpdateRequest: rfbInitConnection already sends one
+//   - Do NOT send SendIncrementalFramebufferUpdateRequest: HandleRFBServerMessage
+//     sends one internally after each FramebufferUpdate (rfbclient.c:2564)
+//   - Duplicate requests cause QEMU to produce extra responses that desync the stream
+//
 
 #include "napi/native_api.h"
 #include <cassert>
@@ -21,7 +27,6 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
-#include <chrono>
 
 #include "hilog/log.h"
 #undef LOG_DOMAIN
@@ -44,7 +49,7 @@ static napi_threadsafe_function g_tsfn = nullptr;
 // Pre-allocated notify data pool
 static constexpr int NOTIFY_POOL_SIZE = 4;
 struct VncNotifyData {
-    int status;         // 1=resize, -1=disconnected (no more 2=frame)
+    int status;         // 1=resize, -1=disconnected
     int fbWidth;
     int fbHeight;
     bool inUse;
@@ -73,16 +78,23 @@ static void freeNotifyData(VncNotifyData* nd) {
     }
 }
 
-// Diagnostics: frame counter (declared in vnc_renderer.cpp)
-extern std::atomic<int> g_tsfnCallCount;
+// Safely call TSFN: if the call fails (TSFN closing/full), free the notify data to avoid leak
+static void notifyJs(VncNotifyData* nd) {
+    if (!g_tsfn) {
+        freeNotifyData(nd);
+        return;
+    }
+    napi_status status = napi_call_threadsafe_function(g_tsfn, nd, napi_tsfn_nonblocking);
+    if (status != napi_ok) {
+        freeNotifyData(nd);
+    }
+}
 
 static void tsfnCallJs(napi_env env, napi_value js_cb, void* context, void* data) {
     if (!env || !js_cb || !data) return;
 
     VncNotifyData* nd = static_cast<VncNotifyData*>(data);
-    g_tsfnCallCount.fetch_add(1, std::memory_order_relaxed);
 
-    // All notifications go to JS callback (resize/disconnect only now)
     napi_value jsObj;
     napi_create_object(env, &jsObj);
 
@@ -105,18 +117,6 @@ static void tsfnCallJs(napi_env env, napi_value js_cb, void* context, void* data
 static void vncPollThread() {
     OH_LOG_INFO(LOG_APP, "VNC poll thread started");
 
-    // NOTE: Do NOT send an initial SendFramebufferUpdateRequest here.
-    // rfbInitClient -> rfbInitConnection already sends one (vncviewer.c line 422).
-    // Sending a duplicate would cause QEMU to send two full FramebufferUpdate
-    // responses, which can lead to stream desync.
-
-    // Poll loop diagnostics
-    static constexpr int LOG_EVERY_N = 500;
-    int pollCount = 0;
-    int msgCount = 0;
-    int errorCount = 0;
-    auto lastLogTime = std::chrono::steady_clock::now();
-
     while (g_pollRunning.load()) {
         rfbClient* cl = VncClient::getClient();
         if (!cl) {
@@ -127,60 +127,32 @@ static void vncPollThread() {
         {
             std::lock_guard<std::mutex> lock(VncClient::getSocketMutex());
             int i = WaitForMessage(cl, 50);
-            pollCount++;
 
             if (!g_pollRunning.load()) break;
 
             if (i < 0) {
-                errorCount++;
-                OH_LOG_ERROR(LOG_APP, "Poll: WaitForMessage error (sock=%{public}d errno=%{public}d) "
-                            "pollCount=%{public}d msgCount=%{public}d errorCount=%{public}d",
-                            cl->sock, errno, pollCount, msgCount, errorCount);
-                if (g_tsfn) {
-                    auto* nd = allocNotifyData();
-                    nd->status = -1; nd->fbWidth = 0; nd->fbHeight = 0;
-                    napi_call_threadsafe_function(g_tsfn, nd, napi_tsfn_nonblocking);
-                }
+                OH_LOG_ERROR(LOG_APP, "Poll: WaitForMessage error (sock=%{public}d errno=%{public}d)",
+                            cl->sock, errno);
+                auto* nd = allocNotifyData();
+                nd->status = -1; nd->fbWidth = 0; nd->fbHeight = 0;
+                notifyJs(nd);
                 break;
             }
 
             if (i > 0) {
-                msgCount++;
                 if (!HandleRFBServerMessage(cl)) {
-                    errorCount++;
-                    OH_LOG_ERROR(LOG_APP, "Poll: HandleRFBServerMessage returned FALSE "
-                                "(sock=%{public}d errno=%{public}d cl->width=%{public}d cl->height=%{public}d) "
-                                "pollCount=%{public}d msgCount=%{public}d errorCount=%{public}d",
-                                cl->sock, errno, cl->width, cl->height,
-                                pollCount, msgCount, errorCount);
-                    if (g_tsfn) {
-                        auto* nd = allocNotifyData();
-                        nd->status = -1; nd->fbWidth = 0; nd->fbHeight = 0;
-                        napi_call_threadsafe_function(g_tsfn, nd, napi_tsfn_nonblocking);
-                    }
+                    OH_LOG_ERROR(LOG_APP, "Poll: HandleRFBServerMessage failed (sock=%{public}d errno=%{public}d)",
+                                cl->sock, errno);
+                    auto* nd = allocNotifyData();
+                    nd->status = -1; nd->fbWidth = 0; nd->fbHeight = 0;
+                    notifyJs(nd);
                     break;
                 }
             }
         }
-
-        // NOTE: Do NOT send SendIncrementalFramebufferUpdateRequest here.
-        // HandleRFBServerMessage already sends one after each FramebufferUpdate
-        // (rfbclient.c line 2564). Sending a duplicate causes QEMU to produce
-        // extra responses that accumulate and eventually desync the stream.
-
-        // Periodic diagnostics log
-        if (pollCount % LOG_EVERY_N == 0) {
-            auto now = std::chrono::steady_clock::now();
-            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastLogTime).count();
-            lastLogTime = now;
-            OH_LOG_INFO(LOG_APP, "Poll stats: polls=%{public}d msgs=%{public}d errors=%{public}d "
-                        "interval=%{public}lldms",
-                        pollCount, msgCount, errorCount, static_cast<long long>(elapsedMs));
-        }
     }
 
-    OH_LOG_INFO(LOG_APP, "VNC poll thread stopped (polls=%{public}d msgs=%{public}d errors=%{public}d)",
-                pollCount, msgCount, errorCount);
+    OH_LOG_INFO(LOG_APP, "VNC poll thread stopped");
 }
 
 // ---- NAPI Functions ----
@@ -220,13 +192,11 @@ static napi_value vncInit(napi_env env, napi_callback_info info) {
     VncClient::setResizeCallback([](int width, int height) {
         OH_LOG_INFO(LOG_APP, "VNC resize: %{public}dx%{public}d", width, height);
         VncRenderer::resize(-1, -1);
-        if (g_tsfn) {
-            auto* nd = allocNotifyData();
-            nd->status = 1;
-            nd->fbWidth = width;
-            nd->fbHeight = height;
-            napi_call_threadsafe_function(g_tsfn, nd, napi_tsfn_nonblocking);
-        }
+        auto* nd = allocNotifyData();
+        nd->status = 1;
+        nd->fbWidth = width;
+        nd->fbHeight = height;
+        notifyJs(nd);
     });
 
     napi_value ret;
@@ -337,7 +307,7 @@ static napi_value vncStartUpdateLoop(napi_env env, napi_callback_info info) {
         nd->status = 1;
         nd->fbWidth = cl->width;
         nd->fbHeight = cl->height;
-        napi_call_threadsafe_function(g_tsfn, nd, napi_tsfn_nonblocking);
+        notifyJs(nd);
     }
 
     OH_LOG_INFO(LOG_APP, "vncStartUpdateLoop: thread started");
