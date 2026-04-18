@@ -42,6 +42,10 @@ public:
     static int getFrameHeight();
     static rfbClient* getClient();
 
+    // Framebuffer mutex: protects frameBuffer_/fbWidth_/fbHeight_ across threads.
+    // onResize (poll thread) writes, updateTexture (render thread) reads.
+    static std::mutex& getFbMutex() { return fbMutex_; }
+
     // Socket mutex: libvncclient is NOT thread-safe, all socket I/O must be serialized
     static std::mutex& getSocketMutex() { return socketMutex_; }
 
@@ -55,6 +59,7 @@ private:
     static uint8_t* frameBuffer_;
     static int fbWidth_;
     static int fbHeight_;
+    static std::mutex fbMutex_;
 
     static VncResizeCallback resizeCallback_;
     static VncFrameCallback frameCallback_;
