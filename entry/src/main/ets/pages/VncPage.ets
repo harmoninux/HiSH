@@ -169,6 +169,7 @@ struct VncPage {
         ComposeTitleBar({
           title: $r('app.string.vnc_console_title')
         })
+          .focusable(false)
       }
 
       XComponent({
@@ -274,7 +275,12 @@ struct VncPage {
     .width('100%')
     .height('100%')
     .onKeyEvent((event: KeyEvent) => {
+      // Prevent Tab from moving focus out of XComponent (e.g. to ComposeTitleBar)
+      if (event.keyCode === 2049) { // KEYCODE_TAB
+        event.stopPropagation();
+      }
       this.sendKeyEvent(event.keyCode, event.type === KeyType.Down);
+      return true; // consume the event
     })
   }
 
