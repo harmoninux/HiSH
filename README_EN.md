@@ -35,6 +35,7 @@ You can try one of following methods to get HiSH:
 
 - Download and install [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)
 - Clone this repo to local
+ - Run `git submodule update --init --recursive` in HiSH directory
 - Copy `build-profile.template.json5` to `build-profile.json5`
 - Download files and move to corresponding location as following (Notice: you should rename files as links)
   - [entry/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip)(Extract to `entry/libs`)

@@ -49,6 +49,7 @@ QQ群二维码
 
 * 下载安装 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)
 * 克隆代码到本地
+* 仓库里执行 `git submodule update --init --recursive` 拉取子模块代码
 * 复制`build-profile.template.json5`到`build-profile.json5`
 * 下载以下文件到指定位置：
   - [entry/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip)（解压到`entry/libs`）
