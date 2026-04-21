@@ -37,6 +37,10 @@ class appOption {
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
   // QGA 连接状态 (Global Truth)
   static isQgaConnected = 'isQgaConnected';
+  // Multi-session support
+  static maxSessions = 'maxSessions';
+  static activeSessionIndex = 'activeSessionIndex';
+  static sessionList = 'sessionList';
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

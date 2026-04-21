@@ -13,6 +13,8 @@ interface VmOptions {
   rootFilesystem: string
   sharedFolder: string
   serialUnixSocket: string
+  /** Additional serial port Unix socket paths (for multi-session support) */
+  serialUnixSockets: string[]
   qmpUnixSocket: string
   qgaUnixSocket: string
   sharedFolderReadonly: boolean
@@ -34,6 +36,7 @@ function startVm(options: VmOptions): boolean {
     "-object", "rng-random,filename=/dev/urandom,id=rng0",
     "-device", "virtio-rng-pci-non-transitional,rng=rng0",
     '-rtc', 'base=utc,clock=host', '-L', options.baseDir]
+  // Primary serial port (ttyAMA0) - managed by Native layer
   const serial = ['-serial', "unix:" + options.serialUnixSocket + ",server,nowait"]
   const cpuMem = ['-smp', `cpus=${options.cpu},sockets=1,cores=${options.cpu},threads=1`,
     "-object", `memory-backend-ram,id=mem0,size=${options.memory}M,merge=off,prealloc=off`, '-m', options.memory + 'M']
@@ -79,6 +82,13 @@ function startVm(options: VmOptions): boolean {
     '-device', 'virtio-tablet-pci'
   ] : []
 
+  // Additional serial ports (ttyAMA1..ttyAMAn) - managed by ArkTS layer
+  const extraSerials: string[] = []
+  for (let i = 0; i < options.serialUnixSockets.length; i++) {
+    extraSerials.push('-chardev', `socket,path=${options.serialUnixSockets[i]},server=on,wait=off,id=chc${i}` ,
+      '-device', `virtconsole,chardev=chc${i},name=console.${i}`)
+  }
+
   const args = [
     'qemu-system-aarch64',
     ...basic,
@@ -92,11 +102,17 @@ function startVm(options: VmOptions): boolean {
     ...monitor,
     ...qga,
     ...vnc,
-    ...sharedUserFolder
+    ...sharedUserFolder,
+    ...extraSerials
   ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
     fs.unlinkSync(options.serialUnixSocket)
+  }
+  for (const sock of options.serialUnixSockets) {
+    if (fs.accessSync(sock, fs.AccessModeType.EXIST)) {
+      fs.unlinkSync(sock)
+    }
   }
   if (fs.accessSync(options.qmpUnixSocket, fs.AccessModeType.EXIST)) {
     fs.unlinkSync(options.qmpUnixSocket)
