@@ -155,7 +155,7 @@ export default struct WebTerminal {
   private settingsButtonOptions(): MenuElement[] {
     const vncOptions: MenuElement[] = this.vncEnabled ? [{
       value: $r('app.string.vnc_console_title'),
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.display')).fontSize($r('sys.float.Title_S')),
       action: () => {
         const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)!!
         if (vncEnabled) {
