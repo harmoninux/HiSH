@@ -278,7 +278,7 @@
     },
     {
       "name": "setting_vnc_port_mode_desc",
-      "value": "Local: only this device, LAN: other devices can connect"
+      "value": "Local only or LAN"
     },
     {
       "name": "setting_vnc_port_mode_local",

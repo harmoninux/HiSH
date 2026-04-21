@@ -270,7 +270,7 @@
     },
     {
       "name": "setting_vnc_port_mode_desc",
-      "value": "本地：仅本设备可连接，局域网：其他设备也可连接"
+      "value": "本地 或 局域网"
     },
     {
       "name": "setting_vnc_port_mode_local",
