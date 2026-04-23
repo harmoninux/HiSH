@@ -26,18 +26,6 @@ window.exports = {};
 // Helper for decoding Latin1/Binary string from ArkTS to UTF-8
 const decoder = new TextDecoder('utf-8');
 const encoder = new TextEncoder();
-let imeListenerBound = false;
-let imeComposing = false;
-
-function clearTerminalTextareaBuffer() {
-    if (!term.textarea) {
-        return;
-    }
-    term.textarea.value = '';
-    if (typeof term.textarea.setSelectionRange === 'function') {
-        term.textarea.setSelectionRange(0, 0);
-    }
-}
 
 function setupImeGuard() {
     if (!term.textarea) {
@@ -47,19 +35,7 @@ function setupImeGuard() {
     textarea.setAttribute('autocomplete', 'off');
     textarea.setAttribute('autocorrect', 'off');
     textarea.setAttribute('spellcheck', 'false');
-    if (imeListenerBound) {
-        return;
-    }
-    textarea.addEventListener('compositionstart', () => {
-        imeComposing = true;
-    }, true);
-    textarea.addEventListener('compositionend', () => {
-        imeComposing = false;
-    }, true);
-    textarea.addEventListener('blur', () => {
-        imeComposing = false;
-    }, true);
-    imeListenerBound = true;
+    textarea.setAttribute('autocapitalize', 'off');
 }
 
 // Function to convert "binary string" (where charCode < 256) to Uint8Array
@@ -79,7 +55,6 @@ window.term = term;
 window.onload = function () {
     term.open(document.getElementById('terminal'));
     setupImeGuard();
-    clearTerminalTextareaBuffer();
 
     // Retry mechanism for native object injection
     let retryCount = 0;
@@ -189,13 +164,7 @@ function setupEventListeners() {
     term.onData(data => {
         // Pass data directly to native (matching original hterm behavior)
         if (native && native.sendInput) {
-            if (data === '\x7f') {
-                clearTerminalTextareaBuffer();
-            }
             native.sendInput(data);
-            if (!imeComposing) {
-                clearTerminalTextareaBuffer();
-            }
         }
     });
 
