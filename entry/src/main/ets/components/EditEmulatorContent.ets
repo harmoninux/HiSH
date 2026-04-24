@@ -90,6 +90,16 @@ export default struct EditEmulatorContent {
   }
 
   @Builder
+  private maxSessionsSetting() {
+    Select([{ value: '1' }, { value: '2' }, { value: '3' }, { value: '4' }] as SelectOption[])
+      .width(100)
+      .value((this.emulator.maxSessions ?? 1).toString())
+      .onSelect((_i, value) => {
+        this.emulator.maxSessions = parseInt(value)
+      })
+  }
+
+  @Builder
   buildEmulatorEdit() {
     Column() {
       Column() {
@@ -187,6 +197,13 @@ export default struct EditEmulatorContent {
           subTitle: $r('app.string.setting_root_desc'),
           content: () => {
             this.vdaSetting()
+          }
+        })
+        SettingItem({
+          title: $r('app.string.label_max_sessions'),
+          subTitle: $r('app.string.setting_max_sessions_desc'),
+          content: () => {
+            this.maxSessionsSetting()
           }
         })
       }

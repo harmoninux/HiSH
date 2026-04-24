@@ -1,5 +1,4 @@
 import util from '@ohos.util';
-import { buffer } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
@@ -8,6 +7,7 @@ import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
+import sessionManager from '../lib/SessionManager';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -28,6 +28,10 @@ const VKeyRadius = VKeyMetrics.radius;
 @Component
 export default struct WebTerminal {
   @Require virtKeyEnabled: boolean = true
+  /** Session index: 0 = primary (native serial), 1+ = extra (ArkTS unix socket) */
+  @Prop sessionIndex: number = 0
+  /** Whether this session is currently active (visible and receiving input) */
+  @Prop @Watch('onActiveChanged') isActive: boolean = true
   @State ctrlPressed: boolean = false
   @State shiftPressed: boolean = false
   @State fnPressed: boolean = false
@@ -346,7 +350,7 @@ export default struct WebTerminal {
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
-    hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
+    hilog.info(DOMAIN, 'WebTerminal', 'sendInput session=%{public}d, data: %{public}s', this.sessionIndex, data);
 
     const modifierResult = applyVirtualKeyModifiers(data, this.ctrlPressed, this.shiftPressed)
     data = modifierResult.data
@@ -361,25 +365,106 @@ export default struct WebTerminal {
       hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
     }
 
-    let buffer = stringToArrayBuffer(data, 'utf-8');
-    napi.sendInput(buffer)
+    let buf = stringToArrayBuffer(data, 'utf-8');
+
+    if (this.sessionIndex === 0) {
+      // Primary session: use native napi.sendInput
+      napi.sendInput(buf)
+    } else {
+      // Non-primary session: use SessionManager (ArkTS unix socket)
+      sessionManager.sendInput(this.sessionIndex, buf)
+    }
 
     // Ctrl: 一次性模式，发送后自动重置 | Shift: 状态保持，需要用户手动点击取消
   }
 
   async load(): Promise<void> {
-    this.webviewController.runJavaScript('exports.setFocused(true)')
-    napi.onData((d: ArrayBuffer): void => this.onData(d))
-    napi.onShutdown((): void => {
-      void this.onShutdown()
-    })
+    hilog.info(DOMAIN, 'WebTerminal', 'load() called for session %{public}d, isActive=%{public}s',
+      this.sessionIndex, this.isActive)
+
+    if (this.isActive) {
+      this.webviewController.runJavaScript('exports.setFocused(true)')
+    }
+
+    if (this.sessionIndex === 0) {
+      // Primary session: use native napi callbacks
+      napi.onData((d: ArrayBuffer): void => this.onData(d))
+      napi.onShutdown((): void => {
+        void this.onShutdown()
+      })
+    } else {
+      // Non-primary session: use SessionManager (ArkTS LocalSocket)
+      const session = sessionManager.getSession(this.sessionIndex)
+      if (session && session.connected) {
+        sessionManager.setOutputCallback(this.sessionIndex, (d: ArrayBuffer): void => this.onData(d))
+        // Show connected status
+        const statusMsg = `\r\n[Session ${this.sessionIndex + 1} connected to ${session.socketPath}]\r\n`
+        const statusText = util.TextEncoder.create('utf-8').encodeInto(statusMsg)
+        const statusBase64 = new util.Base64Helper().encodeToStringSync(statusText)
+        this.webviewController.runJavaScript(`exports.writeBase64("${statusBase64}", ${this.applicationMode})`)
+      } else {
+        // Session not connected yet — show waiting message and try to connect
+        const waitMsg = `\r\n[Session ${this.sessionIndex + 1}: Waiting for connection...]\r\n`
+        const waitText = util.TextEncoder.create('utf-8').encodeInto(waitMsg)
+        const waitBase64 = new util.Base64Helper().encodeToStringSync(waitText)
+        this.webviewController.runJavaScript(`exports.writeBase64("${waitBase64}", ${this.applicationMode})`)
+
+        // Attempt to open the session
+        const opened = await sessionManager.openSession(this.sessionIndex)
+        if (opened) {
+          sessionManager.setOutputCallback(this.sessionIndex, (d: ArrayBuffer): void => this.onData(d))
+          const okMsg = `\r\n[Session ${this.sessionIndex + 1} connected!]\r\n`
+          const okText = util.TextEncoder.create('utf-8').encodeInto(okMsg)
+          const okBase64 = new util.Base64Helper().encodeToStringSync(okText)
+          this.webviewController.runJavaScript(`exports.writeBase64("${okBase64}", ${this.applicationMode})`)
+        } else {
+          const failMsg = `\r\n[Session ${this.sessionIndex + 1}: Connection failed]\r\n`
+          const failText = util.TextEncoder.create('utf-8').encodeInto(failMsg)
+          const failBase64 = new util.Base64Helper().encodeToStringSync(failText)
+          this.webviewController.runJavaScript(`exports.writeBase64("${failBase64}", ${this.applicationMode})`)
+        }
+      }
+    }
+
     const vmStatus = AppStorage.get(appOption.currentEmulatorStatus) as string | undefined
-    if (vmStatus === 'ABNORMAL') {
+    if (vmStatus === 'ABNORMAL' && this.sessionIndex === 0) {
       const message = this.getUIContext().getHostContext()?.resourceManager.getStringByNameSync('pm_status_qmp_connect_failed')
         ?? 'Failed to connect to QMP (please restart app)'
       const text = util.TextEncoder.create('utf-8').encodeInto('\r\n' + message + '\r\n')
       const base64 = new util.Base64Helper().encodeToStringSync(text)
       this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`)
+    }
+  }
+
+  /** Called when isActive changes — update xterm.js focus */
+  private onActiveChanged(): void {
+    hilog.info(DOMAIN, 'WebTerminal', 'Session %{public}d active: %{public}s (onActiveChanged)', this.sessionIndex, this.isActive)
+    this.applyFocus()
+  }
+
+  /** Apply focus state to xterm.js. Called from onActiveChanged AND aboutToAppear. */
+  private applyFocus(): void {
+    try {
+      this.webviewController.runJavaScript(`exports.setFocused(${this.isActive})`)
+      hilog.info(DOMAIN, 'WebTerminal', '[DIAG] applyFocus: session=%{public}d, isActive=%{public}s, OK',
+        this.sessionIndex, this.isActive)
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', '[DIAG] applyFocus failed: session=%{public}d, err=%{public}s',
+        this.sessionIndex, JSON.stringify(e))
+    }
+  }
+
+  aboutToAppear(): void {
+    hilog.info(DOMAIN, 'WebTerminal', '[DIAG] aboutToAppear: session=%{public}d, isActive=%{public}s',
+      this.sessionIndex, this.isActive)
+    // @Watch only fires on value CHANGE, not on initial assignment.
+    // When a new WebTerminal is created with isActive=true (e.g. session 1 just opened),
+    // onActiveChanged never fires. We must explicitly apply focus here.
+    if (this.isActive) {
+      // WebView may not be fully ready yet in aboutToAppear; delay slightly
+      setTimeout(() => {
+        this.applyFocus()
+      }, 500)
     }
   }
 

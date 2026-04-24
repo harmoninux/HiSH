@@ -1647,6 +1647,22 @@
     {
       "name": "guest_status_bar_toast",
       "value": "开启“状态栏”需要确保模拟器中的 qemu-guest-agent 正常运行"
+    },
+    {
+      "name": "label_max_sessions",
+      "value": "最大会话数"
+    },
+    {
+      "name": "session_close_confirm",
+      "value": "关闭会话"
+    },
+    {
+      "name": "session_close_message",
+      "value": "确定要关闭此会话吗？"
+    },
+    {
+      "name": "setting_max_sessions_desc",
+      "value": "最大终端会话数量（需重启生效）"
     }
   ]
 }

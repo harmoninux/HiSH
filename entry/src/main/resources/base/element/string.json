@@ -1647,6 +1647,22 @@
     {
       "name": "agent_connecting_tips",
       "value": "Attempting to connect to qemu-guest-agent...\nIf it takes too long to connect, please check if the qemu-guest-agent inside the emulator is running properly"
+    },
+    {
+      "name": "label_max_sessions",
+      "value": "Max Sessions"
+    },
+    {
+      "name": "session_close_confirm",
+      "value": "Close Session"
+    },
+    {
+      "name": "session_close_message",
+      "value": "Are you sure to close this session?"
+    },
+    {
+      "name": "setting_max_sessions_desc",
+      "value": "Maximum number of terminal sessions (requires restart)"
     }
   ]
 }
