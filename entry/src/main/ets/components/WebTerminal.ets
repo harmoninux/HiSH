@@ -40,6 +40,7 @@ export default struct WebTerminal {
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
+  private destroyed: boolean = false
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -195,6 +196,18 @@ export default struct WebTerminal {
       .onClick(() => {
         this.showVirtKey = false
       })
+  }
+
+  aboutToDisappear() {
+    this.destroyed = true
+    if (this.flushTimeoutID !== undefined) {
+      clearTimeout(this.flushTimeoutID)
+      this.flushTimeoutID = undefined
+    }
+    if (this.resizeTimeout !== undefined) {
+      clearTimeout(this.resizeTimeout)
+      this.resizeTimeout = undefined
+    }
   }
 
   build() {
@@ -398,6 +411,7 @@ export default struct WebTerminal {
   private readonly FLUSH_INTERVAL = 16; // 60FPS (16.6ms)
 
   private onData(ab: ArrayBuffer) {
+    if (this.destroyed) return
     try {
       // 将收到的数据块加入队列
       this.pendingChunks.push(new Uint8Array(ab));
@@ -464,6 +478,7 @@ export default struct WebTerminal {
   }
 
   private async onShutdown() {
+    if (this.destroyed) return
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
     await context?.terminateSelf()
@@ -486,14 +501,17 @@ export default struct WebTerminal {
   }
 
   onFontSizeChanged() {
+    if (this.destroyed) return
     this.webviewController.runJavaScript(`exports.setFontSize(${this.fontSize})`)
   }
 
   onCursorShapeChanged() {
+    if (this.destroyed) return
     this.webviewController.runJavaScript(`exports.setCursorShape('${this.cursorShape}')`)
   }
 
   onCursorBlinkChanged() {
+    if (this.destroyed) return
     this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
   }
 

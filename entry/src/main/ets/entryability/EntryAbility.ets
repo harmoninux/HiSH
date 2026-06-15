@@ -184,7 +184,12 @@ export default class EntryAbility extends UIAbility {
     const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string;
     const defaultStart: string | undefined = temporaryStart || AppStorage.get(appOption.defaultStartEmulator) as string;
     const emulators = AppStorage.get(appOption.emulators) as Emulator[];
-    const emulatorToStart = emulators.find(it => it.id === defaultStart)!!;
+    const emulatorToStart = emulators.find(it => it.id === defaultStart);
+    if (!emulatorToStart) {
+      hilog.warn(DOMAIN, 'testTag', 'Configured emulator %{public}s not found, falling back to default', defaultStart);
+      AppStorage.setOrCreate(appOption.defaultStartEmulator, defaultEmulator.id);
+      return defaultEmulator;
+    }
     return emulatorToStart;
   }
 

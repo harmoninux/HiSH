@@ -7,6 +7,7 @@ export default struct QemuMonitor {
   tempDir = this.getUIContext().getHostContext()!!.getApplicationContext().tempDir
   localSocket?: socket.LocalSocket = undefined
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
+  private monitorInterval: number = -1
 
   async aboutToAppear(): Promise<void> {
     const socketPath = this.tempDir + '/qmp_socket'
@@ -21,9 +22,14 @@ export default struct QemuMonitor {
       await local.send({ data: '{ "execute": "qmp_capabilities" }\n' })
       await local.send({ data: '{ "execute": "query-status" }\n' })
       await local.send({ data: '{ "execute": "query-commands" }\n' })
-      setInterval(async () => {
-        await local.send({ data: '{ "execute": "query-cpus-fast" }\n' })
-        await local.send({ data: '{ "execute": "query-memory-size-summary" }\n' })
+      this.monitorInterval = setInterval(async () => {
+        try {
+          if (!this.localSocket) return
+          await this.localSocket.send({ data: '{ "execute": "query-cpus-fast" }\n' })
+          await this.localSocket.send({ data: '{ "execute": "query-memory-size-summary" }\n' })
+        } catch (e) {
+          hilog.error(1, "QemuMonitor", "monitor interval send failed, %{public}s", e)
+        }
       }, 2000)
     } catch (e) {
       hilog.error(1, "QemuMonitor", "qmp socket failed, %{public}s", e)
@@ -31,6 +37,10 @@ export default struct QemuMonitor {
   }
 
   async aboutToDisappear(): Promise<void> {
+    if (this.monitorInterval !== -1) {
+      clearInterval(this.monitorInterval)
+      this.monitorInterval = -1
+    }
     try {
       await this.localSocket?.close()
     } catch (e) {

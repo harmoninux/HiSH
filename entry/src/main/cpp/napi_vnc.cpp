@@ -207,7 +207,8 @@ static napi_value vncInit(napi_env env, napi_callback_info info) {
 static napi_value vncClose(napi_env env, napi_callback_info info) {
     OH_LOG_INFO(LOG_APP, "vncClose");
 
-    // 1. Stop poll thread
+    // 1. Stop poll thread — must join before releasing TSFN to prevent
+    //    poll thread from queueing new callbacks while TSFN is being torn down.
     {
         std::lock_guard<std::mutex> lock(g_pollMutex);
         g_pollRunning.store(false);
@@ -216,9 +217,10 @@ static napi_value vncClose(napi_env env, napi_callback_info info) {
         }
     }
 
-    // 2. Release TSFN
+    // 2. Release TSFN — use abort to discard any pending callbacks
+    //    and prevent use-after-free in tsfnCallJs after g_tsfn is nulled.
     if (g_tsfn != nullptr) {
-        napi_release_threadsafe_function(g_tsfn, napi_tsfn_release);
+        napi_release_threadsafe_function(g_tsfn, napi_tsfn_abort);
         g_tsfn = nullptr;
     }
 
@@ -283,7 +285,7 @@ static napi_value vncStartUpdateLoop(napi_env env, napi_callback_info info) {
     std::lock_guard<std::mutex> lock(g_pollMutex);
 
     if (g_tsfn != nullptr) {
-        napi_release_threadsafe_function(g_tsfn, napi_tsfn_release);
+        napi_release_threadsafe_function(g_tsfn, napi_tsfn_abort);
         g_tsfn = nullptr;
     }
 
@@ -320,6 +322,7 @@ static napi_value vncStartUpdateLoop(napi_env env, napi_callback_info info) {
 static napi_value vncStopUpdateLoop(napi_env env, napi_callback_info info) {
     OH_LOG_INFO(LOG_APP, "vncStopUpdateLoop");
 
+    // Stop poll thread first, then abort TSFN to prevent use-after-free
     std::lock_guard<std::mutex> lock(g_pollMutex);
     g_pollRunning.store(false);
     if (g_pollThread.joinable()) {
@@ -327,7 +330,7 @@ static napi_value vncStopUpdateLoop(napi_env env, napi_callback_info info) {
     }
 
     if (g_tsfn != nullptr) {
-        napi_release_threadsafe_function(g_tsfn, napi_tsfn_release);
+        napi_release_threadsafe_function(g_tsfn, napi_tsfn_abort);
         g_tsfn = nullptr;
     }
 
