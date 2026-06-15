@@ -146,9 +146,26 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
 
     // 读取 VNC 启用配置
-    const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)!!
+    let vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled) ?? true
     const vncPortMode = AppStorage.get<string>(appOption.vncPortMode) ?? 'local'
-    const vncPort = AppStorage.get<number>(appOption.vncPort) ?? 5900
+    let vncPort = AppStorage.get<number>(appOption.vncPort) ?? 5900
+
+    // VNC 端口预检查 — 防止 QEMU 绑端口失败调用 exit() 导致闪退
+    if (vncEnabled) {
+      if (napi.checkPortUsed(vncPort)) {
+        hilog.warn(DOMAIN, 'testTag', 'VNC port %{public}d is in use, searching for free port', vncPort)
+        const freePort = getFreeVncPort(5900, 5999)
+        if (freePort !== undefined) {
+          vncPort = freePort
+          AppStorage.setOrCreate(appOption.vncPort, vncPort)
+          hilog.info(DOMAIN, 'testTag', 'VNC fallback port: %{public}d', vncPort)
+        } else {
+          // 无可用端口，降级为串口模式
+          vncEnabled = false
+          hilog.warn(DOMAIN, 'testTag', 'No free VNC port found, disabling VNC (serial-only mode)')
+        }
+      }
+    }
 
     const vmStarted = startVm({
       baseDir: vmBaseDir,
