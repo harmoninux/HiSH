@@ -100,7 +100,9 @@ export class QemuAgent {
   private requestId: number = 0
   private pendingResponse: string = ''
   private isConnected: boolean = false
-  private commandMutex: Promise<void> = Promise.resolve()
+  // 队列式锁，避免无限 promise 链泄漏
+  private lockQueue: (() => void)[] = []
+  private locked: boolean = false
 
   constructor(socketPath: string) {
     this.socketPath = socketPath
@@ -319,17 +321,26 @@ export class QemuAgent {
   }
 
   /**
-   * 命令锁实现
+   * 命令锁实现（队列式，避免无限 promise 链泄漏）
    */
   private async lock(): Promise<() => void> {
-    let release: () => void = () => { }
-    const newLock = new Promise<void>(resolve => {
-      release = resolve
-    })
-    const oldLock = this.commandMutex
-    this.commandMutex = oldLock.then(() => newLock)
-    await oldLock
-    return release
+    return new Promise<void>(resolve => {
+      this.lockQueue.push(resolve)
+      this.tryAcquire()
+    }).then(() => () => this.releaseLock())
+  }
+
+  private tryAcquire(): void {
+    if (!this.locked && this.lockQueue.length > 0) {
+      this.locked = true
+      const next = this.lockQueue.shift()!
+      next()
+    }
+  }
+
+  private releaseLock(): void {
+    this.locked = false
+    this.tryAcquire()
   }
 
   /**
@@ -576,6 +587,71 @@ export class QemuAgent {
     const output = await this.execAndGetOutput('/bin/sh', ['-c', 'pgrep sshd || pidof sshd'])
     return output !== null && output.trim().length > 0
   }
+
+  /**
+   * [优化] 一次 shell exec 获取 meminfo + cpu stats + ssh 状态，替代原来三次独立调用
+   * 节省 2 次 QGA socket 往返（~10s → ~3s）
+   */
+  async getSystemInfo(): Promise<SystemInfo | null> {
+    const output = await this.execAndGetOutput('/bin/sh',
+      ['-c', 'cat /proc/meminfo /proc/stat; echo "===SSH==="; pgrep sshd || echo NONE; echo "===SSH_END==="'],
+      8000)
+    if (!output) return null
+
+    // 按分隔符拆分三段
+    const sshMarker = '\n===SSH==='
+    const sshEndMarker = '\n===SSH_END==='
+    const sshStart = output.lastIndexOf(sshMarker)
+    const sshEnd = output.lastIndexOf(sshEndMarker)
+
+    let combinedData: string
+    let sshOutput: string
+    if (sshStart !== -1 && sshEnd !== -1 && sshEnd > sshStart) {
+      combinedData = output.substring(0, sshStart)
+      sshOutput = output.substring(sshStart + sshMarker.length + 1, sshEnd).trim()
+    } else {
+      combinedData = output
+      sshOutput = ''
+    }
+
+    // 解析 /proc/meminfo 部分：提取 kB 行
+    const memory: Record<string, number> = {}
+    const memRegex = /^(\w+):\s+(\d+)\s*kB/gm
+    let memMatch: RegExpExecArray | null
+    while ((memMatch = memRegex.exec(combinedData)) !== null) {
+      // 只取 meminfo 行（/proc/stat 的 cpu 行不以冒号结尾）
+      if (memMatch[1] && memMatch[2]) {
+        memory[memMatch[1]] = parseInt(memMatch[2]) * 1024
+      }
+    }
+
+    // 解析 /proc/stat 部分：提取 cpu  行
+    let cpuStats: CpuStats | null = null
+    const cpuRegex = /^cpu\s\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/gm
+    const cpuMatch = cpuRegex.exec(combinedData)
+    if (cpuMatch) {
+      const user = parseInt(cpuMatch[1])
+      const nice = parseInt(cpuMatch[2])
+      const system = parseInt(cpuMatch[3])
+      const idle = parseInt(cpuMatch[4])
+      const iowait = parseInt(cpuMatch[5])
+      const irq = parseInt(cpuMatch[6])
+      const softirq = parseInt(cpuMatch[7])
+      const total = user + nice + system + idle + iowait + irq + softirq
+      cpuStats = { total, idle }
+    }
+
+    // 解析 SSH 状态
+    const sshRunning = sshOutput.length > 0 && sshOutput !== 'NONE'
+
+    return { memory, cpuStats, sshRunning }
+  }
+}
+
+export interface SystemInfo {
+  memory: Record<string, number>
+  cpuStats: CpuStats | null
+  sshRunning: boolean
 }
 
 export interface CpuStats {

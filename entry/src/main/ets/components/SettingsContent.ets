@@ -31,6 +31,31 @@ const fontSizeOptions: SelectOption[] = [{
 
 const cursorShapeOptions: SelectOption[] = [{ value: 'BLOCK' }, { value: 'BEAM' }, { value: 'UNDERLINE' }]
 
+const themeOptions: SelectOption[] = [
+  { value: 'Dark (Default)' },
+  { value: 'Dracula' },
+  { value: 'Solarized Dark' },
+  { value: 'Solarized Light' },
+  { value: 'Monokai' },
+  { value: 'Nord' },
+  { value: 'Gruvbox Dark' }
+]
+
+const fontOptions: SelectOption[] = [
+  { value: 'CodeNewRoman NF Mono' },
+  { value: 'Source Code Pro' },
+  { value: 'Cascadia Code' },
+  { value: 'JetBrains Mono' },
+  { value: 'Fira Code' },
+  { value: 'Monospace' }
+]
+
+const profileOptions: SelectOption[] = [
+  { value: '均衡 (Balanced)' },
+  { value: '省电 (Power Saving)' },
+  { value: '性能 (Performance)' }
+]
+
 const vncPortModeOptions: SelectOption[] = [
   { value: $r('app.string.setting_vnc_port_mode_local') },
   { value: $r('app.string.setting_vnc_port_mode_lan') }
@@ -47,6 +72,10 @@ export default struct SettingsContent {
   @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   @Watch('saveVncPortMode') @StorageProp(appOption.vncPortMode) vncPortMode: string = 'local'
   @Watch('saveVncPort') @StorageProp(appOption.vncPort) vncPort: number = 5900
+  @Watch('saveTerminalTheme') @StorageProp(appOption.terminalTheme) terminalTheme: string = 'dark'
+  @Watch('saveTerminalFont') @StorageProp(appOption.terminalFont) terminalFont: string = 'CodeNewRoman NF Mono'
+  @Watch('saveAutoSnapshot') @StorageProp(appOption.autoSnapshotOnExit) autoSnapshotOnExit: boolean = false
+  @Watch('savePerformanceProfile') @StorageProp(appOption.performanceProfile) performanceProfile: string = 'balanced'
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -179,6 +208,63 @@ export default struct SettingsContent {
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalCursorShape, value))
   }
 
+  // Map display names to internal theme IDs
+  private themeIdMap: Record<string, string> = {
+    'Dark (Default)': 'dark',
+    'Dracula': 'dracula',
+    'Solarized Dark': 'solarized-dark',
+    'Solarized Light': 'solarized-light',
+    'Monokai': 'monokai',
+    'Nord': 'nord',
+    'Gruvbox Dark': 'gruvbox-dark'
+  }
+
+  @Builder
+  private buildTerminalTheme() {
+    Select(themeOptions)
+      .width(140)
+      .value(this.terminalTheme === 'dark' ? 'Dark (Default)' :
+        this.terminalTheme === 'dracula' ? 'Dracula' :
+        this.terminalTheme === 'solarized-dark' ? 'Solarized Dark' :
+        this.terminalTheme === 'solarized-light' ? 'Solarized Light' :
+        this.terminalTheme === 'monokai' ? 'Monokai' :
+        this.terminalTheme === 'nord' ? 'Nord' :
+        this.terminalTheme === 'gruvbox-dark' ? 'Gruvbox Dark' : 'Dark (Default)')
+      .onSelect((_i, value) => {
+        const themeId = this.themeIdMap[value] || 'dark'
+        AppStorage.setOrCreate(appOption.terminalTheme, themeId)
+      })
+  }
+
+  @Builder
+  private buildTerminalFont() {
+    Select(fontOptions)
+      .width(160)
+      .value(this.terminalFont)
+      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalFont, value))
+  }
+
+  @Builder
+  private buildPerformanceProfile() {
+    Select(profileOptions)
+      .width(140)
+      .value(this.performanceProfile === 'balanced' ? '均衡 (Balanced)' :
+        this.performanceProfile === 'powersave' ? '省电 (Power Saving)' : '性能 (Performance)')
+      .onSelect((_i, _value) => {
+        const profile = _i === 0 ? 'balanced' : _i === 1 ? 'powersave' : 'performance'
+        AppStorage.setOrCreate(appOption.performanceProfile, profile)
+      })
+  }
+
+  @Builder
+  private buildAutoSnapshot() {
+    Checkbox()
+      .select(this.autoSnapshotOnExit)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.autoSnapshotOnExit, value)
+      })
+  }
+
   build() {
     Column() {
       Scroll() {
@@ -224,6 +310,22 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalCursorBlink, !this.termCursorBlink)
+            })
+
+            SettingItem({
+              title: '主题配色',
+              subTitle: '选择终端配色方案',
+              content: () => {
+                this.buildTerminalTheme()
+              }
+            })
+
+            SettingItem({
+              title: '字体',
+              subTitle: '选择终端字体（需重启生效）',
+              content: () => {
+                this.buildTerminalFont()
+              }
             })
           }
           .attributeModifier(this.blockStyle)
@@ -277,6 +379,24 @@ export default struct SettingsContent {
               const value: boolean = !this.displayStatusBar;
               AppStorage.setOrCreate(appOption.displayStatusBar, value)
               this.showDisplayStatusBarToast(value)
+            })
+
+            SettingItem({
+              title: '性能预设',
+              subTitle: '均衡/省电/性能，重启 VM 生效',
+              content: () => {
+                this.buildPerformanceProfile()
+              }
+            })
+
+            SettingItem({
+              title: '退出时自动快照',
+              subTitle: '退出 VM 前自动保存快照，下次恢复状态',
+              content: () => {
+                this.buildAutoSnapshot()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.autoSnapshotOnExit, !this.autoSnapshotOnExit)
             })
           }
           .attributeModifier(this.blockStyle)
@@ -451,5 +571,21 @@ export default struct SettingsContent {
   async saveVncPort() {
     await savePreference(appOption.vncPort, this.vncPort, this.getUIContext())
     this.showVncRestartToast()
+  }
+
+  async saveTerminalTheme() {
+    await savePreference(appOption.terminalTheme, this.terminalTheme, this.getUIContext())
+  }
+
+  async saveTerminalFont() {
+    await savePreference(appOption.terminalFont, this.terminalFont, this.getUIContext())
+  }
+
+  async saveAutoSnapshot() {
+    await savePreference(appOption.autoSnapshotOnExit, this.autoSnapshotOnExit, this.getUIContext())
+  }
+
+  async savePerformanceProfile() {
+    await savePreference(appOption.performanceProfile, this.performanceProfile, this.getUIContext())
   }
 }

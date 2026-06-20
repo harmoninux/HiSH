@@ -3,8 +3,9 @@ var term = new Terminal({
     cursorBlink: true,
     allowProposedApi: true, // Needed for some addons
     allowTransparency: true, // User preference: Transparency supported
-    fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
-    fontSize: 14, // Default, will be overridden by native.getFontSize()
+    fontFamily: '"CodeNewRomanNerdFontMono", monospace',
+    fontSize: 25,
+    letterSpacing: 0,  // 等宽字体不需要调整间距
     theme: {
         background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
         foreground: '#ffffff',
@@ -12,6 +13,11 @@ var term = new Terminal({
     },
     screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
     scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
+    smoothScrollDuration: 0, // 禁用滚动动画，提升 TUI 响应
+    convertEol: true, // 统一换行符
+    cols: 106,
+    rows: 24,
+    termName: 'xterm-256color', // 告诉 VM 终端支持 256 色，修复 OpenCode 等 TUI 黑屏
 });
 
 // Initialize Addons
@@ -61,7 +67,8 @@ window.onload = function () {
     const maxRetries = 10;
 
     function initialize() {
-        // Disable WebGL as per user request (Compatibility Mode)
+        // Enable WebGL for better rendering on high DPI screens
+        // 改为 false 提升复杂 TUI 工具兼容性（如 opencode/tmux 等）
         let shouldEnableWebGL = false;
 
         // Check if native is ready
@@ -99,24 +106,14 @@ window.onload = function () {
                 term.resize(80, 24); // Fallback
             }
 
-            // 3. Load WebGL
-            if (shouldEnableWebGL) {
-                try {
-                    webglAddon.onContextLoss(e => {
-                        webglAddon.dispose();
-                    });
-                    term.loadAddon(webglAddon);
-                    console.log("WebGL renderer loaded");
-                } catch (e) {
-                    console.warn("WebGL renderer failed to load, falling back to canvas", e);
-                }
-            }
+            // 3. Skip WebGL, use Canvas renderer for better TUI compatibility
+            console.log("Using Canvas renderer (WebGL disabled for TUI compatibility)");
 
             // 4. Initialize and Start Shell
             try {
-                // Restore HiSH Startup Logo
+                // Boot splash is already shown, update status
+                exports.setBootStatus('Connecting to VM...');
                 term.writeln(
-                    'HiSH is starting...\r\n\r\n' +
                     '     |  | _)   __|  |  |\r\n' +
                     '     __ |  | \\__ \\  __ |\r\n' +
                     '    _| _| _| ____/ _| _|\r\n'
@@ -153,6 +150,14 @@ function syncPrefs() {
         if (native.getCursorShape) {
             const shape = native.getCursorShape();
             if (shape) exports.setCursorShape(shape); // Use our adapter logic
+        }
+        if (native.getTheme) {
+            const theme = native.getTheme();
+            if (theme) exports.setTheme(theme);
+        }
+        if (native.getFont) {
+            const font = native.getFont();
+            if (font) exports.setFont(font);
         }
     } catch (e) {
         console.warn("Failed to sync prefs", e);
@@ -252,8 +257,12 @@ function setupMirroredInputFix(termEl) {
 // --- Implementation of exports matching term.js.bak ---
 
 // exports.write(data) - Write data from VM to terminal
+let firstDataReceived = false;
 exports.write = (data, applicationMode) => {
-    // legacy hterm code imply data is Binary String (UTF-8/Latin1 bytes)
+    if (!firstDataReceived) {
+        exports.hideBootSplash();
+        firstDataReceived = true;
+    }
     try {
         const uint8 = strToUint8Array(data);
         term.write(uint8);
@@ -266,6 +275,10 @@ exports.write = (data, applicationMode) => {
 };
 
 exports.writeBase64 = (base64Data, applicationMode) => {
+    if (!firstDataReceived) {
+        exports.hideBootSplash();
+        firstDataReceived = true;
+    }
     try {
         let binaryString = atob(base64Data);
 
@@ -360,4 +373,386 @@ term.options.linkHandler = {
 
 exports.selectAll = () => {
     term.selectAll();
+};
+
+// ============== Terminal Themes ==============
+const THEMES = {
+    'dark': {
+        background: 'rgba(0, 0, 0, 0)',
+        foreground: '#ffffff',
+        cursor: '#ffffff',
+        cursorAccent: '#000000',
+        selectionBackground: '#ffffff44',
+        black: '#1a1a2e', red: '#e06c75', green: '#98c379',
+        yellow: '#e5c07b', blue: '#61afef', magenta: '#c678dd',
+        cyan: '#56b6c2', white: '#abb2bf',
+        brightBlack: '#5c6370', brightRed: '#e06c75', brightGreen: '#98c379',
+        brightYellow: '#e5c07b', brightBlue: '#61afef', brightMagenta: '#c678dd',
+        brightCyan: '#56b6c2', brightWhite: '#ffffff'
+    },
+    'dracula': {
+        background: 'rgba(40, 42, 54, 0.92)',
+        foreground: '#f8f8f2',
+        cursor: '#f8f8f2',
+        cursorAccent: '#282a36',
+        selectionBackground: '#44475a',
+        black: '#21222c', red: '#ff5555', green: '#50fa7b',
+        yellow: '#f1fa8c', blue: '#bd93f9', magenta: '#ff79c6',
+        cyan: '#8be9fd', white: '#f8f8f2',
+        brightBlack: '#6272a4', brightRed: '#ff6e6e', brightGreen: '#69ff94',
+        brightYellow: '#ffffa5', brightBlue: '#d6acff', brightMagenta: '#ff92df',
+        brightCyan: '#a4ffff', brightWhite: '#ffffff'
+    },
+    'solarized-dark': {
+        background: 'rgba(0, 43, 54, 0.92)',
+        foreground: '#839496',
+        cursor: '#839496',
+        cursorAccent: '#002b36',
+        selectionBackground: '#586e75',
+        black: '#073642', red: '#dc322f', green: '#859900',
+        yellow: '#b58900', blue: '#268bd2', magenta: '#d33682',
+        cyan: '#2aa198', white: '#eee8d5',
+        brightBlack: '#002b36', brightRed: '#cb4b16', brightGreen: '#586e75',
+        brightYellow: '#657b83', brightBlue: '#839496', brightMagenta: '#6c71c4',
+        brightCyan: '#93a1a1', brightWhite: '#fdf6e3'
+    },
+    'solarized-light': {
+        background: 'rgba(253, 246, 227, 0.95)',
+        foreground: '#657b83',
+        cursor: '#657b83',
+        cursorAccent: '#fdf6e3',
+        selectionBackground: '#eee8d5',
+        black: '#073642', red: '#dc322f', green: '#859900',
+        yellow: '#b58900', blue: '#268bd2', magenta: '#d33682',
+        cyan: '#2aa198', white: '#eee8d5',
+        brightBlack: '#002b36', brightRed: '#cb4b16', brightGreen: '#586e75',
+        brightYellow: '#657b83', brightBlue: '#839496', brightMagenta: '#6c71c4',
+        brightCyan: '#93a1a1', brightWhite: '#fdf6e3'
+    },
+    'monokai': {
+        background: 'rgba(39, 40, 34, 0.92)',
+        foreground: '#f8f8f2',
+        cursor: '#f8f8f2',
+        cursorAccent: '#272822',
+        selectionBackground: '#49483e',
+        black: '#272822', red: '#f92672', green: '#a6e22e',
+        yellow: '#f4bf75', blue: '#66d9ef', magenta: '#ae81ff',
+        cyan: '#a1efe4', white: '#f8f8f2',
+        brightBlack: '#75715e', brightRed: '#f92672', brightGreen: '#a6e22e',
+        brightYellow: '#f4bf75', brightBlue: '#66d9ef', brightMagenta: '#ae81ff',
+        brightCyan: '#a1efe4', brightWhite: '#f9f8f5'
+    },
+    'nord': {
+        background: 'rgba(46, 52, 64, 0.92)',
+        foreground: '#d8dee9',
+        cursor: '#d8dee9',
+        cursorAccent: '#2e3440',
+        selectionBackground: '#4c566a',
+        black: '#3b4252', red: '#bf616a', green: '#a3be8c',
+        yellow: '#ebcb8b', blue: '#81a1c1', magenta: '#b48ead',
+        cyan: '#88c0d0', white: '#e5e9f0',
+        brightBlack: '#4c566a', brightRed: '#bf616a', brightGreen: '#a3be8c',
+        brightYellow: '#ebcb8b', brightBlue: '#81a1c1', brightMagenta: '#b48ead',
+        brightCyan: '#8fbcbb', brightWhite: '#eceff4'
+    },
+    'gruvbox-dark': {
+        background: 'rgba(40, 40, 40, 0.92)',
+        foreground: '#ebdbb2',
+        cursor: '#ebdbb2',
+        cursorAccent: '#282828',
+        selectionBackground: '#504945',
+        black: '#282828', red: '#cc241d', green: '#98971a',
+        yellow: '#d79921', blue: '#458588', magenta: '#b16286',
+        cyan: '#689d6a', white: '#a89984',
+        brightBlack: '#928374', brightRed: '#fb4934', brightGreen: '#b8bb26',
+        brightYellow: '#fabd2f', brightBlue: '#83a598', brightMagenta: '#d3869b',
+        brightCyan: '#8ec07c', brightWhite: '#ebdbb2'
+    }
+};
+let currentTheme = 'dark';
+
+exports.setTheme = (name) => {
+    const theme = THEMES[name];
+    if (!theme) return;
+    currentTheme = name;
+    term.options.theme = theme;
+    // Persist to body data attribute for CSS if needed
+    document.body.setAttribute('data-theme', name);
+};
+
+exports.getThemes = () => JSON.stringify(Object.keys(THEMES));
+
+exports.getCurrentTheme = () => currentTheme;
+
+// Apply theme on load
+exports.setTheme('dark');
+
+// ============== Terminal Search ==============
+let searchQuery = '';
+let searchIndex = -1;
+let searchResults = [];
+let searchOverlay = null;
+let searchInput = null;
+
+function buildSearchOverlay() {
+    if (searchOverlay) return;
+
+    searchOverlay = document.createElement('div');
+    searchOverlay.id = 'search-overlay';
+    searchOverlay.style.cssText = 'position:absolute;top:8px;right:8px;z-index:100;display:none;' +
+        'background:#1e1e2e;border:1px solid #444;border-radius:8px;padding:6px 10px;' +
+        'box-shadow:0 4px 12px rgba(0,0,0,0.5);align-items:center;gap:4px;';
+
+    searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search...';
+    searchInput.style.cssText = 'background:transparent;border:none;color:#cdd6f4;font-size:13px;' +
+        'outline:none;width:160px;font-family:monospace;';
+
+    const countLabel = document.createElement('span');
+    countLabel.id = 'search-count';
+    countLabel.style.cssText = 'color:#6c7086;font-size:11px;min-width:40px;text-align:center;';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '▲';
+    prevBtn.style.cssText = 'background:#313244;border:none;color:#cdd6f4;border-radius:4px;' +
+        'cursor:pointer;padding:2px 6px;font-size:10px;';
+    prevBtn.onclick = () => searchInBuffer(-1);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = '▼';
+    nextBtn.style.cssText = 'background:#313244;border:none;color:#cdd6f4;border-radius:4px;' +
+        'cursor:pointer;padding:2px 6px;font-size:10px;';
+    nextBtn.onclick = () => searchInBuffer(1);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'background:transparent;border:none;color:#6c7086;cursor:pointer;' +
+        'font-size:13px;padding:2px 4px;';
+    closeBtn.onclick = () => exports.hideSearch();
+
+    searchOverlay.appendChild(searchInput);
+    searchOverlay.appendChild(countLabel);
+    searchOverlay.appendChild(prevBtn);
+    searchOverlay.appendChild(nextBtn);
+    searchOverlay.appendChild(closeBtn);
+
+    const container = document.getElementById('terminal-container');
+    if (container) container.appendChild(searchOverlay);
+
+    searchInput.addEventListener('input', () => {
+        searchQuery = searchInput.value;
+        if (searchQuery.length > 0) {
+            doSearch();
+        } else {
+            clearSearchHighlights();
+            searchResults = [];
+            searchIndex = -1;
+            updateSearchCount();
+        }
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            searchInBuffer(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            exports.hideSearch();
+            term.focus();
+        }
+    });
+}
+
+function doSearch() {
+    searchResults = [];
+    searchIndex = -1;
+    const needle = searchQuery.toLowerCase();
+    const buffer = term.buffer.active;
+
+    for (let row = 0; row < buffer.length; row++) {
+        const line = buffer.getLine(row);
+        if (!line) continue;
+        const text = line.translateToString(true).toLowerCase();
+        let pos = -1;
+        while ((pos = text.indexOf(needle, pos + 1)) !== -1) {
+            searchResults.push({ row: row, col: pos });
+        }
+    }
+
+    updateSearchCount();
+    if (searchResults.length > 0) {
+        searchIndex = 0;
+        highlightResult(0);
+    }
+}
+
+function searchInBuffer(direction) {
+    if (searchResults.length === 0) return;
+
+    searchIndex += direction;
+    if (searchIndex < 0) searchIndex = searchResults.length - 1;
+    if (searchIndex >= searchResults.length) searchIndex = 0;
+
+    highlightResult(searchIndex);
+    updateSearchCount();
+}
+
+function highlightResult(index) {
+    if (index < 0 || index >= searchResults.length) return;
+
+    const result = searchResults[index];
+    const buffer = term.buffer.active;
+    const viewportRows = term.rows;
+    const targetScroll = result.row - Math.floor(viewportRows / 2);
+
+    if (targetScroll >= 0 && targetScroll <= buffer.length - viewportRows) {
+        term.scrollToLine(targetScroll);
+    } else if (result.row < buffer.length - viewportRows) {
+        term.scrollToLine(Math.max(0, result.row - 2));
+    }
+
+    term.select(result.col, result.row, searchQuery.length);
+    term.scrollToLine(Math.max(0, result.row - Math.floor(viewportRows / 2)));
+}
+
+function clearSearchHighlights() {
+    term.clearSelection();
+}
+
+function updateSearchCount() {
+    const label = document.getElementById('search-count');
+    if (label) {
+        if (searchResults.length > 0) {
+            label.textContent = `${searchIndex + 1}/${searchResults.length}`;
+        } else if (searchQuery.length > 0) {
+            label.textContent = '0/0';
+        } else {
+            label.textContent = '';
+        }
+    }
+}
+
+exports.showSearch = () => {
+    buildSearchOverlay();
+    searchOverlay.style.display = 'flex';
+    searchInput.value = '';
+    searchQuery = '';
+    searchResults = [];
+    searchIndex = -1;
+    updateSearchCount();
+    clearSearchHighlights();
+    setTimeout(() => searchInput.focus(), 50);
+};
+
+exports.hideSearch = () => {
+    if (searchOverlay) {
+        searchOverlay.style.display = 'none';
+    }
+    clearSearchHighlights();
+    searchQuery = '';
+    searchResults = [];
+    searchIndex = -1;
+};
+
+exports.findNext = () => searchInBuffer(1);
+exports.findPrevious = () => searchInBuffer(-1);
+
+// Keyboard shortcut: Ctrl+F or Cmd+F to open search
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        if (searchOverlay && searchOverlay.style.display === 'flex') {
+            exports.hideSearch();
+        } else {
+            exports.showSearch();
+        }
+    }
+});
+
+// ============== Boot Splash Screen ==============
+let bootSplash = null;
+
+function buildBootSplash() {
+    if (bootSplash) return;
+    bootSplash = document.createElement('div');
+    bootSplash.id = 'boot-splash';
+    bootSplash.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:50;' +
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+        'background:rgba(0,0,0,0.95);transition:opacity 0.4s ease-out;';
+    bootSplash.innerHTML = `
+        <div style="text-align:center;font-family:monospace;color:#61afef;font-size:14px;line-height:1.6;">
+            <pre style="margin:0;color:#c678dd;">
+     |  | _)   __|  |  |
+     __ |  | \\\\__ \\\\  __ |
+    _| _| _| ____/ _| _|
+            </pre>
+            <div style="margin-top:20px;color:#56b6c2;">
+                <span id="boot-status">Booting VM...</span>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:6px;justify-content:center;">
+                <span class="boot-dot" style="animation:bootBounce 1.4s infinite 0s;">●</span>
+                <span class="boot-dot" style="animation:bootBounce 1.4s infinite 0.2s;">●</span>
+                <span class="boot-dot" style="animation:bootBounce 1.4s infinite 0.4s;">●</span>
+            </div>
+        </div>
+        <style>
+            @keyframes bootBounce {
+                0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+                40% { opacity: 1; transform: scale(1); }
+            }
+        </style>`;
+
+    const container = document.getElementById('terminal-container');
+    if (container) container.appendChild(bootSplash);
+}
+
+exports.showBootSplash = () => {
+    buildBootSplash();
+    bootSplash.style.display = 'flex';
+    bootSplash.style.opacity = '1';
+};
+
+exports.hideBootSplash = () => {
+    if (bootSplash) {
+        bootSplash.style.opacity = '0';
+        setTimeout(() => {
+            if (bootSplash) bootSplash.style.display = 'none';
+        }, 400);
+    }
+};
+
+exports.setBootStatus = (status) => {
+    const el = document.getElementById('boot-status');
+    if (el) el.textContent = status;
+};
+
+// Show boot splash on initialization (before VM starts)
+exports.showBootSplash();
+
+// ============== Font Management ==============
+const FONT_LIST = [
+    { name: 'CodeNewRoman NF Mono', family: '"CodeNewRomanNerdFontMono", monospace' },
+    { name: 'Source Code Pro', family: '"SourceCodePro", monospace' },
+    { name: 'Cascadia Code', family: '"CascadiaCode", monospace' },
+    { name: 'JetBrains Mono', family: '"JetBrainsMono", monospace' },
+    { name: 'Fira Code', family: '"FiraCode", monospace' },
+    { name: 'Monospace', family: 'monospace' },
+];
+
+exports.setFont = (fontName) => {
+    const font = FONT_LIST.find(f => f.name === fontName);
+    if (font) {
+        term.options.fontFamily = font.family;
+        fitAddon.fit();
+    }
+};
+
+exports.getFonts = () => JSON.stringify(FONT_LIST.map(f => f.name));
+
+exports.getCurrentFont = () => {
+    // Find current font from list matching term.options.fontFamily
+    const current = term.options.fontFamily;
+    const match = FONT_LIST.find(f => f.family === current);
+    return match ? match.name : FONT_LIST[0].name;
 };

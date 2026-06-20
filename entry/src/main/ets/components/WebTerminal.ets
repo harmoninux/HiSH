@@ -5,6 +5,7 @@ import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference } from '../model/appOption';
+import { Emulator } from '../model/Emulator';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
@@ -34,6 +35,8 @@ export default struct WebTerminal {
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
+  @Watch('onThemeChanged') @StorageProp(appOption.terminalTheme) terminalTheme: string = 'dark'
+  @Watch('onFontChanged') @StorageProp(appOption.terminalFont) terminalFont: string = 'CodeNewRoman NF Mono'
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
   @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   webviewController: WebviewController = new webview.WebviewController()
@@ -409,6 +412,8 @@ export default struct WebTerminal {
   private pendingChunks: Uint8Array[] = [];
   private flushTimeoutID: number | undefined = undefined;
   private readonly FLUSH_INTERVAL = 16; // 60FPS (16.6ms)
+  private readonly CLEAR_DEBOUNCE_MS = 300; // 清屏 debounce：防止 TUI 高频刷新导致跳屏
+  private lastClearScrollbackTime: number = 0;
 
   private onData(ab: ArrayBuffer) {
     if (this.destroyed) return
@@ -458,11 +463,15 @@ export default struct WebTerminal {
         merged[6] === 0x5C && merged[7] === 0x78 && merged[8] === 0x31 && merged[9] === 0x62 && // \x1b
         merged[10] === 0x5B && merged[11] === 0x4A // [J
       ) {
-        const clearCmd = '\\x1b[3J';
-        const encoder = util.TextEncoder.create('utf-8');
-        const clearBytes = encoder.encodeInto(clearCmd);
-        const clearBase64 = new util.Base64Helper().encodeToStringSync(clearBytes);
-        this.webviewController.runJavaScript(`exports.writeBase64("${clearBase64}", ${this.applicationMode})`);
+        const now = Date.now()
+        if (now - this.lastClearScrollbackTime >= this.CLEAR_DEBOUNCE_MS) {
+          this.lastClearScrollbackTime = now
+          const clearCmd = '\\x1b[3J'
+          const encoder = util.TextEncoder.create('utf-8')
+          const clearBytes = encoder.encodeInto(clearCmd)
+          const clearBase64 = new util.Base64Helper().encodeToStringSync(clearBytes)
+          this.webviewController.runJavaScript(`exports.writeBase64("${clearBase64}", ${this.applicationMode})`)
+        }
       }
 
       // 4. 发送合并后的数据
@@ -480,6 +489,30 @@ export default struct WebTerminal {
   private async onShutdown() {
     if (this.destroyed) return
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
+
+    // Auto-snapshot on exit
+    const autoSnapshot = AppStorage.get<boolean>(appOption.autoSnapshotOnExit)
+    if (autoSnapshot) {
+      try {
+        const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
+        if (emulatorId) {
+          const emulatorsJson = AppStorage.get<string>(appOption.emulators)
+          const emulators = JSON.parse(emulatorsJson ?? '[]') as Emulator[]
+          const currentEmulator = emulators.find((e: Emulator) => e.id === emulatorId)
+          if (currentEmulator?.rootFilesystem) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+            const snapshotName = `auto-${timestamp}`
+            hilog.info(DOMAIN, 'WebTerminal', 'Auto-snapshot: creating %{public}s on %{public}s',
+              snapshotName, currentEmulator.rootFilesystem)
+            napi.createSnapshot(currentEmulator.rootFilesystem, snapshotName)
+            hilog.info(DOMAIN, 'WebTerminal', 'Auto-snapshot created: %{public}s', snapshotName)
+          }
+        }
+      } catch (e) {
+        hilog.error(DOMAIN, 'WebTerminal', 'Auto-snapshot failed: %{public}s', JSON.stringify(e))
+      }
+    }
+
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
     await context?.terminateSelf()
   }
@@ -513,6 +546,24 @@ export default struct WebTerminal {
   onCursorBlinkChanged() {
     if (this.destroyed) return
     this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
+  }
+
+  onThemeChanged() {
+    if (this.destroyed) return
+    this.webviewController.runJavaScript(`exports.setTheme('${this.terminalTheme}')`)
+  }
+
+  onFontChanged() {
+    if (this.destroyed) return
+    this.webviewController.runJavaScript(`exports.setFont('${this.terminalFont}')`)
+  }
+
+  getTheme(): string {
+    return this.terminalTheme
+  }
+
+  getFont(): string {
+    return this.terminalFont
   }
 
   setApplicationMode(mode: boolean) {

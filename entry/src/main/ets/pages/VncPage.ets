@@ -4,6 +4,8 @@ import napi from 'libentry.so';
 import { button2rfb } from '../utils/KeyMap';
 import deviceInfo from '@ohos.deviceInfo';
 import appOption from '../model/appOption';
+import { pasteboard } from '@kit.BasicServicesKit';
+import util from '@ohos.util';
 
 const DOMAIN = 0x0001;
 const LOG_TAG = 'NativeVnc';
@@ -168,7 +170,11 @@ struct VncPage {
     Column() {
       if (deviceInfo.deviceType === '2in1') {
         ComposeTitleBar({
-          title: $r('app.string.vnc_console_title')
+          title: $r('app.string.vnc_console_title'),
+          menuItems: [{
+            value: '粘贴到虚拟机',
+            action: () => this.pasteToVnc()
+          }],
         })
           .focusable(false)
       }
@@ -298,6 +304,19 @@ struct VncPage {
       napi.vncKeyEvent(keyCode, down);
     } catch (e) {
       hilog.error(DOMAIN, LOG_TAG, 'Key event error: %{public}s', JSON.stringify(e));
+    }
+  }
+
+  private async pasteToVnc(): Promise<void> {
+    try {
+      const board = pasteboard.getSystemPasteboard();
+      const data = await board.getData();
+      const text = data.getPrimaryText();
+      if (text && text.length > 0) {
+        napi.vncSendCutText(text);
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, LOG_TAG, 'Paste to VNC failed: %{public}s', JSON.stringify(e));
     }
   }
 }

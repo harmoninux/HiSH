@@ -268,12 +268,43 @@ export default struct EmulatorListGrid {
     applicationContext.restartApp(want);
   }
 
-  async gracefulShutdownAndWait() :Promise<void> {
-    return new Promise((resolve)=> {
+  async gracefulShutdownAndWait(): Promise<void> {
+    // [修复] 带超时的优雅关机，并在 VM 意外退出时执行 auto-snapshot
+    const SHUTDOWN_TIMEOUT_MS = 30000
+    const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
+
+    return new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        hilog.warn(DOMAIN, 'EmulatorListGrid', 'Shutdown timeout after %{public}dms', SHUTDOWN_TIMEOUT_MS)
+        reject(new Error('Shutdown timeout'))
+      }, SHUTDOWN_TIMEOUT_MS)
+
       napi.onShutdown(() => {
+        clearTimeout(timeout)
         AppStorage.set(appOption.currentRunningEmulator, undefined)
+
+        // 如果 auto-snapshot 开启，在关机回调中补做快照（因为 WebTerminal 的 onShutdown 已被覆盖）
+        const autoSnapshot = AppStorage.get<boolean>(appOption.autoSnapshotOnExit)
+        if (autoSnapshot && emulatorId) {
+          try {
+            const emulatorsJson = AppStorage.get<string>(appOption.emulators)
+            const emulators = JSON.parse(emulatorsJson ?? '[]') as Emulator[]
+            const currentEmulator = emulators.find((e: Emulator) => e.id === emulatorId)
+            if (currentEmulator?.rootFilesystem) {
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+              const snapshotName = `auto-${timestamp}`
+              hilog.info(DOMAIN, 'EmulatorListGrid', 'Auto-snapshot: creating %{public}s on %{public}s',
+                snapshotName, currentEmulator.rootFilesystem)
+              napi.createSnapshot(currentEmulator.rootFilesystem, snapshotName)
+              hilog.info(DOMAIN, 'EmulatorListGrid', 'Auto-snapshot created: %{public}s', snapshotName)
+            }
+          } catch (e) {
+            hilog.error(DOMAIN, 'EmulatorListGrid', 'Auto-snapshot during shutdown failed: %{public}s', JSON.stringify(e))
+          }
+        }
         resolve()
       })
+
       const cmd = '\x1apoweroff\n'
       napi.sendInput(stringToArrayBuffer(cmd))
     })

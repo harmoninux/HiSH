@@ -27,7 +27,7 @@ function startVm(options: VmOptions): boolean {
   const sharedFolderOption = options.sharedFolderReadonly ? ",readonly" : ""
 
   const basic = ['-machine', 'virt,acpi=on,gic-version=max,' +
-    'iommu=none,its=off,usb=off,virtualization=off,memory-backend=mem0,compact-highmem=on,' +
+    'iommu=none,its=off,usb=on,virtualization=off,memory-backend=mem0,compact-highmem=on,' +
     'dump-guest-core=off,mem-merge=off,hmat=off',
     '-overcommit', 'cpu-pm=off',
     '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=2048',
@@ -60,7 +60,7 @@ function startVm(options: VmOptions): boolean {
     "systemd.mask=run-lock.mount systemd.mask=sys-kernel-debug.mount systemd.mask=dev-hugepages.mount " +
     "cryptomgr.notests rodata=off rcupdate.rcu_cpu_stall_timeout=60 " +
     "rcu_expedited=1 init_on_free=0 init_on_alloc=1 page_poison=0 slub_debug=- " +
-    "TERM=xterm init=" + options.init]
+    "TERM=xterm-256color init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
   const qga = [
     '-device', 'virtio-serial-pci-non-transitional,id=virtio-serial0',
@@ -79,6 +79,7 @@ function startVm(options: VmOptions): boolean {
     '-device', 'virtio-tablet-pci'
   ] : []
 
+  const usb = ['-usb']
   const args = [
     'qemu-system-aarch64',
     ...basic,
@@ -91,6 +92,7 @@ function startVm(options: VmOptions): boolean {
     ...kernelParam,
     ...monitor,
     ...qga,
+    ...usb,
     ...vnc,
     ...sharedUserFolder
   ]

@@ -137,3 +137,6 @@ export const vncResizeSurface: (surfaceId: bigint, width: number, height: number
  * @returns 0 表示成功
  */
 export const vncDestroySurface: () => number;
+
+/** Send clipboard text to VNC server */
+export const vncSendCutText: (text: string) => number;

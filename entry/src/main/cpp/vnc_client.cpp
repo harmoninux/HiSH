@@ -55,6 +55,7 @@ std::mutex VncClient::fbMutex_;
 
 VncResizeCallback VncClient::resizeCallback_ = nullptr;
 VncFrameCallback VncClient::frameCallback_ = nullptr;
+VncClipboardCallback VncClient::cutTextCallback_ = nullptr;
 std::mutex VncClient::socketMutex_;
 
 rfbBool VncClient::onResize(rfbClient* cl) {
@@ -161,6 +162,7 @@ bool VncClient::connect(const char* address, int port, const char* passwd) {
     client_->appData.useRemoteCursor = FALSE;
     client_->GetPassword = VncClient::getPassword;
     client_->GotFrameBufferUpdate = VncClient::onUpdate;
+    client_->GotXCutText = VncClient::onCutText;
     client_->connectTimeout = 5;
     // readTimeout=0 (infinite): non-zero values cause spurious ReadFromRFBServer
     // timeouts during ZRLE/zlib decode of large frames, killing the poll thread.
@@ -185,6 +187,7 @@ void VncClient::disconnect() {
     // Clear callbacks first to prevent in-flight calls
     resizeCallback_ = nullptr;
     frameCallback_ = nullptr;
+    cutTextCallback_ = nullptr;
 
     if (client_) {
         connected_.store(false);
@@ -220,6 +223,23 @@ void VncClient::sendKeyEvent(uint32_t key, bool down) {
     std::lock_guard<std::mutex> lock(socketMutex_);
     if (checkConnection()) {
         SendKeyEvent(client_, key, down ? TRUE : FALSE);
+    }
+}
+
+void VncClient::sendCutText(const char* text, int len) {
+    std::lock_guard<std::mutex> lock(socketMutex_);
+    if (checkConnection()) {
+        SendClientCutText(client_, const_cast<char*>(text), len);
+    }
+}
+
+void VncClient::setClipboardCallback(VncClipboardCallback cb) {
+    cutTextCallback_ = cb;
+}
+
+void VncClient::onCutText(rfbClient* cl, const char* text, int textlen) {
+    if (cutTextCallback_) {
+        cutTextCallback_(text, textlen);
     }
 }
 

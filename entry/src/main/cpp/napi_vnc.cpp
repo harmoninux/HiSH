@@ -391,6 +391,29 @@ static napi_value vncDestroySurface(napi_env env, napi_callback_info info) {
     return ret;
 }
 
+// ---- VNC Clipboard ----
+static napi_value vncSendCutText(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (status != napi_ok || argc < 1) {
+        napi_value ret;
+        napi_create_int32(env, -1, &ret);
+        return ret;
+    }
+
+    size_t len = 0;
+    napi_get_value_string_utf8(env, args[0], nullptr, 0, &len);
+    std::string text(len, '\0');
+    napi_get_value_string_utf8(env, args[0], &text[0], len + 1, &len);
+
+    VncClient::sendCutText(text.c_str(), static_cast<int>(len));
+
+    napi_value ret;
+    napi_create_int32(env, 0, &ret);
+    return ret;
+}
+
 // ---- Register ----
 void registerVncFunctions(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
@@ -403,6 +426,7 @@ void registerVncFunctions(napi_env env, napi_value exports) {
         {"vncCreateSurface", nullptr, vncCreateSurface, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"vncResizeSurface", nullptr, vncResizeSurface, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"vncDestroySurface", nullptr, vncDestroySurface, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"vncSendCutText", nullptr, vncSendCutText, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
 }

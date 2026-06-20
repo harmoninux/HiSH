@@ -24,6 +24,7 @@ struct VncFrameInfo {
 
 using VncResizeCallback = std::function<void(int width, int height)>;
 using VncFrameCallback = std::function<void(const VncFrameInfo& info)>;
+using VncClipboardCallback = std::function<void(const char* text, int len)>;
 
 class VncClient {
 public:
@@ -33,9 +34,11 @@ public:
 
     static void sendMouseEvent(int x, int y, int buttonMask);
     static void sendKeyEvent(uint32_t key, bool down);
+    static void sendCutText(const char* text, int len);
 
     static void setResizeCallback(VncResizeCallback cb);
     static void setFrameCallback(VncFrameCallback cb);
+    static void setClipboardCallback(VncClipboardCallback cb);
 
     static uint8_t* getFrameBuffer();
     static int getFrameWidth();
@@ -63,12 +66,14 @@ private:
 
     static VncResizeCallback resizeCallback_;
     static VncFrameCallback frameCallback_;
+    static VncClipboardCallback cutTextCallback_;
     static std::mutex socketMutex_;
 
     // libvncclient callbacks
     static rfbBool onResize(rfbClient* cl);
     static void onUpdate(rfbClient* cl, int x, int y, int w, int h);
     static char* getPassword(rfbClient* cl);
+    static void onCutText(rfbClient* cl, const char* text, int textlen);
     static bool checkConnection();
 };
 

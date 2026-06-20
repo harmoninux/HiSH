@@ -1,3 +1,10 @@
+@font-face {
+    font-family: 'CodeNewRomanNerdFontMono';
+    src: url('CodeNewRomanNerdFontMono-Regular.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 body {
     margin: 0;
     background: #000;

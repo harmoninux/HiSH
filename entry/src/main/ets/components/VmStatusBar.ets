@@ -1,9 +1,11 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { CustomContentDialog } from '@kit.ArkUI'
-import QemuAgent, { CpuStats } from '../lib/QemuAgent'
+import QemuAgent, { CpuStats, SystemInfo } from '../lib/QemuAgent'
 import { QemuAgentManager, AgentPriority } from '../lib/QemuAgentManager'
 import appOption from '../model/appOption'
+import { Emulator } from '../model/Emulator'
 import { util } from '@kit.ArkTS'
+import { pasteboard } from '@kit.BasicServicesKit'
 
 const DOMAIN = 0x0000
 
@@ -132,23 +134,20 @@ export struct VmStatusBar {
   @State isRefreshing: boolean = false
   @State isForceReconnecting: boolean = false
   @Prop reactive?: boolean = undefined
-  private qgaAgent: QemuAgent | null = null
   private refreshTimer: number = -1
   private isComponentActive: boolean = true
   private lastCpuStats: CpuStats | null = null
 
   aboutToAppear() {
     this.isComponentActive = true
-    this.settings.masterSwitch = true
     this.initAgent()
   }
 
   aboutToDisappear() {
     this.isComponentActive = false
     this.stopRefreshTimer()
-    if (this.qgaAgent) {
-      this.qgaAgent.disconnect()
-    }
+    // [修复] 通过 Manager 释放连接，否则 currentUser 残留会导致其他组件无法 acquire
+    QemuAgentManager.release('VmStatusBar')
   }
 
   onSettingsChange() {
@@ -161,6 +160,31 @@ export struct VmStatusBar {
     } else {
       // 关闭：停止定时器
       this.stopRefreshTimer()
+    }
+  }
+
+  private showSshInfo() {
+    try {
+      const emulatorsJson = AppStorage.get<string>(appOption.emulators)
+      const emulators = JSON.parse(emulatorsJson ?? '[]') as Emulator[]
+      const runningId = AppStorage.get<string>(appOption.currentRunningEmulator)
+      const emu = emulators.find((e: Emulator) => e.id === runningId)
+      // Default SSH port is 2222
+      let sshPort = 2222
+      if (emu?.portMapping) {
+        const sshMap = emu.portMapping.find((p) => p.guest === 22)
+        if (sshMap?.host) sshPort = sshMap.host
+      }
+      const cmd = `ssh -p ${sshPort} root@127.0.0.1`
+      const board = pasteboard.getSystemPasteboard()
+      const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, cmd)
+      board.setData(pasteData)
+      this.getUIContext().getPromptAction().showToast({
+        message: `已复制: ${cmd}`,
+        duration: 2000
+      })
+    } catch (e) {
+      hilog.error(DOMAIN, 'VmStatusBar', 'SSH copy failed: %{public}s', JSON.stringify(e))
     }
   }
 
@@ -432,9 +456,11 @@ export struct VmStatusBar {
         }
       }
 
-      // 获取内存信息 (始终获取，以满足核心数据要求)
-      const memInfo: Record<string, number> | null = await agent.getMemoryInfo()
-      if (memInfo) {
+      // [优化] 一次 shell exec 获取 meminfo + cpu stats + ssh 状态，替代原来三次独立调用
+      const sysInfo: SystemInfo | null = await agent.getSystemInfo()
+      if (sysInfo) {
+        // 内存信息 (始终处理)
+        const memInfo = sysInfo.memory
         this.status.memoryTotal = memInfo['MemTotal'] || 0
         const memAvailable = memInfo['MemAvailable'] || 0
         if (this.status.memoryTotal > 0) {
@@ -449,26 +475,26 @@ export struct VmStatusBar {
           const swapUsed = this.status.swapTotal - swapFree
           this.status.swapUsage = Math.round((swapUsed / this.status.swapTotal) * 100)
         }
-      }
 
-      // 如果启用监控，获取动态数据
-      if (this.settings.masterSwitch) {
-        // 获取 CPU 统计信息并计算使用率
-        const cpuStats: CpuStats | null = await agent.getCpuStats()
-        if (cpuStats) {
-          if (this.lastCpuStats) {
-            const diffTotal = cpuStats.total - this.lastCpuStats.total
-            const diffIdle = cpuStats.idle - this.lastCpuStats.idle
-            if (diffTotal > 0) {
-              this.status.cpuUsage = Math.round(((diffTotal - diffIdle) / diffTotal) * 100)
+        // 如果启用监控，处理 CPU 和 SSH
+        if (this.settings.masterSwitch) {
+          // CPU 统计
+          const cpuStats = sysInfo.cpuStats
+          if (cpuStats) {
+            if (this.lastCpuStats) {
+              const diffTotal = cpuStats.total - this.lastCpuStats.total
+              const diffIdle = cpuStats.idle - this.lastCpuStats.idle
+              if (diffTotal > 0) {
+                this.status.cpuUsage = Math.round(((diffTotal - diffIdle) / diffTotal) * 100)
+              }
             }
+            const newCpuStats: CpuStats = { total: cpuStats.total, idle: cpuStats.idle }
+            this.lastCpuStats = newCpuStats
           }
-          const newCpuStats: CpuStats = { total: cpuStats.total, idle: cpuStats.idle }
-          this.lastCpuStats = newCpuStats
-        }
 
-        // 检查 SSH
-        this.status.sshRunning = await agent.isSshRunning()
+          // SSH 状态
+          this.status.sshRunning = sysInfo.sshRunning
+        }
       }
 
       // 只有在非外部传入 agent 时才释放
@@ -560,9 +586,17 @@ export struct VmStatusBar {
 
             // SSH
             if (this.settings.showSsh) {
-              if (this.status.agentConnected) {
-                Text(this.status.sshRunning ? '🔐' : '🔒')
+              if (this.status.agentConnected && this.status.sshRunning) {
+                Text('🔐 SSH')
                   .fontSize(12)
+                  .fontColor('#4FC3F7')
+                  .onClick(() => {
+                    this.showSshInfo()
+                  })
+              } else if (this.status.agentConnected) {
+                Text('🔒 -')
+                  .fontSize(12)
+                  .fontColor('#FFFFFF')
               } else {
                 Text('🔒 -')
                   .fontSize(12)

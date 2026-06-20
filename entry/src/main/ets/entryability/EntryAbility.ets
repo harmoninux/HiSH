@@ -12,6 +12,7 @@ import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../mod
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import { getCpuCount, getMemSize } from '../lib/systemProfile';
 
 const DOMAIN = 0x0000;
 
@@ -119,6 +120,21 @@ export default class EntryAbility extends UIAbility {
 
     const cpuCount = emulatorToStart.cpu;
     const memSize = emulatorToStart.memory;
+
+    // Apply performance profile
+    const profile = AppStorage.get<string>(appOption.performanceProfile) ?? 'balanced'
+    let adjustedCpu = cpuCount
+    let adjustedMem = memSize
+    if (profile === 'powersave') {
+      adjustedCpu = Math.min(cpuCount, 2)
+      adjustedMem = Math.min(memSize, 512)
+    } else if (profile === 'performance') {
+      adjustedCpu = getCpuCount()
+      adjustedMem = Math.max(1024, getMemSize() - 1024)
+    }
+    hilog.info(DOMAIN, 'testTag',
+      'Performance profile: %{public}s, cpu: %{public}d→%{public}d, mem: %{public}d→%{public}dMB',
+      profile, cpuCount, adjustedCpu, memSize, adjustedMem)
     const rootVda = emulatorToStart.rootVda;
     const rootFilesystem = emulatorToStart.rootFilesystem
     const sharedFolderReadonly = emulatorToStart.sharedFolderReadonly
@@ -137,7 +153,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.portUsedByOthers, portUsed)
 
     hilog.info(DOMAIN, 'testTag', 'startVM with cpu: %{public}d, mem: %{public}dMB, portMapping: %{public}s',
-      cpuCount, memSize, portMapping)
+      adjustedCpu, adjustedMem, portMapping)
 
     const serialUnixSocket = appTempDir + '/serial_socket'
     const qmpUnixSocket = appTempDir + '/qmp_socket'
@@ -169,8 +185,8 @@ export default class EntryAbility extends UIAbility {
 
     const vmStarted = startVm({
       baseDir: vmBaseDir,
-      cpu: cpuCount,
-      memory: memSize,
+      cpu: adjustedCpu,
+      memory: adjustedMem,
       portMapping: portMapping,
       kernel: kernelFile,
       rootVda,
