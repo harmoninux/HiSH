@@ -40,6 +40,8 @@ const vncPortModeOptions: SelectOption[] = [
 export default struct SettingsContent {
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
   @Watch('saveTermFontSize') @StorageProp(appOption.terminalFontSize) terminalFontSize: number = 12
+  @Watch('saveTermFontFamily') @StorageProp(appOption.terminalFontFamily) terminalFontFamily: string = 'Default'
+  @StorageProp(appOption.availableFontFamilies) availableFontFamilies: string[] = ['Default']
   @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
@@ -107,6 +109,26 @@ export default struct SettingsContent {
       .width(80)
       .value(this.terminalFontSize.toString())
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalFontSize, parseInt(value)))
+  }
+
+  @Builder
+  private buildTerminalFontFamily() {
+    Select(this.buildFontFamilyOptions())
+      .width(180)
+      .value(this.terminalFontFamily)
+      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalFontFamily, value))
+  }
+
+  private buildFontFamilyOptions(): SelectOption[] {
+    // Prepend 'Default' as the first option, then append detected fonts
+    const options: SelectOption[] = [{ value: 'Default' }];
+    for (const font of this.availableFontFamilies) {
+      // Avoid duplicating 'Default'
+      if (font !== 'Default') {
+        options.push({ value: font });
+      }
+    }
+    return options;
   }
 
   @Builder
@@ -205,6 +227,14 @@ export default struct SettingsContent {
               subTitle: $r('app.string.setting_font_size_desc'),
               content: () => {
                 this.buildTerminalFontSize()
+              }
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_font_family'),
+              subTitle: $r('app.string.setting_font_family_desc'),
+              content: () => {
+                this.buildTerminalFontFamily()
               }
             })
 
@@ -395,6 +425,10 @@ export default struct SettingsContent {
 
   async saveTermFontSize() {
     await savePreference(appOption.terminalFontSize, this.terminalFontSize, this.getUIContext())
+  }
+
+  async saveTermFontFamily() {
+    await savePreference(appOption.terminalFontFamily, this.terminalFontFamily, this.getUIContext())
   }
 
   async saveTermCursorShape() {

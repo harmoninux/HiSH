@@ -753,6 +753,14 @@
       "value": "Set terminal font size"
     },
     {
+      "name": "setting_font_family",
+      "value": "Font Family"
+    },
+    {
+      "name": "setting_font_family_desc",
+      "value": "Select terminal font (monospace fonts detected automatically)"
+    },
+    {
       "name": "setting_cursor_style",
       "value": "Cursor Style"
     },

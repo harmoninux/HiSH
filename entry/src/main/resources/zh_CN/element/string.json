@@ -753,6 +753,14 @@
       "value": "设置终端字体大小"
     },
     {
+      "name": "setting_font_family",
+      "value": "字体样式"
+    },
+    {
+      "name": "setting_font_family_desc",
+      "value": "选择终端字体（自动检测系统可用等宽字体）"
+    },
+    {
       "name": "setting_cursor_style",
       "value": "光标样式"
     },

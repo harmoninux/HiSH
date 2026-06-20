@@ -6,6 +6,8 @@ class appOption {
   static preferenceName = 'vm_pref'
   static keepScreenOn = 'appKeepScreenOn'
   static terminalFontSize = 'terminalFontSize'
+  static terminalFontFamily = 'terminalFontFamily'    // Current font family selection
+  static availableFontFamilies = 'availableFontFamilies' // Detected available monospace fonts
   static terminalCursorBlink = 'terminalCursorBlink'
   static terminalCursorShape = 'terminalCursorShape'
   static appTempDir = 'appTempDir'

@@ -38,6 +38,81 @@ function setupImeGuard() {
     textarea.setAttribute('autocapitalize', 'off');
 }
 
+// Detects which monospace fonts are actually available in the WebView.
+// Uses Canvas measureText: compares "CandidateFont, monospace" against
+// pure "monospace" baseline. If a font doesn't exist, the browser falls
+// back to monospace and the widths match → it gets filtered out.
+function detectAvailableMonospaceFonts() {
+    var testNarrow = 'iiiiilllll';
+    var testWide = 'WWWWWmmmmm';
+    var baseFont = 'monospace';
+
+    // Comprehensive list of monospace fonts commonly available across
+    // HarmonyOS / Android / Linux systems
+    var candidates = [
+        'Droid Sans Mono',
+        'Noto Sans Mono',
+        'Roboto Mono',
+        'Source Code Pro',
+        'Cascadia Code',
+        'Fira Code',
+        'JetBrains Mono',
+        'Courier New',
+        'Courier',
+        'Consolas',
+        'Menlo',
+        'DejaVu Sans Mono',
+        'Liberation Mono',
+        'Ubuntu Mono',
+        'Monaco',
+    ];
+
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    var testFontSize = '16px';
+
+    function measure(fontStack, text) {
+        ctx.font = testFontSize + ' ' + fontStack;
+        return ctx.measureText(text).width;
+    }
+
+    // Baseline with pure monospace (the browser's default monospace font)
+    var monoNarrow = measure(baseFont, testNarrow);
+    var monoWide = measure(baseFont, testWide);
+
+    return candidates.filter(function(font) {
+        // Measure with candidate + monospace fallback.
+        // If the candidate font does NOT exist, the browser falls back
+        // to monospace → same metrics as baseline → detected as unavailable.
+        // If it DOES exist → different metrics → detected as available.
+        var fontStack = '"' + font + '", ' + baseFont;
+        var narrow = measure(fontStack, testNarrow);
+        var wide = measure(fontStack, testWide);
+
+        // Font is distinct from default monospace (it actually exists and differs)
+        var narrowDiff = Math.abs(narrow - monoNarrow);
+        var wideDiff = Math.abs(wide - monoWide);
+        var isDistinct = narrowDiff > 0.5 || wideDiff > 0.5;
+
+        // Font is monospace: narrow and wide chars have equal width
+        // (1px tolerance for sub-pixel rendering differences)
+        var monoDiff = Math.abs(narrow - wide);
+        var isMonospace = monoDiff <= 1;
+
+        return isDistinct && isMonospace;
+    });
+}
+
+// Maps user-friendly font family name to CSS font-family stack.
+// 'Default' uses the system monospace fallback chain;
+// named fonts include a monospace fallback for safety.
+function mapFontFamily(family) {
+    if (!family || family === 'Default') {
+        return 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace';
+    }
+    return '"' + family + '", monospace';
+}
+
 // Function to convert "binary string" (where charCode < 256) to Uint8Array
 // ArkTS sends data as a string where each char is a byte.
 function strToUint8Array(str) {
@@ -84,7 +159,48 @@ window.onload = function () {
                 console.error("Error during setup", e);
             }
 
-            // 2. Fit Terminal (now onResize listener is ready to capture this)
+            // 2. Detect available monospace fonts
+            //    Preload bundled fonts first to ensure they're detected
+            try {
+                // Bundled fonts — always available, loaded via fonts.css @font-face
+                var bundledFonts = ['JetBrains Mono', 'Fira Code', 'Source Code Pro'];
+                var preloadPromises = [];
+                if (document.fonts && document.fonts.load) {
+                    for (var b = 0; b < bundledFonts.length; b++) {
+                        preloadPromises.push(
+                            document.fonts.load('14px "' + bundledFonts[b] + '"')
+                                .catch(function() { /* ignore individual load failures */ })
+                        );
+                    }
+                }
+                // Run detection after preload (with timeout fallback)
+                var doDetection = function() {
+                    var availableFonts = detectAvailableMonospaceFonts();
+                    // Ensure bundled fonts are always present (their woff2 files are baked in)
+                    for (var k = 0; k < bundledFonts.length; k++) {
+                        if (availableFonts.indexOf(bundledFonts[k]) === -1) {
+                            availableFonts.push(bundledFonts[k]);
+                        }
+                    }
+                    console.log('Detected monospace fonts: ' + availableFonts.join(', '));
+                    if (native.onAvailableFontsDetected) {
+                        native.onAvailableFontsDetected(JSON.stringify(availableFonts));
+                    }
+                };
+                if (preloadPromises.length > 0) {
+                    // Wait up to 2s for fonts to load, then run detection
+                    Promise.race([
+                        Promise.all(preloadPromises),
+                        new Promise(function(r) { setTimeout(r, 2000); })
+                    ]).then(doDetection);
+                } else {
+                    doDetection();
+                }
+            } catch (e) {
+                console.warn('Font detection failed', e);
+            }
+
+            // 3. Fit Terminal (now onResize listener is ready to capture this)
             try {
                 fitAddon.fit();
                 console.log(`Terminal size after fit: ${term.cols}x${term.rows}`);
@@ -99,7 +215,7 @@ window.onload = function () {
                 term.resize(80, 24); // Fallback
             }
 
-            // 3. Load WebGL
+            // 4. Load WebGL
             if (shouldEnableWebGL) {
                 try {
                     webglAddon.onContextLoss(e => {
@@ -112,7 +228,7 @@ window.onload = function () {
                 }
             }
 
-            // 4. Initialize and Start Shell
+            // 5. Initialize and Start Shell
             try {
                 // Restore HiSH Startup Logo
                 term.writeln(
@@ -145,6 +261,10 @@ function syncPrefs() {
         if (native.getFontSize) {
             const fs = native.getFontSize();
             if (fs) term.options.fontSize = fs;
+        }
+        if (native.getFontFamily) {
+            const ff = native.getFontFamily();
+            if (ff) exports.setFontFamily(ff);
         }
         if (native.getCursorBlink) {
             const blink = native.getCursorBlink();
@@ -318,6 +438,18 @@ exports.copy = () => {
 
 exports.setFontSize = (size) => {
     term.options.fontSize = size;
+    fitAddon.fit();
+};
+
+exports.setFontFamily = (family) => {
+    var newFamily = mapFontFamily(family);
+    term.options.fontFamily = newFamily;
+
+    // Resize to current dimensions to force xterm.js to
+    // re-layout with the new font metrics, then re-fit.
+    if (term.cols > 0 && term.rows > 0) {
+        term.resize(term.cols, term.rows);
+    }
     fitAddon.fit();
 };
 

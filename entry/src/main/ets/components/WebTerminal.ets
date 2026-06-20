@@ -32,6 +32,7 @@ export default struct WebTerminal {
   @State shiftPressed: boolean = false
   @State fnPressed: boolean = false
   @Watch('onFontSizeChanged') @StorageProp(appOption.terminalFontSize) fontSize: number | null = null
+  @Watch('onFontFamilyChanged') @StorageProp(appOption.terminalFontFamily) fontFamily: string = 'Default'
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
@@ -207,8 +208,10 @@ export default struct WebTerminal {
           object: this,
           name: 'native',
           methodList: ['sendInput', 'resize', 'load',
-            'getFontSize', 'getCursorShape', 'getCursorBlink',
-            'setApplicationMode'],
+            'getFontSize', 'getFontFamily',
+            'getCursorShape', 'getCursorBlink',
+            'setApplicationMode',
+            'onAvailableFontsDetected'],
           controller: this.webviewController,
           asyncMethodList: [],
           permission: `{
@@ -473,6 +476,10 @@ export default struct WebTerminal {
     return this.fontSize
   }
 
+  getFontFamily(): string {
+    return this.fontFamily
+  }
+
   getCursorShape(): string | null {
     return this.cursorShape
   }
@@ -489,6 +496,17 @@ export default struct WebTerminal {
     this.webviewController.runJavaScript(`exports.setFontSize(${this.fontSize})`)
   }
 
+  onFontFamilyChanged() {
+    // Read directly from AppStorage to ensure we get the updated value
+    const family = AppStorage.get<string>(appOption.terminalFontFamily) ?? 'Default';
+    hilog.info(DOMAIN, 'WebTerminal', 'onFontFamilyChanged: %{public}s', family);
+    // Use JSON.stringify to safely escape any special characters in font name
+    this.webviewController.runJavaScript(`exports.setFontFamily(${JSON.stringify(family)})`)
+      .catch((err: Error) => {
+        hilog.error(DOMAIN, 'WebTerminal', 'setFontFamily failed: %{public}s', JSON.stringify(err));
+      })
+  }
+
   onCursorShapeChanged() {
     this.webviewController.runJavaScript(`exports.setCursorShape('${this.cursorShape}')`)
   }
@@ -500,5 +518,17 @@ export default struct WebTerminal {
   setApplicationMode(mode: boolean) {
     this.applicationMode = mode
     hilog.info(DOMAIN, 'WebTerminal', 'set applicationMode to %{public}s', this.applicationMode);
+  }
+
+  // Called from WebView when monospace font detection completes.
+  // Receives a JSON array of available monospace font names.
+  onAvailableFontsDetected(json: string): void {
+    try {
+      const fonts: string[] = JSON.parse(json);
+      hilog.info(DOMAIN, 'WebTerminal', 'Available monospace fonts: %{public}s', fonts.join(', '));
+      AppStorage.setOrCreate(appOption.availableFontFamilies, fonts);
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'Failed to parse available fonts: %{public}s', JSON.stringify(e));
+    }
   }
 }
