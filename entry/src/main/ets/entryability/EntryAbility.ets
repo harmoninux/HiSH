@@ -146,7 +146,15 @@ export default class EntryAbility extends UIAbility {
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernelFile = AppStorage.get(appOption.kernel) as string
 
-    const portUsed = portMappingRaw.map((it): number => it.host!!).filter((p): boolean => napi.checkPortUsed(p))
+    // 跳过特权端口 (<1024)：bind() 可能触发系统安全策略杀进程导致闪退
+    const portUsed = portMappingRaw.map((it): number => it.host!!)
+      .filter((p): boolean => {
+        if (p < 1024) {
+          hilog.warn(DOMAIN, 'testTag', 'host port %{public}d is privileged (<1024), skipped', p)
+          return true // 视为不可用
+        }
+        return napi.checkPortUsed(p)
+      })
     const portMapping = portMappingRaw.filter((it): boolean => portUsed.indexOf(it.host!!) < 0)
 
     hilog.info(DOMAIN, 'testTag', 'host port %{public}s of PortMapping is used by others', portUsed)
@@ -413,9 +421,9 @@ export default class EntryAbility extends UIAbility {
   }
 
   private promptPortUsedMessage(uiContext: UIContext, portSkipped: number[]) {
-    const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt');
     if (portSkipped.length > 0) {
       try {
+        const promptFormat = uiContext.getHostContext()?.resourceManager.getStringByNameSync('port_used_prompt');
         const ports = portSkipped.map(i => i.toString()).join(',');
         const prompt = util.format(promptFormat, ports);
         const promptAction: PromptAction = uiContext.getPromptAction();

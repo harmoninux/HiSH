@@ -2,6 +2,8 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import napi from 'libentry.so'
 import { defaultEmulator, PortMapping } from '../model/Emulator'
 import deviceInfo from '@ohos.deviceInfo'
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import appOption from '../model/appOption'
 
 interface VmOptions {
   baseDir: string
@@ -72,7 +74,17 @@ function startVm(options: VmOptions): boolean {
     ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
       "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
 
-  const vnc: string[] = options.vncEnabled ? [
+  // HarmonyOS app进程fd配额有限，过多hostfwd监听socket会耗尽fd，导致VNC init失败→exit(1)
+  // 保守阈值：映射数>4时禁用VNC，避免vnc_init_func中的socket()返回EMFILE
+  const MAX_PORT_MAPPING_WITH_VNC = 4
+  let vncEnabled = options.vncEnabled
+  if (vncEnabled && options.portMapping.length > MAX_PORT_MAPPING_WITH_VNC) {
+    vncEnabled = false
+    hilog.warn(0x0000, 'startVm', 'Port mapping count %{public}d exceeds VNC-safe limit %{public}d, disabling VNC to prevent fd exhaustion crash',
+      options.portMapping.length, MAX_PORT_MAPPING_WITH_VNC)
+  }
+
+  const vnc: string[] = vncEnabled ? [
     '-vnc', `${options.vncPortMode === 'lan' ? '0.0.0.0' : '127.0.0.1'}:${options.vncPort - 5900}`,
     '-device', 'virtio-gpu-pci',
     '-device', 'virtio-keyboard-pci',
