@@ -38,7 +38,8 @@ const themeOptions: SelectOption[] = [
   { value: 'Solarized Light' },
   { value: 'Monokai' },
   { value: 'Nord' },
-  { value: 'Gruvbox Dark' }
+  { value: 'Gruvbox Dark' },
+  { value: '自定义 (Custom)' }
 ]
 
 const fontOptions: SelectOption[] = [
@@ -47,7 +48,8 @@ const fontOptions: SelectOption[] = [
   { value: 'Cascadia Code' },
   { value: 'JetBrains Mono' },
   { value: 'Fira Code' },
-  { value: 'Monospace' }
+  { value: 'Monospace' },
+  { value: '自定义 (Custom)' }
 ]
 
 const profileOptions: SelectOption[] = [
@@ -111,6 +113,21 @@ export default struct SettingsContent {
   context = this.getUIContext().getHostContext() as common.UIAbilityContext
   preferences?: preference.Preferences
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
+  /** 自定义主题编辑器状态 */
+  @State customBg: string = '#1a1a2e'
+  @State customFg: string = '#ffffff'
+  @State customCursor: string = '#ffffff'
+  @State customBlack: string = '#1a1a2e'
+  @State customRed: string = '#e06c75'
+  @State customGreen: string = '#98c379'
+  @State customYellow: string = '#e5c07b'
+  @State customBlue: string = '#61afef'
+  @State customMagenta: string = '#c678dd'
+  @State customCyan: string = '#56b6c2'
+  @State customWhite: string = '#abb2bf'
+  @State customSelectionBg: string = '#ffffff44'
+  /** 自定义字体输入 */
+  @State customFontFamily: string = ''
 
   async saveKeepScreenOn() {
     await savePreference(appOption.keepScreenOn, this.keepScreenOn, this.getUIContext())
@@ -216,14 +233,27 @@ export default struct SettingsContent {
     'Solarized Light': 'solarized-light',
     'Monokai': 'monokai',
     'Nord': 'nord',
-    'Gruvbox Dark': 'gruvbox-dark'
+    'Gruvbox Dark': 'gruvbox-dark',
+    '自定义 (Custom)': 'custom'
+  }
+
+  /** 判断当前主题是否为自定义模式 */
+  private isThemeCustom(): boolean {
+    return this.terminalTheme !== 'dark' &&
+      this.terminalTheme !== 'dracula' &&
+      this.terminalTheme !== 'solarized-dark' &&
+      this.terminalTheme !== 'solarized-light' &&
+      this.terminalTheme !== 'monokai' &&
+      this.terminalTheme !== 'nord' &&
+      this.terminalTheme !== 'gruvbox-dark'
   }
 
   @Builder
   private buildTerminalTheme() {
     Select(themeOptions)
-      .width(140)
-      .value(this.terminalTheme === 'dark' ? 'Dark (Default)' :
+      .width(160)
+      .value(this.isThemeCustom() ? '自定义 (Custom)' :
+        this.terminalTheme === 'dark' ? 'Dark (Default)' :
         this.terminalTheme === 'dracula' ? 'Dracula' :
         this.terminalTheme === 'solarized-dark' ? 'Solarized Dark' :
         this.terminalTheme === 'solarized-light' ? 'Solarized Light' :
@@ -232,16 +262,228 @@ export default struct SettingsContent {
         this.terminalTheme === 'gruvbox-dark' ? 'Gruvbox Dark' : 'Dark (Default)')
       .onSelect((_i, value) => {
         const themeId = this.themeIdMap[value] || 'dark'
-        AppStorage.setOrCreate(appOption.terminalTheme, themeId)
+        if (themeId === 'custom') {
+          this.terminalTheme = 'custom'
+          // 尝试从现有 JSON 解析已保存的自定义配色
+          this.loadCustomThemeFromStored()
+        } else {
+          AppStorage.setOrCreate(appOption.terminalTheme, themeId)
+        }
       })
+  }
+
+  /**
+   * 尝试从当前 terminalTheme 值解析自定义主题 JSON
+   * 若 terminalTheme 是合法 JSON 则填充编辑器字段，否则用默认 dark 配色
+   */
+  private loadCustomThemeFromStored() {
+    try {
+      const stored = this.terminalTheme as string
+      if (stored.startsWith('{')) {
+        const parsed: Record<string, string> = JSON.parse(stored) as Record<string, string>
+        this.customBg = parsed['background'] || '#1a1a2e'
+        this.customFg = parsed['foreground'] || '#ffffff'
+        this.customCursor = parsed['cursor'] || '#ffffff'
+        this.customBlack = parsed['black'] || '#1a1a2e'
+        this.customRed = parsed['red'] || '#e06c75'
+        this.customGreen = parsed['green'] || '#98c379'
+        this.customYellow = parsed['yellow'] || '#e5c07b'
+        this.customBlue = parsed['blue'] || '#61afef'
+        this.customMagenta = parsed['magenta'] || '#c678dd'
+        this.customCyan = parsed['cyan'] || '#56b6c2'
+        this.customWhite = parsed['white'] || '#abb2bf'
+        this.customSelectionBg = parsed['selectionBackground'] || '#ffffff44'
+        return
+      }
+    } catch (_e) {
+      // JSON 解析失败，使用默认值
+    }
+    // 回退：用 dark 主题默认值
+    this.customBg = '#1a1a2e'; this.customFg = '#ffffff'; this.customCursor = '#ffffff'
+    this.customBlack = '#1a1a2e'; this.customRed = '#e06c75'; this.customGreen = '#98c379'
+    this.customYellow = '#e5c07b'; this.customBlue = '#61afef'; this.customMagenta = '#c678dd'
+    this.customCyan = '#56b6c2'; this.customWhite = '#abb2bf'; this.customSelectionBg = '#ffffff44'
+  }
+
+  /**
+   * 自定义主题编辑器 —— 11 个配色字段 + 实时预览
+   */
+  @Builder
+  private buildCustomThemeEditor() {
+    Column() {
+      Text('自定义配色方案')
+        .fontSize(13).fontColor('#888888').padding({ bottom: 8 })
+
+      // 基础色：背景 / 前景 / 光标 / 选区
+      Row() { this.colorFieldRow('背景', this.customBg, (v: string) => { this.customBg = v }) }
+      Row() { this.colorFieldRow('前景', this.customFg, (v: string) => { this.customFg = v }) }
+      Row() { this.colorFieldRow('光标', this.customCursor, (v: string) => { this.customCursor = v }) }
+      Row() { this.colorFieldRow('选区', this.customSelectionBg, (v: string) => { this.customSelectionBg = v }) }
+
+      // ANSI 16 色（基础 8 色）
+      Divider().margin({ top: 8, bottom: 8 })
+      Row() { this.colorFieldRow('黑', this.customBlack, (v: string) => { this.customBlack = v }) }
+      Row() { this.colorFieldRow('红', this.customRed, (v: string) => { this.customRed = v }) }
+      Row() { this.colorFieldRow('绿', this.customGreen, (v: string) => { this.customGreen = v }) }
+      Row() { this.colorFieldRow('黄', this.customYellow, (v: string) => { this.customYellow = v }) }
+      Row() { this.colorFieldRow('蓝', this.customBlue, (v: string) => { this.customBlue = v }) }
+      Row() { this.colorFieldRow('紫', this.customMagenta, (v: string) => { this.customMagenta = v }) }
+      Row() { this.colorFieldRow('青', this.customCyan, (v: string) => { this.customCyan = v }) }
+      Row() { this.colorFieldRow('白', this.customWhite, (v: string) => { this.customWhite = v }) }
+
+      // 预览区
+      Divider().margin({ top: 8, bottom: 8 })
+      Text('预览')
+        .fontSize(12).fontColor('#888888').padding({ bottom: 6 })
+        .alignSelf(ItemAlign.Start)
+      Column() {
+        Text('\\x1b[30mBlack  \\x1b[31mRed  \\x1b[32mGreen  \\x1b[33mYellow')
+          .fontSize(12).fontFamily('monospace')
+        Text('\\x1b[34mBlue  \\x1b[35mMagenta  \\x1b[36mCyan  \\x1b[37mWhite')
+          .fontSize(12).fontFamily('monospace').margin({ top: 4 })
+      }
+      .width('100%').padding(10)
+      .backgroundColor('#0d0d1a').borderRadius(6)
+
+      // 应用按钮
+      Button('应用自定义主题')
+        .width('100%').margin({ top: 12 })
+        .onClick(() => {
+          this.applyCustomTheme()
+        })
+
+      // 重置为预设
+      Button('重置为 Dark 默认')
+        .width('100%').margin({ top: 6 })
+        .backgroundColor('#333333')
+        .onClick(() => {
+          AppStorage.setOrCreate(appOption.terminalTheme, 'dark')
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#111122')
+    .borderRadius(8)
+    .margin({ top: 6 })
+  }
+
+  @Builder
+  private colorFieldRow(label: string, color: string, onChange: (v: string) => void) {
+    Text(label)
+      .fontSize(12).fontColor('#bbbbbb').width(30)
+    Circle()
+      .width(14).height(14)
+      .fill(color)
+      .stroke('#444444').strokeWidth(1)
+      .margin({ left: 4, right: 6 })
+    TextInput({ placeholder: '#RRGGBB', text: color })
+      .fontSize(11).fontFamily('monospace')
+      .width(90).height(28)
+      .backgroundColor('#222233')
+      .borderRadius(4)
+      .onChange((value: string) => {
+        onChange(value)
+      })
+  }
+
+  /**
+   * 将编辑器中的颜色值序列化为主题 JSON，写入 AppStorage
+   */
+  private applyCustomTheme() {
+    const themeObj: Record<string, string> = {
+      'background': 'rgba(18, 18, 34, 0.92)',
+      'foreground': this.customFg,
+      'cursor': this.customCursor,
+      'cursorAccent': '#1a1a2e',
+      'selectionBackground': this.customSelectionBg,
+      'black': this.customBlack, 'red': this.customRed, 'green': this.customGreen,
+      'yellow': this.customYellow, 'blue': this.customBlue, 'magenta': this.customMagenta,
+      'cyan': this.customCyan, 'white': this.customWhite,
+      'brightBlack': '#5c6370', 'brightRed': this.customRed, 'brightGreen': this.customGreen,
+      'brightYellow': this.customYellow, 'brightBlue': this.customBlue,
+      'brightMagenta': this.customMagenta, 'brightCyan': this.customCyan, 'brightWhite': '#ffffff'
+    }
+    const json = JSON.stringify(themeObj)
+    AppStorage.setOrCreate(appOption.terminalTheme, json)
+  }
+
+  /** 判断当前字体是否为预设之一 */
+  private isFontCustom(): boolean {
+    const presets = ['CodeNewRoman NF Mono', 'Source Code Pro', 'Cascadia Code', 'JetBrains Mono', 'Fira Code',
+      'Monospace']
+    return presets.indexOf(this.terminalFont) < 0
   }
 
   @Builder
   private buildTerminalFont() {
     Select(fontOptions)
       .width(160)
-      .value(this.terminalFont)
-      .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalFont, value))
+      .value(this.isFontCustom() ? '自定义 (Custom)' : this.terminalFont)
+      .onSelect((_i, value) => {
+        if (value === '自定义 (Custom)') {
+          this.customFontFamily = this.isFontCustom() ? this.terminalFont : ''
+        } else {
+          AppStorage.setOrCreate(appOption.terminalFont, value)
+        }
+      })
+  }
+
+  @Builder
+  private buildCustomFontEditor() {
+    Column() {
+      Text('自定义字体')
+        .fontSize(13).fontColor('#888888').padding({ bottom: 8 })
+
+      Text('输入任意 CSS font-family 值，如 "Iosevka Term", monospace')
+        .fontSize(11).fontColor('#666666').padding({ bottom: 8 })
+
+      Row() {
+        TextInput({ placeholder: '例: "Iosevka", monospace', text: this.customFontFamily })
+          .fontSize(12).fontFamily('monospace')
+          .layoutWeight(1).height(32)
+          .backgroundColor('#222233')
+          .borderRadius(4)
+          .onChange((value: string) => {
+            this.customFontFamily = value
+          })
+      }
+      .width('100%')
+
+      // 预览
+      if (this.customFontFamily.length > 0) {
+        Column() {
+          Text('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+            .fontSize(14).fontFamily(this.customFontFamily).fontColor('#ffffff')
+          Text('abcdefghijklmnopqrstuvwxyz')
+            .fontSize(14).fontFamily(this.customFontFamily).fontColor('#aaaaaa').margin({ top: 4 })
+          Text('0123456789  !@#$%^&*()')
+            .fontSize(14).fontFamily(this.customFontFamily).fontColor('#888888').margin({ top: 4 })
+        }
+        .width('100%').padding(10)
+        .backgroundColor('#0d0d1a').borderRadius(6)
+        .margin({ top: 8, bottom: 8 })
+      }
+
+      Button('应用自定义字体')
+        .width('100%')
+        .onClick(() => {
+          if (this.customFontFamily.length > 0) {
+            AppStorage.setOrCreate(appOption.terminalFont, this.customFontFamily)
+          }
+        })
+
+      Button('重置为默认字体')
+        .width('100%').margin({ top: 6 })
+        .backgroundColor('#333333')
+        .onClick(() => {
+          AppStorage.setOrCreate(appOption.terminalFont, 'CodeNewRoman NF Mono')
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#111122')
+    .borderRadius(8)
+    .margin({ top: 6 })
   }
 
   @Builder
@@ -320,6 +562,10 @@ export default struct SettingsContent {
               }
             })
 
+            if (this.isThemeCustom()) {
+              this.buildCustomThemeEditor()
+            }
+
             SettingItem({
               title: '字体',
               subTitle: '选择终端字体（需重启生效）',
@@ -327,6 +573,10 @@ export default struct SettingsContent {
                 this.buildTerminalFont()
               }
             })
+
+            if (this.isFontCustom()) {
+              this.buildCustomFontEditor()
+            }
           }
           .attributeModifier(this.blockStyle)
 
@@ -528,7 +778,7 @@ export default struct SettingsContent {
   async saveRunningInBackground() {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     if (this.runningInBackground) {
-      const success = await backgroundRunningManager.grantLocationPermission(context)
+      const success = await backgroundRunningManager.startBackground(context)
       if (!success) {
         this.getUIContext().getPromptAction().showToast({
           message: $r('app.string.failed_to_force_background'),

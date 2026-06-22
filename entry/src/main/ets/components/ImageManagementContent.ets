@@ -654,6 +654,7 @@ export default struct ImageManagementContent {
     const modeNames: Record<string, Resource> = {
       'sparse': $r('app.string.optimize_mode_sparse'),
       'prealloc': $r('app.string.optimize_mode_prealloc'),
+      'cleanup': $r('app.string.btn_force_cleanup'),
       'optimize': $r('app.string.optimize_mode_optimize')
     }
     const tempPath = `${basicInfo.path}.tmp`
@@ -1074,7 +1075,7 @@ export default struct ImageManagementContent {
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_secondary'))
                 .width(80)
-              Text(`${((this.basicInfo.diskSize / this.basicInfo.virtualSize) * 100).toFixed(1)}%`)
+              Text(`${this.basicInfo.virtualSize > 0 ? ((this.basicInfo.diskSize / this.basicInfo.virtualSize) * 100).toFixed(1) : '0.0'}%`)
                 .fontSize(12)
                 .fontColor($r('sys.color.ohos_id_color_text_primary'))
                 .layoutWeight(1)

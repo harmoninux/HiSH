@@ -232,7 +232,7 @@ export default struct EmulatorListGrid {
   askForStartEmulator(item: Emulator) {
     this.getUIContext().showAlertDialog({
       title: item.name,
-      message: '将重启HiSH并启动“' + item.name + "”，建议保存好当前模拟器中的数据再操作。是否现在启动？",
+      message: util.format(this.getUIContext().getHostContext()?.resourceManager.getStringByNameSync('restart_emulator_prompt'), item.name),
       autoCancel: true,
       alignment: DialogAlignment.Center,
       buttons: [
@@ -431,10 +431,6 @@ export default struct EmulatorListGrid {
   }
 
   onEmulatorsChange() {
-    hilog.info(1, "EmulatorManagement", "onEmulatorsChange: %{public}s", JSON.stringify(this.emulators))
-    this.displayEmulators.splice(0, this.displayEmulators.length)
-    setTimeout(() => {
-      this.emulators.forEach(it => this.displayEmulators.push(it))
-    }, 20)
+    this.displayEmulators = [...this.emulators]
   }
 }

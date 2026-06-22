@@ -550,12 +550,13 @@ export default struct WebTerminal {
 
   onThemeChanged() {
     if (this.destroyed) return
-    this.webviewController.runJavaScript(`exports.setTheme('${this.terminalTheme}')`)
+    // 使用 JSON.stringify 确保自定义主题 JSON 被正确转义
+    this.webviewController.runJavaScript(`exports.setTheme(${JSON.stringify(this.terminalTheme)})`)
   }
 
   onFontChanged() {
     if (this.destroyed) return
-    this.webviewController.runJavaScript(`exports.setFont('${this.terminalFont}')`)
+    this.webviewController.runJavaScript(`exports.setFont(${JSON.stringify(this.terminalFont)})`)
   }
 
   getTheme(): string {

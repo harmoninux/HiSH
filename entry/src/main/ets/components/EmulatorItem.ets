@@ -21,8 +21,9 @@ export default struct EmulatorItem {
 
   aboutToAppear(): void {
     const rootfsPath = this.emulator.rootFilesystem
-    const virtualSize = readQcow2VirtualSize(rootfsPath)
-    this.storageSize = virtualSize / (1024 * 1024 * 1024)
+    readQcow2VirtualSize(rootfsPath).then((virtualSize: number) => {
+      this.storageSize = virtualSize / (1024 * 1024 * 1024)
+    })
   }
 
   build() {

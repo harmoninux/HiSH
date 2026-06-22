@@ -1,5 +1,5 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { ComposeTitleBar } from '@kit.ArkUI'
+import { ComposeTitleBar, KeyboardAvoidMode } from '@kit.ArkUI'
 import napi from 'libentry.so';
 import { button2rfb } from '../utils/KeyMap';
 import deviceInfo from '@ohos.deviceInfo';
@@ -43,6 +43,7 @@ struct VncPage {
   private reconnectAttempts: number = 0
 
   aboutToAppear() {
+    this.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
     this.connectVnc();
   }
 

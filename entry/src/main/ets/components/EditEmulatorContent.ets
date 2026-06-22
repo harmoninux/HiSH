@@ -292,8 +292,16 @@ export default struct EditEmulatorContent {
         progress.open()
         if (this.isCreate) {
           const roots = AppStorage.get(appOption.rootFilesystems) as RootFilesystem[]
+          const selected = roots.find(it => it.name === this.selectedRootfs)
+          if (!selected) {
+            // 所选镜像可能已被其他页面删除（如镜像管理页）
+            this.promptAction.showToast({
+              message: $r('app.string.msg_rootfs_not_found'),
+              duration: 3000
+            })
+            return
+          }
           const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
-          const selected = roots.find(it => it.name === this.selectedRootfs)!!
           const source = selected.path
           const target = vmBaseDir + '/' + this.emulator.id + selected.path.substring(selected.path.lastIndexOf('.'))
           await copyFile(source, target)

@@ -25,7 +25,7 @@ std::tuple<napi_value, uint8_t *> createNewBuffer(napi_env env, size_t num) {
 }
 
 rfbKeySym ohKeyCode2RFBKeyCode(Input_KeyCode k, rfbBool down) {
-    static bool alt = false, ctrl = false, shift = false;
+    thread_local bool alt = false, ctrl = false, shift = false;
     switch (k) {
     case KEYCODE_UNKNOWN:
     case KEYCODE_FN:

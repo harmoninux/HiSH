@@ -288,7 +288,7 @@ export struct SharedFolderContent {
         await deleteDirectoryRecursive(hostPath)
       }
     } catch (e) {
-      hilog.info(1, "SharedFolderContent", "failed to delete %{public}s", hostPath)
+      hilog.info(DOMAIN, "SharedFolderContent", "failed to delete %{public}s", hostPath)
     } finally {
       this.deletingProgress.close()
       this.refreshFileList()
@@ -576,7 +576,9 @@ export struct SharedFolderContent {
     }
 
     const srcUri = uris[0]
-    const destPath = [...this.current, decodeURI(srcUri.split('/').reverse()[0])].join('/')
+    // 使用 FileUri API 安全提取文件名，避免 query 参数等干扰
+    const fileName = new fileUri.FileUri(srcUri).name
+    const destPath = [...this.current, decodeURI(fileName)].join('/')
 
     this.importProgress.open()
     try {

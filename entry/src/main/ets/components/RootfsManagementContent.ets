@@ -472,13 +472,13 @@ export default struct RootfsManagementContent {
   syncRootfsViewItems() {
     this.rootfsItems.splice(0, this.rootfsItems.length)
 
-    setTimeout(() => {
+    setTimeout(async () => {
       for (let i = 0; i < this.roots.length; i++) {
         const it = this.roots[i]
         const path = it.path
         const stat = fs.statSync(path)
         const sizeString = (stat.size / (1024 * 1024)).toFixed(1) + ' MB'
-        const virtualSize = readQcow2VirtualSize(path)
+        const virtualSize = await readQcow2VirtualSize(path)
         let virtualSizeString: string;
         if (virtualSize === undefined) {
           virtualSizeString = '-'

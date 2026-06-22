@@ -228,8 +228,8 @@ static std::string getQcow2Info(const std::string &imagePath)
          << "}}"
          << "}";
 
-    OH_LOG_INFO(LOG_APP, "QCOW2 info: version=%{public}d, virtual_size=%{public}llu, cluster_size=%{public}d",
-                version, (unsigned long long)virtual_size, cluster_size);
+    OH_LOG_INFO(LOG_APP, "QCOW2 info: version=%{public}d, virtual_size=%{public}llu, cluster_size=%{public}llu",
+                version, (unsigned long long)virtual_size, (unsigned long long)cluster_size);
 
     return json.str();
 }
@@ -279,10 +279,6 @@ struct QcowSnapshotHeader
     // 后面跟着: id_str, name, padding
 };
 #pragma pack(pop)
-
-// 标记 qemu-img 是否已调用过（用于检测是否需要重启）
-static bool qemu_img_called = false;
-static bool qemu_img_failed = false;
 
 // 读取 QCOW2 快照列表（直接解析文件，不调用 qemu-img）
 static std::string getSnapshotsFromFile(const std::string &imagePath)
@@ -911,6 +907,16 @@ void serial_output_worker(const char *unix_socket_path) {
         fds[0].events = POLLIN;
         int res = poll(fds, 1, 100);
 
+        if (res < 0) {
+            // poll 错误（如 EINTR），记录并继续
+            OH_LOG_WARN(LOG_APP, "poll error: %{public}d, errno=%{public}d", res, errno);
+            continue;
+        }
+        if (res == 0) {
+            // 超时，无数据可读，继续轮询
+            continue;
+        }
+
         uint8_t buffer[1024];
         for (int i = 0; i < res; i += 1) {
             int fd = fds[i].fd;
@@ -1089,6 +1095,10 @@ static napi_value onData(napi_env env, napi_callback_info info) {
 
     {
         std::lock_guard<std::mutex> lk(buffer_mtx);
+        // 释放旧的 TSFN，防止重复注册导致资源泄漏
+        if (on_data_callback != nullptr) {
+            napi_release_threadsafe_function(on_data_callback, napi_tsfn_release);
+        }
         if (!temp_buffer.empty()) {
             send_data_to_callback(temp_buffer, data_callback);
             temp_buffer.clear();
@@ -1104,6 +1114,12 @@ static napi_value onShutdown(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value args[1] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    // 释放旧的 TSFN，防止 WebTerminal 和 EmulatorListGrid 重复注册导致资源泄漏
+    if (on_shutdown_callback != nullptr) {
+        napi_release_threadsafe_function(on_shutdown_callback, napi_tsfn_release);
+        on_shutdown_callback = nullptr;
+    }
 
     napi_value data_cb_name;
     napi_create_string_utf8(env, "shutdown_callback", NAPI_AUTO_LENGTH, &data_cb_name);

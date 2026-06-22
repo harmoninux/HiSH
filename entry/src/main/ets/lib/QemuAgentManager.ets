@@ -241,26 +241,31 @@ class QemuAgentManagerImpl {
 
     hilog.info(DOMAIN, 'AgentManager', '启动 QGA 心跳保活 (20s)')
     this.keepAliveTimer = setInterval(async () => {
-      const currentAgent = this.agent
-
-      if (!currentAgent || !currentAgent.isAlive()) {
-        this.stopKeepAlive()
-        return
-      }
-
-      // [修复] 如果当前有使用者正在操作，不要发送心跳 ping，防止 pendingResponse 被清空导致业务指令超时
-      if (this.currentUser) {
-        hilog.debug(DOMAIN, 'AgentManager', '业务正在占用 Agent，跳过此轮心跳')
-        return
-      }
-
+      // 最外层 try/catch 防止回调内部任意异常导致定时器被引擎静默终止
       try {
+        const currentAgent = this.agent
+
+        if (!currentAgent || !currentAgent.isAlive()) {
+          this.stopKeepAlive()
+          return
+        }
+
+        // 如果当前有使用者正在操作，不要发送心跳 ping，防止 pendingResponse 被清空导致业务指令超时
+        if (this.currentUser) {
+          hilog.debug(DOMAIN, 'AgentManager', '业务正在占用 Agent，跳过此轮心跳')
+          return
+        }
+
         hilog.debug(DOMAIN, 'AgentManager', '发送 QGA 心跳 (ping)...')
         const success = await currentAgent.ping()
 
         if (!success) {
           hilog.warn(DOMAIN, 'AgentManager', 'QGA 心跳失败，尝试自动重连...')
-          // P1-10修复: 心跳失败后尝试自动重连一次
+          // 重连前再次校验：心跳等待期间可能有其他用户 acquire 了连接
+          if (this.currentUser) {
+            hilog.info(DOMAIN, 'AgentManager', '重连前检测到 %{public}s 正在使用 Agent，取消自动重连', this.currentUser)
+            return
+          }
           const reconnected = await currentAgent.connect()
           if (reconnected) {
             hilog.info(DOMAIN, 'AgentManager', 'QGA 自动重连成功')

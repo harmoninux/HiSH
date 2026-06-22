@@ -1,15 +1,14 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 
-function readQcow2VirtualSize(filePath: string): number  {
-
+async function readQcow2VirtualSize(filePath: string): Promise<number> {
   try {
-    const f = fs.openSync(filePath, fs.OpenMode.READ_ONLY)
+    const f = await fs.open(filePath, fs.OpenMode.READ_ONLY)
 
     const HEADER_SIZE = 32;
     const buffer = new ArrayBuffer(HEADER_SIZE);
 
-    const bytesRead = fs.readSync(f.fd, buffer, { offset: 0, length: HEADER_SIZE })
-    fs.close(f)
+    const bytesRead = await fs.read(f.fd, buffer, { offset: 0, length: HEADER_SIZE })
+    await fs.close(f)
 
     if (bytesRead < HEADER_SIZE) {
       return 0

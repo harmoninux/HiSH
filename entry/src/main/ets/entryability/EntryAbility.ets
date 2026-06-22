@@ -1,4 +1,4 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want, bundleManager } from '@kit.AbilityKit';
+import { AbilityConstant, UIAbility, Want, bundleManager } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window, KeyboardAvoidMode, PromptAction, UIContext } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
@@ -44,7 +44,7 @@ function getFreeVncPort(min: number, max: number): number | undefined {
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
+    // Follow system color mode
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 
@@ -498,7 +498,7 @@ export default class EntryAbility extends UIAbility {
     try {
       const runInBackground = AppStorage.get(appOption.runningInBackground) as boolean
       if (runInBackground) {
-        await backgroundRunningManager.grantLocationPermission(uiContext.getHostContext() as common.UIAbilityContext)
+        await backgroundRunningManager.startBackground(uiContext.getHostContext() as common.UIAbilityContext)
       }
     } catch (e) {
       uiContext.getPromptAction().showToast({

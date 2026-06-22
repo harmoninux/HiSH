@@ -901,6 +901,10 @@
       "value": "不支持删除默认镜像"
     },
     {
+      "name": "msg_rootfs_not_found",
+      "value": "所选镜像文件已不存在，请重新选择"
+    },
+    {
       "name": "dialog_delete_rootfs_msg",
       "value": "您正在操作删除镜像，删除后不可恢复，确定操作？"
     },
@@ -1647,6 +1651,10 @@
     {
       "name": "guest_status_bar_toast",
       "value": "开启“状态栏”需要确保模拟器中的 qemu-guest-agent 正常运行"
+    },
+    {
+      "name": "restart_emulator_prompt",
+      "value": "将重启HiSH并启动\"%s\"，建议保存好当前模拟器中的数据再操作。是否现在启动？"
     }
   ]
 }

@@ -471,13 +471,27 @@ const THEMES = {
 };
 let currentTheme = 'dark';
 
-exports.setTheme = (name) => {
-    const theme = THEMES[name];
-    if (!theme) return;
-    currentTheme = name;
-    term.options.theme = theme;
-    // Persist to body data attribute for CSS if needed
-    document.body.setAttribute('data-theme', name);
+exports.setTheme = (nameOrJson) => {
+    // 支持预设主题名或 JSON 自定义主题
+    let theme = THEMES[nameOrJson];
+    if (theme) {
+        // 预设主题
+        currentTheme = nameOrJson;
+        term.options.theme = theme;
+        document.body.setAttribute('data-theme', nameOrJson);
+    } else if (nameOrJson && nameOrJson.startsWith('{')) {
+        // 自定义主题 JSON
+        try {
+            theme = JSON.parse(nameOrJson);
+            // 合并默认值，确保所有必要字段存在
+            const base = THEMES['dark'];
+            term.options.theme = Object.assign({}, base, theme);
+            currentTheme = 'custom';
+            document.body.setAttribute('data-theme', 'custom');
+        } catch (e) {
+            console.error('Invalid custom theme JSON', e);
+        }
+    }
 };
 
 exports.getThemes = () => JSON.stringify(Object.keys(THEMES));
@@ -741,11 +755,15 @@ const FONT_LIST = [
 ];
 
 exports.setFont = (fontName) => {
+    // 先查预设字体名，匹配不到则视为原始 CSS font-family 字符串
     const font = FONT_LIST.find(f => f.name === fontName);
     if (font) {
         term.options.fontFamily = font.family;
-        fitAddon.fit();
+    } else if (fontName && fontName.length > 0) {
+        // 自定义字体：直接使用用户输入的 font-family 值
+        term.options.fontFamily = fontName;
     }
+    fitAddon.fit();
 };
 
 exports.getFonts = () => JSON.stringify(FONT_LIST.map(f => f.name));

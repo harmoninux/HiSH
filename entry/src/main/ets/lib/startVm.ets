@@ -45,8 +45,7 @@ function startVm(options: VmOptions): boolean {
     "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh",
     '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('')]
   const shared =
-    ["-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + options.sharedFolder + sharedFolderOption,
-    "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
+    ["-virtfs", `local,path=${options.sharedFolder},mount_tag=hostshare,security_model=mapped-file${sharedFolderOption},fmode=0666,dmode=0777`]
   const drive = ["-global", "virtio-blk-pci.scsi=off", "-global", "virtio-scsi-pci.cmd_per_lun=128",
     "-global", "virtio-scsi-pci.packed=on", "-drive", "if=none,format=qcow2,file=" + options.rootFilesystem
     + ",id=hd0,cache=writeback,aio=threads,discard=unmap", "-object", "iothread,id=iothread0,poll-max-ns=2000000",
@@ -71,8 +70,7 @@ function startVm(options: VmOptions): boolean {
   ]
 
   const sharedUserFolder = deviceInfo.deviceType !== '2in1' ? [] :
-    ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
-      "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
+    ["-virtfs", "local,path=/storage/Users/currentUser,mount_tag=usershare,security_model=mapped-file,fmode=0666,dmode=0777"]
 
   // HarmonyOS app进程fd配额有限，过多hostfwd监听socket会耗尽fd，导致VNC init失败→exit(1)
   // 保守阈值：映射数>4时禁用VNC，避免vnc_init_func中的socket()返回EMFILE
