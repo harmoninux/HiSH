@@ -302,7 +302,7 @@ static napi_value vncStartUpdateLoop(napi_env env, napi_callback_info info) {
     g_pollRunning.store(true);
     g_pollThread = std::thread(vncPollThread);
 
-    // Send initial VNC dimensions to JS
+    // Send initial VNC dimensions to JS and wake renderer for initial frame upload
     rfbClient* cl = VncClient::getClient();
     if (cl && g_tsfn) {
         auto* nd = allocNotifyData();
@@ -310,6 +310,11 @@ static napi_value vncStartUpdateLoop(napi_env env, napi_callback_info info) {
         nd->fbWidth = cl->width;
         nd->fbHeight = cl->height;
         notifyJs(nd);
+
+        // Also wake the render thread to ensure it picks up the initial VNC framebuffer.
+        // Without this, if the render thread started before the first VNC frame update
+        // arrives, vncWidth_/vncHeight_ would remain 0 and frames would be skipped.
+        VncRenderer::resize(-1, -1);
     }
 
     OH_LOG_INFO(LOG_APP, "vncStartUpdateLoop: thread started");

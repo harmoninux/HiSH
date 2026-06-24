@@ -24,7 +24,10 @@ struct PcIndex {
       contentBuilder: () => {
         this.buildSimulatorManagement();
       }
-    })
+    }),
+    cancel: () => {
+      AppStorage.setOrCreate(appOption.terminalDialogOpen, false)
+    }
   })
   rootfsManagementController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
@@ -32,7 +35,10 @@ struct PcIndex {
       contentBuilder: () => {
         this.buildRootfsManagement();
       }
-    })
+    }),
+    cancel: () => {
+      AppStorage.setOrCreate(appOption.terminalDialogOpen, false)
+    }
   })
   sharedFolderController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
@@ -40,7 +46,10 @@ struct PcIndex {
       contentBuilder: () => {
         this.buildSharedFolder();
       }
-    })
+    }),
+    cancel: () => {
+      AppStorage.setOrCreate(appOption.terminalDialogOpen, false)
+    }
   })
   settingController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
@@ -48,7 +57,10 @@ struct PcIndex {
       contentBuilder: () => {
         this.buildSettings();
       }
-    })
+    }),
+    cancel: () => {
+      AppStorage.setOrCreate(appOption.terminalDialogOpen, false)
+    }
   })
   userGuideController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
@@ -56,7 +68,10 @@ struct PcIndex {
       contentBuilder: () => {
         this.buildGuideList();
       }
-    })
+    }),
+    cancel: () => {
+      AppStorage.setOrCreate(appOption.terminalDialogOpen, false)
+    }
   })
   webController = new webview.WebviewController()
 
@@ -118,6 +133,7 @@ struct PcIndex {
           .padding(4)
           .margin({ right: 10 })
           .onClick((event: ClickEvent) => {
+            AppStorage.setOrCreate(appOption.terminalDialogOpen, true)
             this.emulatorManagementController.open()
           })
 
@@ -136,6 +152,7 @@ struct PcIndex {
           .padding(4)
           .margin({ right: 10 })
           .onClick((event: ClickEvent) => {
+            AppStorage.setOrCreate(appOption.terminalDialogOpen, true)
             this.rootfsManagementController.open()
           })
 
@@ -150,6 +167,7 @@ struct PcIndex {
           .padding(4)
           .margin({ right: 10 })
           .onClick((event: ClickEvent) => {
+            AppStorage.setOrCreate(appOption.terminalDialogOpen, true)
             this.sharedFolderController.open()
           })
 
@@ -164,6 +182,7 @@ struct PcIndex {
           .padding(4)
           .margin({ right: 10 })
           .onClick((event: ClickEvent) => {
+            AppStorage.setOrCreate(appOption.terminalDialogOpen, true)
             this.settingController.open()
           })
 
@@ -181,6 +200,7 @@ struct PcIndex {
           .borderRadius(4)
           .padding(4)
           .onClick((event: ClickEvent) => {
+            AppStorage.setOrCreate(appOption.terminalDialogOpen, true)
             this.userGuideController.open()
           })
         }

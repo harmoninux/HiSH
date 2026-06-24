@@ -20,7 +20,14 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            /* Critical for passing clicks/touches to xterm */
+        }
+        #terminal-container {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+        #terminal {
+            /* JS ResizeObserver handles scale + centering */;
         }
     </style>
 </head>

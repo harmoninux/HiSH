@@ -41,6 +41,9 @@ struct VncPage {
   private updateLoopStarted: boolean = false
   private reconnectTimer: number = -1
   private reconnectAttempts: number = 0
+  // Pending surface dimensions from onAreaChange before surface is ready (fixes foldable half-screen bug)
+  private pendingSurfaceWidth: number = -1
+  private pendingSurfaceHeight: number = -1
 
   aboutToAppear() {
     this.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
@@ -186,9 +189,18 @@ struct VncPage {
       })
         .onLoad(() => {
           const surfaceId = this.xComponentController.getXComponentSurfaceId();
-          const rect = this.xComponentController.getXComponentSurfaceRect();
-          this.surfaceWidth = rect.surfaceWidth;
-          this.surfaceHeight = rect.surfaceHeight;
+
+          // Apply pending dimensions from onAreaChange if available (fixes foldable half-screen bug)
+          if (this.pendingSurfaceWidth >= 0 && this.pendingSurfaceHeight >= 0) {
+            this.surfaceWidth = this.pendingSurfaceWidth;
+            this.surfaceHeight = this.pendingSurfaceHeight;
+            this.pendingSurfaceWidth = -1;
+            this.pendingSurfaceHeight = -1;
+          } else {
+            const rect = this.xComponentController.getXComponentSurfaceRect();
+            this.surfaceWidth = rect.surfaceWidth;
+            this.surfaceHeight = rect.surfaceHeight;
+          }
 
           try {
             const sid = BigInt(surfaceId);
@@ -213,16 +225,24 @@ struct VncPage {
         .onAreaChange((_oldValue: Area, newValue: Area) => {
           const newWidth = Number(newValue.width);
           const newHeight = Number(newValue.height);
-          if (newWidth > 0 && newHeight > 0 && this.surfaceReady) {
-            const sid = BigInt(this.xComponentController.getXComponentSurfaceId());
-            const pxWidth = vp2px(newWidth);
-            const pxHeight = vp2px(newHeight);
-            if (pxWidth !== this.surfaceWidth || pxHeight !== this.surfaceHeight) {
-              this.surfaceWidth = pxWidth;
-              this.surfaceHeight = pxHeight;
-              napi.vncResizeSurface(sid, pxWidth, pxHeight);
-            }
+          if (newWidth <= 0 || newHeight <= 0) return;
+
+          const pxWidth = vp2px(newWidth);
+          const pxHeight = vp2px(newHeight);
+          if (pxWidth === this.surfaceWidth && pxHeight === this.surfaceHeight) return;
+
+          if (!this.surfaceReady) {
+            // Surface not ready yet — store dimensions to apply in onLoad
+            // This fixes the foldable half-screen bug where onAreaChange fires before onLoad
+            this.pendingSurfaceWidth = pxWidth;
+            this.pendingSurfaceHeight = pxHeight;
+            return;
           }
+
+          this.surfaceWidth = pxWidth;
+          this.surfaceHeight = pxHeight;
+          const sid = BigInt(this.xComponentController.getXComponentSurfaceId());
+          napi.vncResizeSurface(sid, pxWidth, pxHeight);
         })
         .width('100%')
         .layoutWeight(1)

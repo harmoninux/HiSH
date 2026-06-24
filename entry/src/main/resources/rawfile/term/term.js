@@ -4,7 +4,7 @@ var term = new Terminal({
     allowProposedApi: true, // Needed for some addons
     allowTransparency: true, // User preference: Transparency supported
     fontFamily: '"CodeNewRomanNerdFontMono", monospace',
-    fontSize: 25,
+    fontSize: 14, // Default, overridden by native.getFontSize() in syncPrefs
     letterSpacing: 0,  // 等宽字体不需要调整间距
     theme: {
         background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
@@ -14,9 +14,6 @@ var term = new Terminal({
     screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
     scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
     smoothScrollDuration: 0, // 禁用滚动动画，提升 TUI 响应
-    convertEol: true, // 统一换行符
-    cols: 106,
-    rows: 24,
     termName: 'xterm-256color', // 告诉 VM 终端支持 256 色，修复 OpenCode 等 TUI 黑屏
 });
 
@@ -165,16 +162,24 @@ function syncPrefs() {
 }
 
 function setupEventListeners() {
+    // fit 后抑制 onData（防 textarea/Ime 残留发往 VM），覆盖折叠屏完整动画周期
+    var _suppressOnDataUntil = 0;
+    var _suppressOnDataMs = 500;
+
     // 1. Input from User (Keyboard/Mouse) -> Send to VM
     term.onData(data => {
-        // Pass data directly to native (matching original hterm behavior)
+        if (Date.now() < _suppressOnDataUntil) return;
         if (native && native.sendInput) {
             native.sendInput(data);
         }
     });
 
-    // 2. Resize -> Notify Native
+    // 2. Resize -> Notify Native（走 QGA stty，不经过串口，无 echo）
+    let lastCols = -1, lastRows = -1;
     term.onResize(size => {
+        if (size.cols === lastCols && size.rows === lastRows) return;
+        lastCols = size.cols;
+        lastRows = size.rows;
         if (native && native.resize) {
             native.resize(size.cols, size.rows);
         }
@@ -188,10 +193,25 @@ function setupEventListeners() {
         }
     });
 
-    // 4. Handle Window Resize
-    window.addEventListener('resize', () => {
-        setTimeout(() => fitAddon.fit(), 100);
-    });
+    // 4. 屏幕尺寸变化时 fit 画布（xterm 文字自动适配），但不发 CSI 给 VM
+    let fitTimer = null;
+    function scheduleFit() {
+        clearTimeout(fitTimer);
+        fitTimer = setTimeout(function() {
+            _suppressOnDataUntil = Date.now() + _suppressOnDataMs;
+            fitAddon.fit();
+            // 二次 fit 兜底折叠动画
+            setTimeout(function() {
+                _suppressOnDataUntil = Date.now() + _suppressOnDataMs;
+                fitAddon.fit();
+            }, 400);
+        }, 100);
+    }
+    const terminalEl = document.getElementById('terminal');
+    if (terminalEl && window.ResizeObserver) {
+        new ResizeObserver(function() { scheduleFit(); }).observe(terminalEl);
+    }
+    window.addEventListener('resize', function() { scheduleFit(); });
 
     // 5. Prevent default browser behaviors that might interfere
     document.addEventListener('keydown', (e) => {
@@ -327,6 +347,11 @@ exports.paste = (data) => {
 exports.copy = () => {
     // xmm.js selection API
     return term.getSelection();
+};
+
+// 手动触发 fit（设置面板改字体后调用，初始化请勿调用此方法）
+exports.fit = () => {
+    if (fitAddon) fitAddon.fit();
 };
 
 exports.setFontSize = (size) => {
@@ -729,10 +754,7 @@ exports.showBootSplash = () => {
 
 exports.hideBootSplash = () => {
     if (bootSplash) {
-        bootSplash.style.opacity = '0';
-        setTimeout(() => {
-            if (bootSplash) bootSplash.style.display = 'none';
-        }, 400);
+        bootSplash.style.display = 'none';
     }
 };
 
@@ -763,7 +785,7 @@ exports.setFont = (fontName) => {
         // 自定义字体：直接使用用户输入的 font-family 值
         term.options.fontFamily = fontName;
     }
-    fitAddon.fit();
+    // fit 由调用方负责（syncPrefs 期间 fit 由 initialize 统一触发，避免提前 resize 到未启动的 VM）
 };
 
 exports.getFonts = () => JSON.stringify(FONT_LIST.map(f => f.name));

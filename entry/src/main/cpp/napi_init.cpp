@@ -1,4 +1,5 @@
 #include "napi/native_api.h"
+#include <atomic>
 #include <assert.h>
 #include <cerrno>
 #include <cstdint>
@@ -41,9 +42,9 @@ struct data_buffer {
     size_t size;
 };
 
-int serial_input_fd = -1;
-napi_threadsafe_function on_data_callback = nullptr;
-napi_threadsafe_function on_shutdown_callback = nullptr;
+std::atomic<int> serial_input_fd{-1};
+std::atomic<napi_threadsafe_function> on_data_callback{nullptr};
+std::atomic<napi_threadsafe_function> on_shutdown_callback{nullptr};
 
 std::mutex buffer_mtx;
 std::string temp_buffer = "";
@@ -103,6 +104,7 @@ static QemuImgEntry getQemuImgEntry() {
 
 // QCOW2 文件头结构（简化版）
 // 参考: https://github.com/qemu/qemu/blob/master/docs/interop/qcow2.txt
+#pragma pack(push, 1)
 struct Qcow2Header
 {
     uint32_t magic;                   // 0-3: Magic number 'QFI\xfb'
@@ -125,6 +127,7 @@ struct Qcow2Header
     uint32_t refcount_order;        // 96-99: refcount_bits = 1 << refcount_order
     uint32_t header_length;         // 100-103
 };
+#pragma pack(pop)
 
 // 大端转小端（网络字节序转主机字节序）
 static uint32_t be32toh_manual(uint32_t val)
@@ -470,7 +473,7 @@ static bool initQemuLibrary()
     }
 
     // 加载库
-    // 使用 RTLD_GLOBAL 确保符号可见，RTLD_NOW 立即解析
+    // 使用 RTLD_LOCAL 避免符号污染，RTLD_LAZY 延迟解析
     g_qemu_lib_handle = dlopen(libPath.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (!g_qemu_lib_handle)
     {
@@ -819,6 +822,29 @@ static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void
     napi_call_function(env, global, js_callback, 0, nullptr, nullptr);
 }
 
+// Strip echoed CSI resize sequences from raw serial output
+// Kernel tty echo mode reflects \x1b[8;<rows>;<cols>t back to the console
+inline ssize_t stripEchoedCsi(uint8_t *buf, ssize_t len) {
+    // raw pattern: 0x1B 0x5B 0x38 0x3B <digits> 0x3B <digits> 0x74
+    ssize_t out = 0;
+    for (ssize_t i = 0; i < len; ) {
+        if (buf[i] == 0x1B && i + 3 < len &&
+            buf[i + 1] == 0x5B && buf[i + 2] == 0x38 && buf[i + 3] == 0x3B) {
+            ssize_t j = i + 4;
+            while (j < len && buf[j] != 0x74) j++;
+            if (j < len) {
+                i = j + 1; // skip entire CSI sequence
+                continue;
+            }
+            // Partial match: no 't' found, copy ESC as-is and continue
+            buf[out++] = buf[i++];
+            continue;
+        }
+        buf[out++] = buf[i++];
+    }
+    return out;
+}
+
 std::string convert_to_hex(const uint8_t *buffer, int r) {
     std::string hex;
     for (int i = 0; i < r; i++) {
@@ -846,8 +872,9 @@ void send_data_to_callback(const std::string &hex, napi_threadsafe_function call
 void on_serial_data_received(const std::string &hex) {
     if (hex.length() > 0) {
         std::lock_guard<std::mutex> lk(buffer_mtx);
-        if (on_data_callback != nullptr) {
-            send_data_to_callback(hex, on_data_callback);
+        auto cb = on_data_callback.load(std::memory_order_acquire);
+        if (cb != nullptr) {
+            send_data_to_callback(hex, cb);
         } else {
             temp_buffer.append(hex);
         }
@@ -894,9 +921,9 @@ void serial_output_worker(const char *unix_socket_path) {
         return;
     }
 
-    serial_input_fd = client_fd;
+    serial_input_fd.store(client_fd, std::memory_order_release);
 
-    OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd);
+    OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd.load(std::memory_order_acquire));
 
     while (true) {
 
@@ -922,6 +949,9 @@ void serial_output_worker(const char *unix_socket_path) {
             int fd = fds[i].fd;
             ssize_t r = read(fd, buffer, sizeof(buffer) - 1);
             if (r > 0) {
+                // 过滤 VM tty echo 回显的 CSI resize 序列 \x1b[8;H;Wt
+                r = stripEchoedCsi(buffer, r);
+                if (r <= 0) continue;
                 // pretty print
                 auto hex = convert_to_hex(buffer, r);
                 //  call callback registered by ArkTS
@@ -945,12 +975,20 @@ void serial_output_worker(const char *unix_socket_path) {
     
     // 清理 socket 资源，但保留回调以便新的 worker 线程使用
     close(client_fd);
-    serial_input_fd = -1;
+    serial_input_fd.store(-1, std::memory_order_release);
     OH_LOG_INFO(LOG_APP, "Closed serial socket fd: %{public}d", client_fd);
     
-    if (on_data_callback != nullptr) {
-        napi_release_threadsafe_function(on_data_callback, napi_threadsafe_function_release_mode::napi_tsfn_release);
-        on_data_callback = nullptr;
+    if (on_data_callback.load(std::memory_order_acquire) != nullptr) {
+        napi_threadsafe_function cb = on_data_callback.exchange(nullptr, std::memory_order_acq_rel);
+        if (cb != nullptr) {
+            napi_release_threadsafe_function(cb, napi_threadsafe_function_release_mode::napi_tsfn_release);
+        }
+    }
+    if (on_shutdown_callback.load(std::memory_order_acquire) != nullptr) {
+        napi_threadsafe_function cb = on_shutdown_callback.exchange(nullptr, std::memory_order_acq_rel);
+        if (cb != nullptr) {
+            napi_release_threadsafe_function(cb, napi_tsfn_release);
+        }
     }
 
     OH_LOG_INFO(LOG_APP, "Serial unix socket broken: %{public}d", errno);
@@ -1028,8 +1066,8 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
         OH_LOG_INFO(LOG_APP, "qemuEntry exited with: %{public}d", status);
 
-        if (on_shutdown_callback != nullptr) {
-            napi_call_threadsafe_function(on_shutdown_callback, nullptr, napi_tsfn_nonblocking);
+        if (on_shutdown_callback.load(std::memory_order_acquire) != nullptr) {
+            napi_call_threadsafe_function(on_shutdown_callback.load(std::memory_order_acquire), nullptr, napi_tsfn_nonblocking);
         }
     });
     vm_loop.detach();
@@ -1044,7 +1082,7 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
 static napi_value sendInput(napi_env env, napi_callback_info info) {
 
-    if (serial_input_fd < 0) {
+    if (serial_input_fd.load(std::memory_order_acquire) < 0) {
         return nullptr;
     }
 
@@ -1065,11 +1103,12 @@ static napi_value sendInput(napi_env env, napi_callback_info info) {
     std::string hex = convert_to_hex(data, length);
     OH_LOG_INFO(LOG_APP, "Send, data: %{public}s", hex.c_str());
 
+    int fd = serial_input_fd.load(std::memory_order_acquire);
     int written = 0;
     while (written < (int)length)
     {
         // P0-02修复: 移除assert，使用显式错误处理
-        int size = write(serial_input_fd, (uint8_t *)data + written, length - written);
+        int size = write(fd, (uint8_t *)data + written, length - written);
         if (size < 0) {
             OH_LOG_ERROR(LOG_APP, "Serial write failed: errno=%{public}d", errno);
             break;
@@ -1096,14 +1135,14 @@ static napi_value onData(napi_env env, napi_callback_info info) {
     {
         std::lock_guard<std::mutex> lk(buffer_mtx);
         // 释放旧的 TSFN，防止重复注册导致资源泄漏
-        if (on_data_callback != nullptr) {
-            napi_release_threadsafe_function(on_data_callback, napi_tsfn_release);
+        napi_threadsafe_function old_cb = on_data_callback.exchange(data_callback, std::memory_order_acq_rel);
+        if (old_cb != nullptr) {
+            napi_release_threadsafe_function(old_cb, napi_tsfn_release);
         }
         if (!temp_buffer.empty()) {
             send_data_to_callback(temp_buffer, data_callback);
             temp_buffer.clear();
         }
-        on_data_callback = data_callback;
     }
 
     return nullptr;
@@ -1116,15 +1155,17 @@ static napi_value onShutdown(napi_env env, napi_callback_info info) {
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     // 释放旧的 TSFN，防止 WebTerminal 和 EmulatorListGrid 重复注册导致资源泄漏
-    if (on_shutdown_callback != nullptr) {
-        napi_release_threadsafe_function(on_shutdown_callback, napi_tsfn_release);
-        on_shutdown_callback = nullptr;
+    napi_threadsafe_function old_cb = on_shutdown_callback.exchange(nullptr, std::memory_order_acq_rel);
+    if (old_cb != nullptr) {
+        napi_release_threadsafe_function(old_cb, napi_tsfn_release);
     }
 
     napi_value data_cb_name;
     napi_create_string_utf8(env, "shutdown_callback", NAPI_AUTO_LENGTH, &data_cb_name);
+    napi_threadsafe_function new_cb;
     napi_create_threadsafe_function(env, args[0], nullptr, data_cb_name, 0, 1, nullptr, nullptr, nullptr,
-                                    call_on_shutdown_callback, &on_shutdown_callback);
+                                    call_on_shutdown_callback, &new_cb);
+    on_shutdown_callback.store(new_cb, std::memory_order_release);
 
     return nullptr;
 }

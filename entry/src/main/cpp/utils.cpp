@@ -25,7 +25,7 @@ std::tuple<napi_value, uint8_t *> createNewBuffer(napi_env env, size_t num) {
 }
 
 rfbKeySym ohKeyCode2RFBKeyCode(Input_KeyCode k, rfbBool down) {
-    thread_local bool alt = false, ctrl = false, shift = false;
+    thread_local bool shift = false;
     switch (k) {
     case KEYCODE_UNKNOWN:
     case KEYCODE_FN:
@@ -129,10 +129,8 @@ rfbKeySym ohKeyCode2RFBKeyCode(Input_KeyCode k, rfbBool down) {
     case KEYCODE_PERIOD:
         return shift ? XK_greater : XK_period;
     case KEYCODE_ALT_LEFT:
-        alt = down;
         return XK_Alt_L;
     case KEYCODE_ALT_RIGHT:
-        alt = down;
         return XK_Alt_R;
     case KEYCODE_SHIFT_LEFT:
         shift = down;
@@ -187,10 +185,8 @@ rfbKeySym ohKeyCode2RFBKeyCode(Input_KeyCode k, rfbBool down) {
     case KEYCODE_FORWARD_DEL:
         return XK_Delete;
     case KEYCODE_CTRL_LEFT:
-        ctrl = down;
         return XK_Control_L;
     case KEYCODE_CTRL_RIGHT:
-        ctrl = down;
         return XK_Control_R;
     case KEYCODE_CAPS_LOCK:
         return XK_Caps_Lock;

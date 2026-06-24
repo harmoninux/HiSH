@@ -41,6 +41,7 @@ class AppOption {
   static readonly qemuImgTaskRunning: string = 'qemuImgTaskRunning'
   static readonly qemuImgTaskDescription: string = 'qemuImgTaskDescription'
   static readonly isQgaConnected: string = 'isQgaConnected'
+  static readonly terminalDialogOpen: string = 'terminalDialogOpen'
 }
 
 let cachedPref: preference.Preferences | null = null

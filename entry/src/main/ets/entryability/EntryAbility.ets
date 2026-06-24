@@ -406,7 +406,7 @@ export default class EntryAbility extends UIAbility {
   private async getAndClearTemporaryStartEmulator(appPref: preference.Preferences) {
     const temporaryStart = await appPref.get(appOption.temporaryStartEmulator, undefined) as string | undefined;
     appPref.deleteSync(appOption.temporaryStartEmulator);
-    appPref.flush();
+    await appPref.flush();
     return temporaryStart;
   }
 

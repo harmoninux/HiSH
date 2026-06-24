@@ -9,6 +9,7 @@ import { Emulator } from '../model/Emulator';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
+import { QemuAgentManager } from '../lib/QemuAgentManager';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -41,7 +42,10 @@ export default struct WebTerminal {
   @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
-  resizeTimeout?: number = undefined
+  private lastResizeWidth: number = -1
+  private lastResizeHeight: number = -1
+  private resizeTimeout: number | undefined = undefined
+  private vmReady: boolean = false        // set to true when first data from VM arrives
   applicationMode: boolean = false
   private destroyed: boolean = false
 
@@ -399,13 +403,30 @@ export default struct WebTerminal {
     }
   }
 
+  // QGA 通知 VM 终端尺寸（走 QGA socket，绕过 tty echo）
   async resize(width: number, height: number): Promise<void> {
-    hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
+    hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d x %{public}d', width, height)
+    if (width === this.lastResizeWidth && height === this.lastResizeHeight) return
+    this.lastResizeWidth = width
+    this.lastResizeHeight = height
 
-    if (this.resizeTimeout !== undefined) {
-      clearTimeout(this.resizeTimeout!!)
+    if (!this.vmReady) return
+
+    // 通过 QGA 执行 stty 设终端尺寸，走独立 socket 不触发 tty echo
+    try {
+      const agent = await QemuAgentManager.acquire('terminal-resize', 0, 2000)
+      if (agent) {
+        try {
+          await agent.execAndGetOutput('/bin/sh',
+            ['-c', `stty cols ${width} rows ${height} < /dev/ttyAMA0`], 2000)
+          hilog.info(DOMAIN, 'WebTerminal', 'QGA resize ok: %{public}d x %{public}d', width, height)
+        } finally {
+          await QemuAgentManager.release('terminal-resize')
+        }
+      }
+    } catch (_e) {
+      // QGA 不可用时静默忽略（VM 未启动 guest-agent、boot 中等）
     }
-    this.resizeTimeout = setTimeout(() => this.sendInput('\x1b' + `[8;${height};${width}t`), 100)
   }
 
   // 性能优化：输出缓冲区
@@ -418,6 +439,11 @@ export default struct WebTerminal {
   private onData(ab: ArrayBuffer) {
     if (this.destroyed) return
     try {
+      // VM 首次输出数据，标志已就绪（resize CSI 在用户首次按键时激活）
+      if (!this.vmReady) {
+        this.vmReady = true
+      }
+
       // 将收到的数据块加入队列
       this.pendingChunks.push(new Uint8Array(ab));
 
@@ -474,7 +500,7 @@ export default struct WebTerminal {
         }
       }
 
-      // 4. 发送合并后的数据
+      // 3. 发送合并后的数据
       const base64Helper = new util.Base64Helper();
       const base64 = base64Helper.encodeToStringSync(merged);
       this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`);
@@ -556,7 +582,7 @@ export default struct WebTerminal {
 
   onFontChanged() {
     if (this.destroyed) return
-    this.webviewController.runJavaScript(`exports.setFont(${JSON.stringify(this.terminalFont)})`)
+    this.webviewController.runJavaScript(`exports.setFont(${JSON.stringify(this.terminalFont)}); exports.fit()`)
   }
 
   getTheme(): string {

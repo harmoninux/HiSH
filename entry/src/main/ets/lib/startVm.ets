@@ -43,7 +43,11 @@ function startVm(options: VmOptions): boolean {
   const network = ["-global", "virtio-net-pci.ctrl_guest_offloads=off", "-global", "virtio-net-pci.packed=on",
     "-device", "virtio-net-pci-non-transitional," +
     "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh",
-    '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('')]
+    '-netdev', `user,id=eth0${options.portMapping
+      .filter(it => it.host !== undefined && it.host !== null &&
+                    it.guest !== undefined && it.guest !== null)
+      .map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`)
+      .join('')}`]
   const shared =
     ["-virtfs", `local,path=${options.sharedFolder},mount_tag=hostshare,security_model=mapped-file${sharedFolderOption},fmode=0666,dmode=0777`]
   const drive = ["-global", "virtio-blk-pci.scsi=off", "-global", "virtio-scsi-pci.cmd_per_lun=128",
@@ -54,12 +58,13 @@ function startVm(options: VmOptions): boolean {
     "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1,bootindex=1"]
   const kernelParam = ["-append",
     "root=" + root + " rw rootfstype=ext4 rootwait console=tty0 console=ttyAMA0 consoleblank=0 " +
+    "quiet loglevel=3 " +    // 抑制 INFO/DEBUG 内核日志污染终端
     "elevator=noop skew_tick=1 acpi=on " +
     "mitigations=off audit=0 nmi_watchdog=0 hardened_usercopy=off random.trust_cpu=on virtio_balloon.config_impl=0 " +
     "security=none selinux=0 apparmor=0 psi=0 page_alloc.shuffle=0 swiotlb=noforce idle=halt " +
     "cpuidle.off=1 transparent_hugepage=always pci=noaer scsi_mod.use_blk_mq=1 rng_core.default_quality=1000 " +
     "systemd.mask=run-lock.mount systemd.mask=sys-kernel-debug.mount systemd.mask=dev-hugepages.mount " +
-    "cryptomgr.notests rodata=off rcupdate.rcu_cpu_stall_timeout=60 " +
+    "cryptomgr.notests rodata=off rcupdate.rcu_cpu_stall_timeout=300 " +  // 5min，熄屏恢复不误触发
     "rcu_expedited=1 init_on_free=0 init_on_alloc=1 page_poison=0 slub_debug=- " +
     "TERM=xterm-256color init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
@@ -108,13 +113,25 @@ function startVm(options: VmOptions): boolean {
   ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
-    fs.unlinkSync(options.serialUnixSocket)
+    try {
+      fs.unlinkSync(options.serialUnixSocket)
+    } catch (e) {
+      hilog.warn(0x0000, 'startVm', 'Failed to unlink serial socket: %{public}s', (e as Error).message ?? 'unknown')
+    }
   }
   if (fs.accessSync(options.qmpUnixSocket, fs.AccessModeType.EXIST)) {
-    fs.unlinkSync(options.qmpUnixSocket)
+    try {
+      fs.unlinkSync(options.qmpUnixSocket)
+    } catch (e) {
+      hilog.warn(0x0000, 'startVm', 'Failed to unlink qmp socket: %{public}s', (e as Error).message ?? 'unknown')
+    }
   }
   if (fs.accessSync(options.qgaUnixSocket, fs.AccessModeType.EXIST)) {
-    fs.unlinkSync(options.qgaUnixSocket)
+    try {
+      fs.unlinkSync(options.qgaUnixSocket)
+    } catch (e) {
+      hilog.warn(0x0000, 'startVm', 'Failed to unlink qga socket: %{public}s', (e as Error).message ?? 'unknown')
+    }
   }
   if (!fs.accessSync(options.sharedFolder, fs.AccessModeType.EXIST)) {
     fs.mkdirSync(options.sharedFolder)
