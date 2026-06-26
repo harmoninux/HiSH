@@ -68,8 +68,11 @@ function flushWrites(): void {
     if (cachedPref === null || pendingWrites.size === 0) {
       return
     }
+    // snapshot 防止 flush 期间新写入被 clear 丢失
+    const writes = new Map(pendingWrites)
+    pendingWrites.clear()
     // 使用 for...of 替代 forEach，确保异步写入顺序执行并等待完成
-    for (const entry of pendingWrites.entries()) {
+    for (const entry of writes.entries()) {
       const key = entry[0]
       const value = entry[1]
       if (value instanceof Object) {
@@ -78,7 +81,6 @@ function flushWrites(): void {
         await cachedPref.put(key, value as string | boolean | number)
       }
     }
-    pendingWrites.clear()
     await cachedPref.flush()
   }, 50)
 }

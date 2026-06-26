@@ -300,10 +300,11 @@ export class QemuAgent {
                 this.responseResolve = null
                 this.responseReject = null
                 reject(new Error('timeout'))
-              }, timeoutMs - (Date.now() - startTime))
+              }, Math.max(timeoutMs - (Date.now() - startTime), 10))
             })
           } catch (_) {
             // 单次等待超时或 disconnect，继续下一次尝试（isConnected 检查会捕获）
+            this.responseResolve = null
             this.responseReject = null
             continue
           }

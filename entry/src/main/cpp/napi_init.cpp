@@ -969,7 +969,7 @@ void serial_output_worker(const char *unix_socket_path) {
         }
         if (res == 0) {
             // 超时，无数据可读，逐步放宽 poll 间隔
-            idle_count++;
+            if (idle_count < 10000) idle_count++;
             if (idle_count > 10)  poll_interval = 50;
             if (idle_count > 50)  poll_interval = 200;
             if (idle_count > 100) poll_interval = 500;
