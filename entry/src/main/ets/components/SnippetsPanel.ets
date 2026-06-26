@@ -146,12 +146,12 @@ export struct SnippetsPanel {
                 Row() {
                   if (this.isEditMode) {
                     // 编辑模式：删除按钮
-                    Button('✕')
+                    Button('删除')
                       .fontSize(12)
                       .fontColor('#ff5555')
                       .backgroundColor('#331111')
-                      .width(28)
                       .height(28)
+                      .padding({ left: 10, right: 10 })
                       .borderRadius(14)
                       .onClick(() => {
                         this.onDelete(item.id)
@@ -187,12 +187,12 @@ export struct SnippetsPanel {
 
                   // 编辑模式：编辑按钮
                   if (this.isEditMode) {
-                    Button('✎')
-                      .fontSize(14)
+                    Button('编辑')
+                      .fontSize(12)
                       .fontColor('#4FC3F7')
                       .backgroundColor('#112233')
-                      .width(28)
                       .height(28)
+                      .padding({ left: 10, right: 10 })
                       .borderRadius(14)
                       .onClick(() => {
                         this.openEditDialog(item)

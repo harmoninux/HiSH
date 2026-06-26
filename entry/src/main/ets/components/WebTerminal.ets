@@ -10,7 +10,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import { QemuAgentManager } from '../lib/QemuAgentManager';
 import { createAutoSnapshot } from '../lib/autoSnapshot';
-import { Emulator, Snippet } from '../model/Emulator';
+import { Emulator, Snippet, DEFAULT_SNIPPETS } from '../model/Emulator';
 import { SnippetsPanel } from './SnippetsPanel';
 import {
   applyVirtualKeyModifiers,
@@ -232,7 +232,21 @@ export default struct WebTerminal {
       const emulators = this.getEmulators()
       if (!emulators) return
       const emulator = emulators.find((e: Emulator) => e.id === emulatorId)
-      this.snippets = emulator?.snippets ?? []
+      if (!emulator) return
+      // 首次打开，自动填充预设命令
+      if (!emulator.snippets || emulator.snippets.length === 0) {
+        const now = Date.now().toString()
+        const defaults: Snippet[] = DEFAULT_SNIPPETS.map((s, i): Snippet => ({
+          id: now + '_' + i,
+          label: s.label,
+          command: s.command,
+          starred: s.starred,
+          sortOrder: i
+        }))
+        emulator.snippets = defaults
+        this.saveEmulators(emulators)
+      }
+      this.snippets = [...emulator.snippets]
     } catch (e) {
       hilog.warn(DOMAIN, 'WebTerminal', 'loadSnippets failed: %{public}s', JSON.stringify(e))
       this.snippets = []
