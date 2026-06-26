@@ -211,6 +211,21 @@ class QemuAgentManagerImpl {
       }
 
       this.agent = new QemuAgent(qgaSocket)
+
+      // 设置断线自动重连回调
+      this.agent.onDisconnect = () => {
+        hilog.info(DOMAIN, 'AgentManager', '检测到断线，尝试自动重连...')
+        this.agent?.connect().then((ok: boolean) => {
+          if (ok) {
+            hilog.info(DOMAIN, 'AgentManager', '自动重连成功')
+          } else {
+            hilog.warn(DOMAIN, 'AgentManager', '自动重连失败，等待心跳重试')
+          }
+        }).catch((e: Error) => {
+          hilog.error(DOMAIN, 'AgentManager', '自动重连异常: %{public}s', JSON.stringify(e))
+        })
+      }
+
       const connected = await this.agent.connect()
 
       if (connected) {

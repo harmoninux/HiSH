@@ -111,6 +111,8 @@ export class QemuAgent {
   private responseResolve: ((line: string) => void) | null = null
   private responseReject: ((e: Error) => void) | null = null
   private responseTimer: number | null = null
+  // Socket 意外断开回调（由 Manager 设置以触发自动重连）
+  onDisconnect: (() => void) | null = null
 
   constructor(socketPath: string) {
     this.socketPath = socketPath
@@ -177,6 +179,10 @@ export class QemuAgent {
       this.client.on('close', (): void => {
         hilog.info(DOMAIN, 'QemuAgent', 'Socket 连接已关闭')
         this.isConnected = false
+        if (this.onDisconnect) {
+          hilog.info(DOMAIN, 'QemuAgent', '触发断线回调，尝试自动重连')
+          this.onDisconnect()
+        }
       })
 
       this.isConnected = true
