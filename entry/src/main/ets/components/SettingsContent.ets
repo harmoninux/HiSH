@@ -45,9 +45,6 @@ const themeOptions: SelectOption[] = [
 const fontOptions: SelectOption[] = [
   { value: 'CodeNewRoman NF Mono' },
   { value: 'Source Code Pro' },
-  { value: 'Cascadia Code' },
-  { value: 'JetBrains Mono' },
-  { value: 'Fira Code' },
   { value: 'Monospace' },
   { value: '自定义 (Custom)' }
 ]
@@ -409,8 +406,7 @@ export default struct SettingsContent {
 
   /** 判断当前字体是否为预设之一 */
   private isFontCustom(): boolean {
-    const presets = ['CodeNewRoman NF Mono', 'Source Code Pro', 'Cascadia Code', 'JetBrains Mono', 'Fira Code',
-      'Monospace']
+    const presets = ['CodeNewRoman NF Mono', 'Source Code Pro', 'Monospace']
     return presets.indexOf(this.terminalFont) < 0
   }
 
@@ -645,8 +641,6 @@ export default struct SettingsContent {
               content: () => {
                 this.buildAutoSnapshot()
               }
-            }).onClick(() => {
-              AppStorage.setOrCreate(appOption.autoSnapshotOnExit, !this.autoSnapshotOnExit)
             })
           }
           .attributeModifier(this.blockStyle)

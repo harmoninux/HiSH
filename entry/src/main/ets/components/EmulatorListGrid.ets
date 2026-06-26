@@ -3,6 +3,7 @@ import { Emulator, RootFilesystem } from '../model/Emulator';
 import { RepeatGrid } from './RepeatGrid';
 import { util } from '@kit.ArkTS';
 import appOption, { savePreference } from '../model/appOption';
+import { createAutoSnapshot } from '../lib/autoSnapshot';
 import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
 import napi from 'libentry.so';
@@ -283,25 +284,8 @@ export default struct EmulatorListGrid {
         clearTimeout(timeout)
         AppStorage.set(appOption.currentRunningEmulator, undefined)
 
-        // 如果 auto-snapshot 开启，在关机回调中补做快照（因为 WebTerminal 的 onShutdown 已被覆盖）
-        const autoSnapshot = AppStorage.get<boolean>(appOption.autoSnapshotOnExit)
-        if (autoSnapshot && emulatorId) {
-          try {
-            const emulatorsJson = AppStorage.get<string>(appOption.emulators)
-            const emulators = JSON.parse(emulatorsJson ?? '[]') as Emulator[]
-            const currentEmulator = emulators.find((e: Emulator) => e.id === emulatorId)
-            if (currentEmulator?.rootFilesystem) {
-              const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-              const snapshotName = `auto-${timestamp}`
-              hilog.info(DOMAIN, 'EmulatorListGrid', 'Auto-snapshot: creating %{public}s on %{public}s',
-                snapshotName, currentEmulator.rootFilesystem)
-              napi.createSnapshot(currentEmulator.rootFilesystem, snapshotName)
-              hilog.info(DOMAIN, 'EmulatorListGrid', 'Auto-snapshot created: %{public}s', snapshotName)
-            }
-          } catch (e) {
-            hilog.error(DOMAIN, 'EmulatorListGrid', 'Auto-snapshot during shutdown failed: %{public}s', JSON.stringify(e))
-          }
-        }
+        // 如果 auto-snapshot 开启，在关机回调中补做快照
+        createAutoSnapshot()
         resolve()
       })
 

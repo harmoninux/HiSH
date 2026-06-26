@@ -94,7 +94,6 @@ function startVm(options: VmOptions): boolean {
     '-device', 'virtio-tablet-pci'
   ] : []
 
-  const usb = ['-usb']
   const args = [
     'qemu-system-aarch64',
     ...basic,
@@ -107,7 +106,6 @@ function startVm(options: VmOptions): boolean {
     ...kernelParam,
     ...monitor,
     ...qga,
-    ...usb,
     ...vnc,
     ...sharedUserFolder
   ]

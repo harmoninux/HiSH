@@ -770,9 +770,6 @@ exports.showBootSplash();
 const FONT_LIST = [
     { name: 'CodeNewRoman NF Mono', family: '"CodeNewRomanNerdFontMono", monospace' },
     { name: 'Source Code Pro', family: '"SourceCodePro", monospace' },
-    { name: 'Cascadia Code', family: '"CascadiaCode", monospace' },
-    { name: 'JetBrains Mono', family: '"JetBrainsMono", monospace' },
-    { name: 'Fira Code', family: '"FiraCode", monospace' },
     { name: 'Monospace', family: 'monospace' },
 ];
 

@@ -109,6 +109,7 @@ export class QemuAgent {
   private locked: boolean = false
   // 事件驱动的响应等待（替代忙等轮询）
   private responseResolve: ((line: string) => void) | null = null
+  private responseReject: ((e: Error) => void) | null = null
   private responseTimer: number | null = null
 
   constructor(socketPath: string) {
@@ -156,6 +157,7 @@ export class QemuAgent {
             this.pendingResponse = this.pendingResponse.substring(lineEndIndex + 1)
             const resolve = this.responseResolve
             this.responseResolve = null
+            this.responseReject = null
             if (this.responseTimer !== null) {
               clearTimeout(this.responseTimer)
               this.responseTimer = null
@@ -207,6 +209,11 @@ export class QemuAgent {
     this.client = null // 立即置空，防止重入
     this.isConnected = false
     this.pendingResponse = ''
+    // [修复] reject 挂起的 Promise，防止 sendCommand 永久 await
+    if (this.responseReject) {
+      this.responseReject(new Error('Disconnected'))
+      this.responseReject = null
+    }
     this.responseResolve = null
     if (this.responseTimer !== null) {
       clearTimeout(this.responseTimer)
@@ -288,13 +295,16 @@ export class QemuAgent {
           try {
             line = await new Promise<string>((resolve, reject) => {
               this.responseResolve = resolve
+              this.responseReject = reject
               this.responseTimer = setTimeout(() => {
                 this.responseResolve = null
+                this.responseReject = null
                 reject(new Error('timeout'))
               }, timeoutMs - (Date.now() - startTime))
             })
           } catch (_) {
-            // 单次等待超时，继续下一次尝试
+            // 单次等待超时或 disconnect，继续下一次尝试（isConnected 检查会捕获）
+            this.responseReject = null
             continue
           }
 

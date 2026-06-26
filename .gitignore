@@ -23,3 +23,4 @@ build-profile.json5.*
 .claude
 .vscode
 .temp
+.DS_Store

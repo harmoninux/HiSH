@@ -5,11 +5,11 @@ import napi from 'libentry.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference } from '../model/appOption';
-import { Emulator } from '../model/Emulator';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import { QemuAgentManager } from '../lib/QemuAgentManager';
+import { createAutoSnapshot } from '../lib/autoSnapshot';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -516,28 +516,7 @@ export default struct WebTerminal {
     if (this.destroyed) return
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
 
-    // Auto-snapshot on exit
-    const autoSnapshot = AppStorage.get<boolean>(appOption.autoSnapshotOnExit)
-    if (autoSnapshot) {
-      try {
-        const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
-        if (emulatorId) {
-          const emulatorsJson = AppStorage.get<string>(appOption.emulators)
-          const emulators = JSON.parse(emulatorsJson ?? '[]') as Emulator[]
-          const currentEmulator = emulators.find((e: Emulator) => e.id === emulatorId)
-          if (currentEmulator?.rootFilesystem) {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-            const snapshotName = `auto-${timestamp}`
-            hilog.info(DOMAIN, 'WebTerminal', 'Auto-snapshot: creating %{public}s on %{public}s',
-              snapshotName, currentEmulator.rootFilesystem)
-            napi.createSnapshot(currentEmulator.rootFilesystem, snapshotName)
-            hilog.info(DOMAIN, 'WebTerminal', 'Auto-snapshot created: %{public}s', snapshotName)
-          }
-        }
-      } catch (e) {
-        hilog.error(DOMAIN, 'WebTerminal', 'Auto-snapshot failed: %{public}s', JSON.stringify(e))
-      }
-    }
+    await createAutoSnapshot()
 
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
     await context?.terminateSelf()

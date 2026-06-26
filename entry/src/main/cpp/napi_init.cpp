@@ -1082,7 +1082,8 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
 static napi_value sendInput(napi_env env, napi_callback_info info) {
 
-    if (serial_input_fd.load(std::memory_order_acquire) < 0) {
+    int fd = serial_input_fd.load(std::memory_order_acquire);
+    if (fd < 0) {
         return nullptr;
     }
 
@@ -1103,7 +1104,6 @@ static napi_value sendInput(napi_env env, napi_callback_info info) {
     std::string hex = convert_to_hex(data, length);
     OH_LOG_INFO(LOG_APP, "Send, data: %{public}s", hex.c_str());
 
-    int fd = serial_input_fd.load(std::memory_order_acquire);
     int written = 0;
     while (written < (int)length)
     {
