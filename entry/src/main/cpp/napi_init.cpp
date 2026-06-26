@@ -824,23 +824,47 @@ static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void
 
 // Strip echoed CSI resize sequences from raw serial output
 // Kernel tty echo mode reflects \x1b[8;<rows>;<cols>t back to the console
-inline ssize_t stripEchoedCsi(uint8_t *buf, ssize_t len) {
+// [修复] 维护跨 buffer 的 partial match 状态，防止 CSI 序列被 read 切断时产生乱码
+static uint8_t csi_partial_buf[32];
+static ssize_t csi_partial_len = 0;
+
+ssize_t stripEchoedCsi(uint8_t *buf, ssize_t len) {
+    // 如果上次有残留的 partial CSI，先拼接
+    uint8_t combined[1024 + 32];
+    ssize_t combined_len = 0;
+    uint8_t *src = buf;
+
+    if (csi_partial_len > 0) {
+        memcpy(combined, csi_partial_buf, csi_partial_len);
+        memcpy(combined + csi_partial_len, buf, len);
+        combined_len = csi_partial_len + len;
+        src = combined;
+        csi_partial_len = 0;
+    } else {
+        combined_len = len;
+    }
+
     // raw pattern: 0x1B 0x5B 0x38 0x3B <digits> 0x3B <digits> 0x74
     ssize_t out = 0;
-    for (ssize_t i = 0; i < len; ) {
-        if (buf[i] == 0x1B && i + 3 < len &&
-            buf[i + 1] == 0x5B && buf[i + 2] == 0x38 && buf[i + 3] == 0x3B) {
+    ssize_t i = 0;
+    for (; i < combined_len; ) {
+        if (src[i] == 0x1B && i + 3 < combined_len &&
+            src[i + 1] == 0x5B && src[i + 2] == 0x38 && src[i + 3] == 0x3B) {
             ssize_t j = i + 4;
-            while (j < len && buf[j] != 0x74) j++;
-            if (j < len) {
+            while (j < combined_len && src[j] != 0x74) j++;
+            if (j < combined_len) {
                 i = j + 1; // skip entire CSI sequence
                 continue;
             }
-            // Partial match: no 't' found, copy ESC as-is and continue
-            buf[out++] = buf[i++];
-            continue;
+            // Partial match at end of buffer: save for next call
+            ssize_t remaining = combined_len - i;
+            if (remaining <= sizeof(csi_partial_buf)) {
+                memcpy(csi_partial_buf, src + i, remaining);
+                csi_partial_len = remaining;
+            }
+            break; // Don't output partial CSI
         }
-        buf[out++] = buf[i++];
+        buf[out++] = src[i++];
     }
     return out;
 }
@@ -925,6 +949,10 @@ void serial_output_worker(const char *unix_socket_path) {
 
     OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd.load(std::memory_order_acquire));
 
+    // [省电] 自适应 poll 间隔：有数据时 10ms，空闲时逐渐放宽到 500ms
+    int poll_interval = 10;
+    int idle_count = 0;
+
     while (true) {
 
         bool broken = false;
@@ -932,7 +960,7 @@ void serial_output_worker(const char *unix_socket_path) {
         struct pollfd fds[2];
         fds[0].fd = client_fd;
         fds[0].events = POLLIN;
-        int res = poll(fds, 1, 100);
+        int res = poll(fds, 1, poll_interval);
 
         if (res < 0) {
             // poll 错误（如 EINTR），记录并继续
@@ -940,9 +968,17 @@ void serial_output_worker(const char *unix_socket_path) {
             continue;
         }
         if (res == 0) {
-            // 超时，无数据可读，继续轮询
+            // 超时，无数据可读，逐步放宽 poll 间隔
+            idle_count++;
+            if (idle_count > 10)  poll_interval = 50;
+            if (idle_count > 50)  poll_interval = 200;
+            if (idle_count > 100) poll_interval = 500;
             continue;
         }
+
+        // 有数据，重置间隔
+        poll_interval = 10;
+        idle_count = 0;
 
         uint8_t buffer[1024];
         for (int i = 0; i < res; i += 1) {
@@ -1066,8 +1102,10 @@ static napi_value startVM(napi_env env, napi_callback_info info) {
 
         OH_LOG_INFO(LOG_APP, "qemuEntry exited with: %{public}d", status);
 
-        if (on_shutdown_callback.load(std::memory_order_acquire) != nullptr) {
-            napi_call_threadsafe_function(on_shutdown_callback.load(std::memory_order_acquire), nullptr, napi_tsfn_nonblocking);
+        // [修复] 单次 load 消除 race window（两次 load 之间可能被 exchange 为 null）
+        auto cb = on_shutdown_callback.load(std::memory_order_acquire);
+        if (cb != nullptr) {
+            napi_call_threadsafe_function(cb, nullptr, napi_tsfn_nonblocking);
         }
     });
     vm_loop.detach();

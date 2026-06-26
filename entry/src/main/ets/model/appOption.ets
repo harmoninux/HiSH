@@ -14,6 +14,8 @@ class AppOption {
   static readonly customFont: string = 'customFont'
   static readonly autoSnapshotOnExit: string = 'autoSnapshotOnExit'
   static readonly performanceProfile: string = 'performanceProfile'
+  static readonly showLauncher: string = 'showLauncher'
+  static readonly lastEmulatorId: string = 'lastEmulatorId'
   static readonly appTempDir: string = 'appTempDir'
   static readonly appFilesDir: string = 'appFilesDir'
   static readonly vmBaseDir: string = 'vmBaseDir'

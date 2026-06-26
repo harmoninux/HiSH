@@ -75,6 +75,7 @@ export default struct SettingsContent {
   @Watch('saveTerminalFont') @StorageProp(appOption.terminalFont) terminalFont: string = 'CodeNewRoman NF Mono'
   @Watch('saveAutoSnapshot') @StorageProp(appOption.autoSnapshotOnExit) autoSnapshotOnExit: boolean = false
   @Watch('savePerformanceProfile') @StorageProp(appOption.performanceProfile) performanceProfile: string = 'balanced'
+  @Watch('saveShowLauncher') @StorageProp(appOption.showLauncher) showLauncher: boolean = true
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
   openSourceController: CustomDialogController = new CustomDialogController({
@@ -388,7 +389,7 @@ export default struct SettingsContent {
    */
   private applyCustomTheme() {
     const themeObj: Record<string, string> = {
-      'background': 'rgba(18, 18, 34, 0.92)',
+      'background': this.customBg,
       'foreground': this.customFg,
       'cursor': this.customCursor,
       'cursorAccent': '#1a1a2e',
@@ -500,6 +501,15 @@ export default struct SettingsContent {
       .select(this.autoSnapshotOnExit)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.autoSnapshotOnExit, value)
+      })
+  }
+
+  @Builder
+  private buildShowLauncherToggle() {
+    Toggle({ type: ToggleType.Switch, isOn: this.showLauncher })
+      .selectedColor('#4FC3F7')
+      .onChange((isOn: boolean) => {
+        AppStorage.setOrCreate(appOption.showLauncher, isOn)
       })
   }
 
@@ -640,6 +650,14 @@ export default struct SettingsContent {
               subTitle: '退出 VM 前自动保存快照，下次恢复状态',
               content: () => {
                 this.buildAutoSnapshot()
+              }
+            })
+
+            SettingItem({
+              title: '启动时显示固件选择',
+              subTitle: '关闭后直接启动上次使用的模拟器',
+              content: () => {
+                this.buildShowLauncherToggle()
               }
             })
           }
@@ -831,5 +849,9 @@ export default struct SettingsContent {
 
   async savePerformanceProfile() {
     await savePreference(appOption.performanceProfile, this.performanceProfile, this.getUIContext())
+  }
+
+  async saveShowLauncher() {
+    await savePreference(appOption.showLauncher, this.showLauncher, this.getUIContext())
   }
 }

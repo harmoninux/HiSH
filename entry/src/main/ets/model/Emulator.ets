@@ -9,6 +9,14 @@ interface RootFilesystem {
   path: string
 }
 
+interface Snippet {
+  id: string
+  label: string
+  command: string
+  starred: boolean
+  sortOrder: number
+}
+
 interface Emulator {
   id: string
   name: string,
@@ -19,7 +27,18 @@ interface Emulator {
   rootVda: string,
   rootFilesystem: string
   sharedFolderReadonly: boolean
+  snippets?: Snippet[]
 }
+
+// 预设命令（首次创建 VM 时自动填充）
+const DEFAULT_SNIPPETS: Snippet[] = [
+  { id: '1', label: '更新软件包', command: 'apt update -y && apt upgrade -y\n', starred: true, sortOrder: 0 },
+  { id: '2', label: '查看磁盘', command: 'df -h\n', starred: false, sortOrder: 1 },
+  { id: '3', label: '查看内存', command: 'free -m\n', starred: false, sortOrder: 2 },
+  { id: '4', label: '查看进程', command: 'ps aux --sort=-%mem | head -20\n', starred: false, sortOrder: 3 },
+  { id: '5', label: '网络信息', command: 'ip addr && ping -c 2 8.8.8.8\n', starred: false, sortOrder: 4 },
+  { id: '6', label: '重启 SSH', command: 'systemctl restart ssh\n', starred: true, sortOrder: 5 },
+]
 
 const defaultRootfs: RootFilesystem = {
   id: 'rootfs_aarch64',
@@ -39,4 +58,4 @@ const defaultEmulator: Emulator = {
   sharedFolderReadonly: false
 }
 
-export { Emulator, PortMapping, RootFilesystem, defaultEmulator, defaultRootfs }
+export { Emulator, PortMapping, RootFilesystem, Snippet, DEFAULT_SNIPPETS, defaultEmulator, defaultRootfs }

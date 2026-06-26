@@ -10,6 +10,8 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import { QemuAgentManager } from '../lib/QemuAgentManager';
 import { createAutoSnapshot } from '../lib/autoSnapshot';
+import { Emulator, Snippet } from '../model/Emulator';
+import { SnippetsPanel } from './SnippetsPanel';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -40,6 +42,8 @@ export default struct WebTerminal {
   @Watch('onFontChanged') @StorageProp(appOption.terminalFont) terminalFont: string = 'CodeNewRoman NF Mono'
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
   @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
+  @State showSnippets: boolean = false
+  @State snippets: Snippet[] = []
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   private lastResizeWidth: number = -1
@@ -149,6 +153,21 @@ export default struct WebTerminal {
   }
 
   @Builder
+  snippetsButton() {
+    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
+      Text('⚡').fontSize(VKeyFontSize)
+    }
+    .height(VKeyHeight)
+    .width(VKeyHeight)
+    .borderRadius(VKeyRadius)
+    .margin(VKeyMargin)
+    .onClick(() => {
+      this.loadSnippets()
+      this.showSnippets = !this.showSnippets
+    })
+  }
+
+  @Builder
   settingsButton() {
     Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
       Image($r('app.media.gearshape')).width(16).height(16).padding(0)
@@ -205,6 +224,114 @@ export default struct WebTerminal {
       })
   }
 
+  // Snippets 相关方法
+  private loadSnippets(): void {
+    try {
+      const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
+      if (!emulatorId) return
+      const emulators = this.getEmulators()
+      if (!emulators) return
+      const emulator = emulators.find((e: Emulator) => e.id === emulatorId)
+      this.snippets = emulator?.snippets ?? []
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', 'loadSnippets failed: %{public}s', JSON.stringify(e))
+      this.snippets = []
+    }
+  }
+
+  private toggleSnippetStar(id: string): void {
+    try {
+      const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
+      if (!emulatorId) return
+      const emulators = this.getEmulators()
+      if (!emulators) return
+      const emulator = emulators.find((e: Emulator) => e.id === emulatorId)
+      if (!emulator?.snippets) return
+      const snippet = emulator.snippets.find((s: Snippet) => s.id === id)
+      if (snippet) {
+        snippet.starred = !snippet.starred
+        this.saveEmulators(emulators)
+        this.snippets = [...emulator.snippets]
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', 'toggleSnippetStar failed: %{public}s', JSON.stringify(e))
+    }
+  }
+
+  private getEmulators(): Emulator[] | null {
+    const raw: Object | undefined = AppStorage.get(appOption.emulators)
+    if (!raw) return null
+    if (Array.isArray(raw)) return raw as Emulator[]
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw as string) as Emulator[] } catch (e) { return null }
+    }
+    return null
+  }
+
+  private saveEmulators(emulators: Emulator[]): void {
+    AppStorage.setOrCreate(appOption.emulators, JSON.stringify(emulators))
+  }
+
+  private addSnippet(label: string, command: string): void {
+    try {
+      const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
+      if (!emulatorId) return
+      const emulators = this.getEmulators()
+      if (!emulators) return
+      const emulator = emulators.find((e: Emulator) => e.id === emulatorId)
+      if (!emulator) return
+      if (!emulator.snippets) emulator.snippets = []
+      const newSnippet: Snippet = {
+        id: Date.now().toString(),
+        label: label,
+        command: command,
+        starred: false,
+        sortOrder: emulator.snippets.length
+      }
+      emulator.snippets.push(newSnippet)
+      this.saveEmulators(emulators)
+      this.snippets = [...emulator.snippets]
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', 'addSnippet failed: %{public}s', JSON.stringify(e))
+    }
+  }
+
+  private editSnippet(id: string, label: string, command: string): void {
+    try {
+      const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
+      if (!emulatorId) return
+      const emulators = this.getEmulators()
+      if (!emulators) return
+      const emulator = emulators.find((e: Emulator) => e.id === emulatorId)
+      if (!emulator?.snippets) return
+      const snippet = emulator.snippets.find((s: Snippet) => s.id === id)
+      if (snippet) {
+        snippet.label = label
+        snippet.command = command
+        this.saveEmulators(emulators)
+        this.snippets = [...emulator.snippets]
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', 'editSnippet failed: %{public}s', JSON.stringify(e))
+    }
+  }
+
+  private deleteSnippet(id: string): void {
+    try {
+      const emulatorId = AppStorage.get<string>(appOption.currentRunningEmulator)
+      if (!emulatorId) return
+      const emulators = this.getEmulators()
+      if (!emulators) return
+      const emulator = emulators.find((e: Emulator) => e.id === emulatorId)
+      if (!emulator?.snippets) return
+      emulator.snippets = emulator.snippets.filter((s: Snippet) => s.id !== id)
+      this.saveEmulators(emulators)
+      this.snippets = [...emulator.snippets]
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', 'deleteSnippet failed: %{public}s', JSON.stringify(e))
+    }
+  }
+
   aboutToDisappear() {
     this.destroyed = true
     if (this.flushTimeoutID !== undefined) {
@@ -218,20 +345,21 @@ export default struct WebTerminal {
   }
 
   build() {
-    Column() {
-      Web({
-        src: $rawfile('term/term.html'),
-        controller: this.webviewController
-      })
-        .javaScriptProxy({
-          object: this,
-          name: 'native',
-          methodList: ['sendInput', 'resize', 'load',
-            'getFontSize', 'getCursorShape', 'getCursorBlink',
-            'setApplicationMode'],
-          controller: this.webviewController,
-          asyncMethodList: [],
-          permission: `{
+    Stack({ alignContent: Alignment.Bottom }) {
+      Column() {
+        Web({
+          src: $rawfile('term/term.html'),
+          controller: this.webviewController
+        })
+          .javaScriptProxy({
+            object: this,
+            name: 'native',
+            methodList: ['sendInput', 'resize', 'load',
+              'getFontSize', 'getCursorShape', 'getCursorBlink',
+              'setApplicationMode'],
+            controller: this.webviewController,
+            asyncMethodList: [],
+            permission: `{
           "javascriptProxyPermission": {
             "urlPermissionList": [
               {
@@ -243,16 +371,44 @@ export default struct WebTerminal {
             ]
           }
         }`
-        })
-        .backgroundColor('#000')
-        .layoutWeight(1)
-        .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
-      if (this.virtKeyEnabled) {
-        if (this.showVirtKey) {
-          this.buildVirtualKeys()
-        } else {
-          this.buildShowVirtualKeysButton()
+          })
+          .backgroundColor('#000')
+          .layoutWeight(1)
+          .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+        if (this.virtKeyEnabled) {
+          if (this.showVirtKey) {
+            this.buildVirtualKeys()
+          } else {
+            this.buildShowVirtualKeysButton()
+          }
         }
+      }
+      .height('100%')
+
+      // Snippets 面板
+      if (this.showSnippets) {
+        SnippetsPanel({
+          snippets: this.snippets,
+          showPanel: this.showSnippets,
+          onSend: (cmd: string) => {
+            this.sendInput(cmd)
+          },
+          onDismiss: () => {
+            this.showSnippets = false
+          },
+          onToggleStar: (id: string) => {
+            this.toggleSnippetStar(id)
+          },
+          onAdd: (label: string, command: string) => {
+            this.addSnippet(label, command)
+          },
+          onEdit: (id: string, label: string, command: string) => {
+            this.editSnippet(id, label, command)
+          },
+          onDelete: (id: string) => {
+            this.deleteSnippet(id)
+          }
+        })
       }
     }
     .height('100%')
@@ -312,6 +468,7 @@ export default struct WebTerminal {
           this.buildVKey('ESC', NormalKeySequences.ESC);
           this.toggleFnKey('FN', () => this.toggleFn());
           this.buildVKey('/', '/', '/');
+          this.buildVKey('|', '|', '|');
 
           Row().layoutWeight(1);
 
@@ -328,6 +485,18 @@ export default struct WebTerminal {
           this.buildVKey('TAB', NormalKeySequences.TAB);
           this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
           this.buildVKey('-', '-', '-');
+          Button('COMM', { buttonStyle: ButtonStyleMode.TEXTUAL })
+            .height(VKeyHeight)
+            .width(VKeyWidth)
+            .borderRadius(VKeyRadius)
+            .fontSize(VKeyFontSize)
+            .fontColor($r('sys.color.white'))
+            .margin({ left: 2, right: 2 })
+            .padding({ left: VKeyPadding, right: VKeyPadding })
+            .onClick(() => {
+              this.loadSnippets()
+              this.showSnippets = !this.showSnippets
+            })
 
           Row().layoutWeight(1);
 

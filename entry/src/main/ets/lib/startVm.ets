@@ -32,7 +32,7 @@ function startVm(options: VmOptions): boolean {
     'iommu=none,its=off,usb=on,virtualization=off,memory-backend=mem0,compact-highmem=on,' +
     'dump-guest-core=off,mem-merge=off,hmat=off',
     '-overcommit', 'cpu-pm=off',
-    '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=2048',
+    '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=512',
     "-object", "rng-random,filename=/dev/urandom,id=rng0",
     "-device", "virtio-rng-pci-non-transitional,rng=rng0",
     '-rtc', 'base=utc,clock=host', '-L', options.baseDir]
@@ -52,7 +52,7 @@ function startVm(options: VmOptions): boolean {
     ["-virtfs", `local,path=${options.sharedFolder},mount_tag=hostshare,security_model=mapped-file${sharedFolderOption},fmode=0666,dmode=0777`]
   const drive = ["-global", "virtio-blk-pci.scsi=off", "-global", "virtio-scsi-pci.cmd_per_lun=128",
     "-global", "virtio-scsi-pci.packed=on", "-drive", "if=none,format=qcow2,file=" + options.rootFilesystem
-    + ",id=hd0,cache=writeback,aio=threads,discard=unmap", "-object", "iothread,id=iothread0,poll-max-ns=2000000",
+    + ",id=hd0,cache=writeback,aio=threads,discard=unmap", "-object", "iothread,id=iothread0,poll-max-ns=500000",
     "-device", "virtio-scsi-pci-non-transitional,id=scsi0,num_queues=" + options.cpu.toString() +
     ",virtqueue_size=256,iothread=iothread0",
     "-device", "scsi-hd,drive=hd0,bus=scsi0.0,logical_block_size=4096,physical_block_size=4096,rotation_rate=1,bootindex=1"]
@@ -66,6 +66,8 @@ function startVm(options: VmOptions): boolean {
     "systemd.mask=run-lock.mount systemd.mask=sys-kernel-debug.mount systemd.mask=dev-hugepages.mount " +
     "cryptomgr.notests rodata=off rcupdate.rcu_cpu_stall_timeout=300 " +  // 5min，熄屏恢复不误触发
     "rcu_expedited=1 init_on_free=0 init_on_alloc=1 page_poison=0 slub_debug=- " +
+    "nohz=on highres=off clocksource=arch_sys_counter " +  // 省电：tickless + 高效时钟源
+    "net.core.netdev_budget=300 " +                         // 减少网络软中断
     "TERM=xterm-256color init=" + options.init]
   const monitor = ['-qmp', 'unix:' + options.qmpUnixSocket + ',server,nowait']
   const qga = [

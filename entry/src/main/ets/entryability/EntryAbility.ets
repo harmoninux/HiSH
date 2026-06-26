@@ -66,12 +66,18 @@ export default class EntryAbility extends UIAbility {
 
     await this.extractKernelAndRootFilesystem(appContext);
 
-    windowStage.loadContent('pages/Index', async (err) => {
+    // 检查是否显示启动选择页
+    const showLauncher = AppStorage.get<boolean>(appOption.showLauncher) ?? true
+
+    // 根据 showLauncher 决定加载哪个页面
+    const initialPage = showLauncher ? 'pages/LauncherPage' : 'pages/Index'
+
+    windowStage.loadContent(initialPage, async (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content: %{public}s', initialPage);
 
       const mainWindow = windowStage.getMainWindowSync();
       const uiContext = mainWindow.getUIContext();
@@ -87,12 +93,15 @@ export default class EntryAbility extends UIAbility {
       }
 
       await this.prepareForSharedFolder(appContext)
-      const result = this.startDefaultEmulator()
 
-      this.promptRootVdaMessage(uiContext)
-      this.promptPortUsedMessage(uiContext, result.portsSkipped)
-      this.promptVmStartFailedMessage(uiContext, result.vmStarted)
-      this.startRunInBackground(uiContext)
+      // 如果不显示启动选择页，直接启动默认模拟器
+      if (!showLauncher) {
+        const result = this.startDefaultEmulator()
+        this.promptRootVdaMessage(uiContext)
+        this.promptPortUsedMessage(uiContext, result.portsSkipped)
+        this.promptVmStartFailedMessage(uiContext, result.vmStarted)
+        this.startRunInBackground(uiContext)
+      }
     });
   }
 
@@ -222,6 +231,18 @@ export default class EntryAbility extends UIAbility {
   }
 
   private getEmulatorToStart() {
+    // 优先级：pendingStart（从 LauncherPage 传来）> temporaryStart > defaultStart
+    const pendingStart: string | undefined = AppStorage.get('pendingStartEmulatorId') as string;
+    if (pendingStart) {
+      // 清除 pending 标记
+      AppStorage.setOrCreate('pendingStartEmulatorId', '');
+      const emulators = AppStorage.get(appOption.emulators) as Emulator[];
+      const pending = emulators.find(it => it.id === pendingStart);
+      if (pending) {
+        hilog.info(DOMAIN, 'testTag', 'Starting emulator from LauncherPage: %{public}s', pendingStart);
+        return pending;
+      }
+    }
     const temporaryStart: string | undefined = AppStorage.get(appOption.temporaryStartEmulator) as string;
     const defaultStart: string | undefined = temporaryStart || AppStorage.get(appOption.defaultStartEmulator) as string;
     const emulators = AppStorage.get(appOption.emulators) as Emulator[];
