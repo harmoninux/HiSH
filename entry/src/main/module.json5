@@ -27,6 +27,9 @@
       },
       {
         "name": "ohos.permission.READ_WRITE_USER_FILE"
+      },
+      {
+        "name": "ohos.permission.RUNNING_LOCK"
       }
     ],
     "deliveryWithInstall": true,

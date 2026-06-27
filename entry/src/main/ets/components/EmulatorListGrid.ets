@@ -8,6 +8,7 @@ import { CustomContentDialog, LoadingDialog } from '@kit.ArkUI';
 import copyFile from '../lib/copyFile';
 import napi from 'libentry.so';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { backgroundRunningManager } from '../lib/backgroundRunningManager';
 import { Want, bundleManager } from '@kit.AbilityKit';
 import EmulatorItem from './EmulatorItem';
 import ImageManagementContent from './ImageManagementContent';
@@ -283,6 +284,8 @@ export default struct EmulatorListGrid {
       napi.onShutdown(() => {
         clearTimeout(timeout)
         AppStorage.set(appOption.currentRunningEmulator, undefined)
+        // 释放 wake lock
+        backgroundRunningManager.releaseWakeLockOnly()
 
         // 如果 auto-snapshot 开启，在关机回调中补做快照
         createAutoSnapshot()

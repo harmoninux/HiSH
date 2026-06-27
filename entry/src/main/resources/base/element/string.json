@@ -313,6 +313,14 @@
       "value": "Force the app run in background"
     },
     {
+      "name": "keep_awake",
+      "value": "Keep CPU awake"
+    },
+    {
+      "name": "keep_awake_desc",
+      "value": "Prevent CPU throttling when screen is off. Enable if running background tasks in VM"
+    },
+    {
       "name": "user_guide",
       "value": "User guide"
     },

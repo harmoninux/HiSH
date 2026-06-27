@@ -8,6 +8,7 @@ import appOption, { CursorShape, savePreference } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
+import { backgroundRunningManager } from '../lib/backgroundRunningManager';
 import { QemuAgentManager } from '../lib/QemuAgentManager';
 import { createAutoSnapshot } from '../lib/autoSnapshot';
 import { Emulator, Snippet, DEFAULT_SNIPPETS } from '../model/Emulator';
@@ -683,7 +684,7 @@ export default struct WebTerminal {
         }
       }
 
-      // 3. 发送合并后的数据
+      // 4. 发送合并后的数据
       const base64Helper = new util.Base64Helper();
       const base64 = base64Helper.encodeToStringSync(merged);
       this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`);
@@ -698,6 +699,9 @@ export default struct WebTerminal {
   private async onShutdown() {
     if (this.destroyed) return
     hilog.info(DOMAIN, 'WebTerminal', 'qemu system exited');
+
+    // 释放 wake lock，让系统可以正常休眠
+    backgroundRunningManager.releaseWakeLockOnly()
 
     await createAutoSnapshot()
 

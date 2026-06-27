@@ -313,6 +313,14 @@
       "value": "切换到后台后继续保持Linux运行"
     },
     {
+      "name": "keep_awake",
+      "value": "保持 CPU 唤醒"
+    },
+    {
+      "name": "keep_awake_desc",
+      "value": "防止熄屏后 CPU 降频。如果 VM 有后台任务需要跑，请开启"
+    },
+    {
       "name": "user_guide",
       "value": "使用指南"
     },

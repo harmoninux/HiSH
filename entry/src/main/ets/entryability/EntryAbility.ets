@@ -221,6 +221,13 @@ export default class EntryAbility extends UIAbility {
 
     if (vmStarted) {
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+      // 用户开启"保持 CPU 唤醒"时申请 wake lock，防止熄屏后 CPU 降频导致 VM RCU stall
+      const keepAwake = AppStorage.get(appOption.keepAwake) as boolean
+      if (keepAwake) {
+        backgroundRunningManager.requestWakeLockForVm().catch((e: Error) => {
+          hilog.error(DOMAIN, 'testTag', 'requestWakeLockForVm failed: %{public}s', e.message)
+        })
+      }
     } else {
       AppStorage.set(appOption.currentRunningEmulator, undefined)
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'ABNORMAL')
@@ -282,6 +289,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.showVirtKey, showVirtKey);
     const runningInBackground = await appPref.get(appOption.runningInBackground, false) as boolean;
     AppStorage.setOrCreate(appOption.runningInBackground, runningInBackground);
+    const keepAwake = await appPref.get(appOption.keepAwake, true) as boolean;
+    AppStorage.setOrCreate(appOption.keepAwake, keepAwake);
     const displayStatusBar = await appPref.get(appOption.displayStatusBar, false) as boolean;
     AppStorage.setOrCreate(appOption.displayStatusBar, displayStatusBar);
     const terminalFontSize = await appPref.get(appOption.terminalFontSize, this.getDefaultTerminalFontSize()) as number;

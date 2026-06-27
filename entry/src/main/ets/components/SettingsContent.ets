@@ -67,6 +67,7 @@ export default struct SettingsContent {
   @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
+  @Watch('saveKeepAwake') @StorageProp(appOption.keepAwake) keepAwake: boolean = true
   @Watch('saveDisplayStatusBar') @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
   @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
   @Watch('saveVncPortMode') @StorageProp(appOption.vncPortMode) vncPortMode: string = 'local'
@@ -168,6 +169,15 @@ export default struct SettingsContent {
       .select(this.runningInBackground)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.runningInBackground, value)
+      })
+  }
+
+  @Builder
+  private setKeepAwake() {
+    Toggle({ type: ToggleType.Switch, isOn: this.keepAwake })
+      .selectedColor('#4FC3F7')
+      .onChange((isOn: boolean) => {
+        AppStorage.setOrCreate(appOption.keepAwake, isOn)
       })
   }
 
@@ -626,6 +636,15 @@ export default struct SettingsContent {
               AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
             })
             SettingItem({
+              title: $r('app.string.keep_awake'),
+              subTitle: $r('app.string.keep_awake_desc'),
+              content: () => {
+                this.setKeepAwake()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.keepAwake, !this.keepAwake)
+            })
+            SettingItem({
               title: $r('app.string.display_status_bar'),
               subTitle: $r('app.string.guest_status_bar_desc'),
               content: () => {
@@ -799,6 +818,10 @@ export default struct SettingsContent {
       }
     }
     await savePreference(appOption.runningInBackground, this.runningInBackground, this.getUIContext())
+  }
+
+  async saveKeepAwake() {
+    await savePreference(appOption.keepAwake, this.keepAwake, this.getUIContext())
   }
 
   async saveDisplayStatusBar() {

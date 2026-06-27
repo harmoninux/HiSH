@@ -34,6 +34,7 @@ class AppOption {
   static readonly serialChannel: string = 'serialChannel'
   static readonly lastResourceVersion: string = 'lastResourceVersion'
   static readonly runningInBackground: string = 'runningInBackground'
+  static readonly keepAwake: string = 'keepAwake'
   static readonly displayStatusBar: string = 'displayStatusBar'
   static readonly showVirtKey: string = 'showVirtKey'
   static readonly isPowerManagementOpen: string = 'isPowerManagementOpen'

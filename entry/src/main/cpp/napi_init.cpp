@@ -61,6 +61,7 @@ static QemuSystemEntry getQemuSystemEntry() {
 
     const char *libQemuPath = "libqemu-system-aarch64.so";
 
+    // 故意不 dlclose：QEMU 符号在整个进程生命周期内必须有效
     void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
 
     if (!libQemuHandle) {
@@ -825,6 +826,7 @@ static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void
 // Strip echoed CSI resize sequences from raw serial output
 // Kernel tty echo mode reflects \x1b[8;<rows>;<cols>t back to the console
 // [修复] 维护跨 buffer 的 partial match 状态，防止 CSI 序列被 read 切断时产生乱码
+// 仅 serial_output_worker 单线程访问，不需互斥锁
 static uint8_t csi_partial_buf[32];
 static ssize_t csi_partial_len = 0;
 
