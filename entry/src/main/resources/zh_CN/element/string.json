@@ -758,7 +758,7 @@
     },
     {
       "name": "setting_font_family_desc",
-      "value": "选择终端字体（自动检测系统可用等宽字体）"
+      "value": "选择终端字体"
     },
     {
       "name": "setting_cursor_style",

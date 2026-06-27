@@ -758,7 +758,7 @@
     },
     {
       "name": "setting_font_family_desc",
-      "value": "Select terminal font (monospace fonts detected automatically)"
+      "value": "Select terminal font"
     },
     {
       "name": "setting_cursor_style",
