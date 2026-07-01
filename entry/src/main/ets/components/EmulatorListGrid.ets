@@ -348,7 +348,8 @@ export default struct EmulatorListGrid {
         portMapping: src.portMapping,
         rootVda: src.rootVda,
         rootFilesystem: target,
-        sharedFolderReadonly: src.sharedFolderReadonly
+        sharedFolderReadonly: src.sharedFolderReadonly,
+        maxSessions: src.maxSessions
       }
       this.emulators.push(emulator)
 

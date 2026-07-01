@@ -12,6 +12,7 @@ import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../mod
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import sessionManager from '../lib/SessionManager';
 
 const DOMAIN = 0x0000;
 
@@ -143,7 +144,15 @@ export default class EntryAbility extends UIAbility {
     const qmpUnixSocket = appTempDir + '/qmp_socket'
     const qgaUnixSocket = appTempDir + '/qga_socket'
 
+    // Generate additional serial socket paths based on maxSessions
+    const maxSessions = emulatorToStart.maxSessions ?? 1
+    const serialUnixSockets: string[] = []
+    for (let i = 1; i < maxSessions; i++) {
+      serialUnixSockets.push(appTempDir + `/serial_socket_${i}`)
+    }
+
     AppStorage.setOrCreate(appOption.currentRunningEmulator, emulatorToStart.id)
+    AppStorage.setOrCreate(appOption.maxSessions, maxSessions)
 
     // 读取 VNC 启用配置
     const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)!!
@@ -160,6 +169,7 @@ export default class EntryAbility extends UIAbility {
       rootFilesystem,
       sharedFolder,
       serialUnixSocket,
+      serialUnixSockets,
       sharedFolderReadonly,
       init,
       qmpUnixSocket,
@@ -171,6 +181,10 @@ export default class EntryAbility extends UIAbility {
 
     if (vmStarted) {
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'RUNNING')
+      // Initialize session manager with serial socket paths
+      sessionManager.init(maxSessions, serialUnixSocket, serialUnixSockets)
+      // Open the primary session (session 0) immediately
+      sessionManager.openSession(0)
     } else {
       AppStorage.set(appOption.currentRunningEmulator, undefined)
       AppStorage.setOrCreate(appOption.currentEmulatorStatus, 'ABNORMAL')

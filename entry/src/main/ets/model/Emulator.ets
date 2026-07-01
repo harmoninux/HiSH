@@ -19,6 +19,8 @@ interface Emulator {
   rootVda: string,
   rootFilesystem: string
   sharedFolderReadonly: boolean
+  /** Maximum number of terminal sessions (serial ports). Default: 1, Max: 4 */
+  maxSessions: number
 }
 
 const defaultRootfs: RootFilesystem = {
@@ -36,7 +38,8 @@ const defaultEmulator: Emulator = {
   portMapping: [],
   rootVda: '/dev/sda',
   rootFilesystem: 'vm/rootfs_aarch64.qcow2',
-  sharedFolderReadonly: false
+  sharedFolderReadonly: false,
+  maxSessions: 1
 }
 
 export { Emulator, PortMapping, RootFilesystem, defaultEmulator, defaultRootfs }
