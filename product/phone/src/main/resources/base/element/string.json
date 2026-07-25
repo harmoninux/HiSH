@@ -1,0 +1,8 @@
+{
+  "string": [
+    {"name": "module_desc","value": "HiSH Phone"},
+    {"name": "EntryAbility_desc","value": "HiSH Phone"},
+    {"name": "EntryAbility_label","value": "HiSH Phone"},
+    {"name": "location_reason","value": "Keep background running requires location permission"}
+  ]
+}

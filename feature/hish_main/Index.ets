@@ -1,0 +1,10 @@
+export { default as EntryAbility } from './src/main/ets/entryability/EntryAbility';
+export { Index } from './src/main/ets/pages/Index';
+export { SettingsPage } from './src/main/ets/pages/SettingsPage';
+export { EditEmulator } from './src/main/ets/pages/EditEmulator';
+export { EmulatorManagementPage } from './src/main/ets/pages/EmulatorManagementPage';
+export { RootfsManagement } from './src/main/ets/pages/RootfsManagement';
+export { SharedFolderPage } from './src/main/ets/pages/SharedFolderPage';
+export { UserGuidePage } from './src/main/ets/pages/UserGuidePage';
+export { GuideWebPage } from './src/main/ets/pages/GuideWebPage';
+export { VncPage } from './src/main/ets/pages/VncPage';
