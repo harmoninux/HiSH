@@ -21,7 +21,7 @@ You can try one of following methods to get HiSH:
 - Alpine Linux rootfs
 - Virtual Keys (Tab/Ctrl/Esc/Up/Down/Left/Right)
 - Shared Folder
-- JIT (Only available for developer)
+- JIT (Supported on Pad/2in1, not supported on Phone)
 - Image import（[Ubuntu24.04](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251213/ubuntu-base-24.04.zip) / [Debian12](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
 
 # How to build
@@ -38,15 +38,15 @@ You can try one of following methods to get HiSH:
  - Run `git submodule update --init --recursive` in HiSH directory
 - Copy `build-profile.template.json5` to `build-profile.json5`
 - Download files and move to corresponding location as following (Notice: you should rename files as links)
-  - [entry/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip)(Extract to `entry/libs`)
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64)
-  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2)
+  - [feature/hish_main/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip)(Extract to `feature/hish_main/libs`)
+  - [feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64)
+  - [feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2)
 - Build project in DevEco Studio
 - Sign and run in your device or emulator. See [Running Your App on a Local Real Device](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-run-device) | [Signing an App Not Associated with a Registered App](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-signing#section151231211105010)
 
 ## Build libqemu-system (Optional)
 
-Build your own `libqemu-system-aarch64.so` for `entry/libs` on Ubuntu (or WSL2 on Windows), for customizing `libqemu`
+Build your own `libqemu-system-aarch64.so` for `feature/hish_main/libs` on Ubuntu (or WSL2 on Windows), for customizing `libqemu`
 
 - Install dependencies
 ```shell
@@ -92,7 +92,7 @@ export KCFLAGS='-march=armv8.5-a+crc+crypto+lse+rcpc+rng+sm4+sha3+dotprod+fp16 -
 env KCFLAGS="$KCFLAGS" make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 menuconfig
 env KCFLAGS="$KCFLAGS" make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc)
 ```
-- The kernel image is at `arch/arm64/boot/Image`, copy it to `entry/src/main/resources/rawfile/vm/kernel_aarch64`
+- The kernel image is at `arch/arm64/boot/Image`, copy it to `feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64`
 
 ## Build rootfs for Linux (Optional)
 
@@ -128,7 +128,7 @@ sudo umount /mnt/rootfs
 ```shell
 qemu-img convert -p -f raw -O qcow2 rootfs.img rootfs.qcow2
 ```
-- Put `rootfs.qcow2` to `entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2`
+- Put `rootfs.qcow2` to `feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2`
 
 # Star History
 
