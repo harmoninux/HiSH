@@ -37,11 +37,11 @@ clean_libqemu:
 copy: output/.stamp
 
 output/.stamp: $(STAMP) Makefile
-	rm -f ../entry/libs/$(OHOS_ABI)/*
-	cp output/*.so ../entry/libs/$(OHOS_ABI)/
-	cp output/*.so.* ../entry/libs/$(OHOS_ABI)/
-	mkdir -p ../entry/src/main/resources/rawfile/vm/keymaps
-	cp output/en-us ../entry/src/main/resources/rawfile/vm/keymaps/
+	rm -f ../feature/hish_main/libs/$(OHOS_ABI)/*
+	cp output/*.so ../feature/hish_main/libs/$(OHOS_ABI)/
+	cp output/*.so.* ../feature/hish_main/libs/$(OHOS_ABI)/
+	mkdir -p ../feature/hish_main/src/main/resources/rawfile/vm/keymaps
+	cp output/en-us ../feature/hish_main/src/main/resources/rawfile/vm/keymaps/
 	touch output/.stamp
 
 %/.stamp: %/Makefile
