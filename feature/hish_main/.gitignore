@@ -1,1 +1,13 @@
 /build
+/node_modules
+/oh_modules
+/.preview
+/.cxx
+/.test
+
+*.gz
+kernel_*
+*.qcow2
+*.tar
+*.so
+*.so.0
