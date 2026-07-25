@@ -1,8 +1,8 @@
 {
   "string": [
-    {"name": "module_desc","value": "HiSH Phone"},
-    {"name": "EntryAbility_desc","value": "HiSH Phone"},
-    {"name": "EntryAbility_label","value": "HiSH Phone"},
+    {"name": "module_desc","value": "HiSH, Run Linux Shell on HarmonyOS"},
+    {"name": "EntryAbility_desc","value": "HiSH, Run Linux Shell on HarmonyOS"},
+    {"name": "EntryAbility_label","value": "HiSH Dev"},
     {"name": "location_reason","value": "Keep background running requires location permission"}
   ]
 }
