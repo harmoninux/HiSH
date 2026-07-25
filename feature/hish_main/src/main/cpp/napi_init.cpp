@@ -59,13 +59,21 @@ static QemuSystemEntry getQemuSystemEntry(bool supportJit) {
     }
 
     // 根据设备类型选择 .so：phone 用 TCI，tablet/2in1 用 JIT
-    const char *libQemuPath = supportJit
-        ? "libqemu-system-aarch64.so"       // JIT 版本 (tablet/2in1)
-        : "libqemu-system-aarch64-tci.so";  // TCI 版本 (phone)
+    void *libQemuHandle = nullptr;
 
-    OH_LOG_INFO(LOG_APP, "Loading QEMU: %{public}s (supportJit=%{public}d)", libQemuPath, supportJit);
-
-    void *libQemuHandle = dlopen(libQemuPath, RTLD_LAZY);
+    if (supportJit) {
+        // tablet/2in1: 直接加载 JIT 版本
+        OH_LOG_INFO(LOG_APP, "Loading QEMU: libqemu-system-aarch64.so (JIT)");
+        libQemuHandle = dlopen("libqemu-system-aarch64.so", RTLD_LAZY);
+    } else {
+        // phone: 优先加载 TCI 版本，失败则回退到 JIT 版本
+        OH_LOG_INFO(LOG_APP, "Loading QEMU: libqemu-system-aarch64-tci.so (TCI)");
+        libQemuHandle = dlopen("libqemu-system-aarch64-tci.so", RTLD_LAZY);
+        if (!libQemuHandle) {
+            OH_LOG_INFO(LOG_APP, "TCI load failed (errno=%{public}d), falling back to JIT", errno);
+            libQemuHandle = dlopen("libqemu-system-aarch64.so", RTLD_LAZY);
+        }
+    }
 
     if (!libQemuHandle) {
         OH_LOG_INFO(LOG_APP, "Failed to load libqemu.so errno: %{public}d", errno);
