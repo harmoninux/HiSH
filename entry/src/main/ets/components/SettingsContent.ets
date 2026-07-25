@@ -46,7 +46,7 @@ export default struct SettingsContent {
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
   @Watch('saveDisplayStatusBar') @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
-  @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
+  @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = false
   @Watch('saveVncPortMode') @StorageProp(appOption.vncPortMode) vncPortMode: string = 'local'
   @Watch('saveVncPort') @StorageProp(appOption.vncPort) vncPort: number = 5900
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined

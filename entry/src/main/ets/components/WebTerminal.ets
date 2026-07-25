@@ -36,7 +36,7 @@ export default struct WebTerminal {
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
-  @StorageProp(appOption.vncEnabled) vncEnabled: boolean = true
+  @StorageProp(appOption.vncEnabled) vncEnabled: boolean = false
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined

@@ -225,7 +225,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalCursorShape, terminalCursorShape);
     const terminalCursorBlink = await appPref.get(appOption.terminalCursorBlink, false) as boolean;
     AppStorage.setOrCreate(appOption.terminalCursorBlink, terminalCursorBlink);
-    const vncEnabled = await appPref.get(appOption.vncEnabled, true) as boolean;
+    const vncEnabled = await appPref.get(appOption.vncEnabled, false) as boolean;
     AppStorage.setOrCreate(appOption.vncEnabled, vncEnabled);
     const vncPortMode = await appPref.get(appOption.vncPortMode, 'local') as string;
     AppStorage.setOrCreate(appOption.vncPortMode, vncPortMode);
