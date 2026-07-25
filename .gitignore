@@ -16,6 +16,7 @@
 *.so
 *.so.0
 .idea
+**/BuildProfile.ets
 /entry
 
 .temp

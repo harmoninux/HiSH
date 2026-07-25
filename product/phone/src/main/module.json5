@@ -37,9 +37,6 @@
           "when": "inuse"
         }
       },
-      {
-        "name": "ohos.permission.READ_WRITE_USER_FILE"
-      }
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
