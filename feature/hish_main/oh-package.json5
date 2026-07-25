@@ -1,0 +1,11 @@
+{
+  "name": "hish_main",
+  "version": "1.0.0",
+  "description": "HiSH main shared module with JIT support",
+  "main": "Index.ets",
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "libhish_main.so": "file:./src/main/cpp/types/libhish_main"
+  }
+}

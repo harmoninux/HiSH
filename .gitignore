@@ -1,5 +1,5 @@
 /node_modules
-/oh_modules
+**/oh_modules
 /local.properties
 /.idea
 **/build
@@ -16,6 +16,7 @@ build-profile.json5.*
 *.so
 *.so.0
 .idea
+/entry
 
 .temp
 .bitfun

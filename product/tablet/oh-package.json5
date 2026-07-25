@@ -1,0 +1,11 @@
+{
+  "name": "tablet",
+  "version": "1.0.0",
+  "description": "HiSH tablet/2in1 entry (with JIT)",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "hish_main": "file:../../feature/hish_main"
+  }
+}
