@@ -27,8 +27,8 @@
   },
   "modules": [
     {
-      "name": "entry",
-      "srcPath": "./entry",
+      "name": "tablet",
+      "srcPath": "./product/tablet",
       "targets": [
         {
           "name": "default",
@@ -37,6 +37,22 @@
           ]
         }
       ]
+    },
+    {
+      "name": "phone",
+      "srcPath": "./product/phone",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hish_main",
+      "srcPath": "./feature/hish_main"
     }
   ]
 }
