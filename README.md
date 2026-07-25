@@ -21,7 +21,7 @@
 - Alpine Linux根文件系统
 - 虚拟按键（Tab/Ctrl/Esc/Shift/Fn/方向键）
 - 共享文件夹
-- JIT（仅开发者可用）
+- JIT（Pad/2in1设备支持，Phone设备不支持）
 - 镜像导入（[Ubuntu24.04镜像](https://github.com/harmoninux/linux-config/releases/download/rootfs-20251213/ubuntu-base-24.04.zip) / [Debian12镜像](https://github.com/harmoninux/linux-config/releases/download/release-20251129-debian/debian12.zip)）
 
 ## 使用指南
@@ -52,10 +52,10 @@ QQ群二维码
 * 仓库里执行 `git submodule update --init --recursive` 拉取子模块代码
 * 复制`build-profile.template.json5`到`build-profile.json5`
 * 下载以下文件到指定位置：
-  - [entry/libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip)（解压到`entry/libs`）
-  - [entry/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64)
-  - [entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2)
-* 在DevEco Studio中构建项目
+  - [libs.zip](https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip)（解压到`feature/hish_main/libs`）
+  - [feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64](https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64)
+  - [feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2](https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2)
+* 在DevEco Studio中构建项目（默认构建`product/tablet`，如需同时构建Phone版，取消`build-profile.json5`中phone模块的注释）
 * 签名后在设备或模拟器上运行。参考 [本地真机运行应用](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-run-device) | [自动签名-未关联注册应用](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-signing#section151231211105010)
 
 ## 构建libqemu-system（可选）
@@ -161,8 +161,8 @@ qemu-img convert -p -f raw -O qcow2 rootfs.img rootfs.qcow2
 
 ```shell 
 # 将生成的文件放入项目目录 
-mkdir -p entry/src/main/resources/rawfile/vm/
-mv rootfs.qcow2 entry/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2 
+mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
+mv rootfs.qcow2 feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2 
 ```
 
 # Star history
