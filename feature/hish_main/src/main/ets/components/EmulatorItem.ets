@@ -2,6 +2,7 @@ import { Emulator } from '../model/Emulator';
 import readQcow2VirtualSize from '../lib/readQcow2VirtualSize';
 import appOption from '../model/appOption';
 import { util } from '@kit.ArkTS';
+import { ImmersiveButtonModifier } from '../lib/immersiveButton';
 
 @Component
 export default struct EmulatorItem {
@@ -18,6 +19,7 @@ export default struct EmulatorItem {
   @Require onImageManage: (item: Emulator) => void
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
+  immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
 
   aboutToAppear(): void {
     const rootfsPath = this.emulator.rootFilesystem
@@ -40,23 +42,28 @@ export default struct EmulatorItem {
             .fontColor('#388E3C')
             .height(20)
           Button($r('app.string.pm_btn_reboot'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onStart(this.emulator))
             .height(20)
           Button($r('app.string.pm_btn_shutdown'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onShutdown(this.emulator))
             .height(20)
           Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onImageManage(this.emulator))
             .height(20)
         } else {
           Button($r('app.string.btn_run'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onStart(this.emulator))
             .height(20)
           Button($r('app.string.btn_image_management'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
             .fontSize($r('sys.float.Body_M'))
             .onClick(() => this.onImageManage(this.emulator))
             .height(20)
@@ -123,18 +130,22 @@ export default struct EmulatorItem {
 
         Blank().layoutWeight(1)
         Button($r('app.string.btn_delete'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onDelete(this.emulator))
         Button($r('app.string.btn_export'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onExport(this.emulator))
         Button($r('app.string.btn_copy'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onCopy(this.emulator))
         Button($r('app.string.btn_modify'), { buttonStyle: ButtonStyleMode.TEXTUAL, controlSize: ControlSize.SMALL })
+            .attributeModifier(this.immersiveButton)
           .fontSize($r('sys.float.Body_M'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick(() => this.onEdit(this.emulator))

@@ -9,6 +9,7 @@ import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
+import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -48,6 +49,8 @@ export default struct WebTerminal {
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
+  immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
+  immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -78,7 +81,6 @@ export default struct WebTerminal {
             }
           })
           .width('100%')
-          .backgroundColor('#292b2e')
       }
     }
     .width('160vp')
@@ -97,6 +99,7 @@ export default struct WebTerminal {
       .fontColor($r('sys.color.white'))
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
+      .attributeModifier(this.immersiveButton)
       .onClick(() => {
         if (this.applicationMode && appCode) {
           this.sendInput(appCode);
@@ -115,8 +118,8 @@ export default struct WebTerminal {
     .width(VKeyWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
-    .backgroundColor($r('sys.color.black'))
     .selectedColor($r('sys.color.interactive_active'))
+    .attributeModifier(this.immersiveToggle)
     .onClick(() => action())
   }
 
@@ -129,8 +132,8 @@ export default struct WebTerminal {
     .width(VKeyWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
-    .backgroundColor($r('sys.color.black'))
     .selectedColor($r('sys.color.interactive_active'))
+    .attributeModifier(this.immersiveToggle)
     .onClick(() => action())
   }
 
@@ -143,8 +146,8 @@ export default struct WebTerminal {
     .width(VKeyWidth)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
-    .backgroundColor($r('sys.color.black'))
     .selectedColor($r('sys.color.interactive_active'))
+    .attributeModifier(this.immersiveToggle)
     .onClick(() => action())
   }
 
@@ -157,6 +160,7 @@ export default struct WebTerminal {
     .width(VKeyHeight)
     .borderRadius(VKeyRadius)
     .margin(VKeyMargin)
+    .attributeModifier(this.immersiveButton)
     .bindMenu(this.settingsButtonOptions())
   }
 
@@ -200,6 +204,7 @@ export default struct WebTerminal {
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
       .fontColor($r('sys.color.white'))
+      .attributeModifier(this.immersiveButton)
       .onClick(() => {
         this.showVirtKey = false
       })
@@ -261,6 +266,7 @@ export default struct WebTerminal {
         .borderRadius(VKeyRadius)
         .fontColor('#444')
         .padding({ left: VKeyPadding, right: VKeyPadding })
+        .attributeModifier(this.immersiveButton)
         .onClick(() => {
           this.showVirtKey = true
         })
