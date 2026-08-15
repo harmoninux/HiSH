@@ -1,24 +1,15 @@
 // Initialize xterm.js
-var term = new Terminal({
-    cursorBlink: true,
-    allowProposedApi: true, // Needed for some addons
-    allowTransparency: true, // User preference: Transparency supported
-    fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
-    fontSize: 14, // Default, will be overridden by native.getFontSize()
-    theme: {
-        background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
-        foreground: '#ffffff',
-        cursor: '#ffffff'
-    },
-    screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
-    scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
-});
+// The Terminal instance is created lazily in initialize() (see createTerminal),
+// because renderer options depend on native preferences (ligatures / italic).
+var term = null;
 
-// Initialize Addons
+// Tracks the currently selected font family so user fonts can re-apply it
+// once their FontFace finishes loading asynchronously.
+var currentFontFamily = 'Default';
+
+// Initialize Addons (constructed upfront; attached to term in createTerminal)
 const fitAddon = new FitAddon.FitAddon();
 const webglAddon = new WebglAddon.WebglAddon();
-
-term.loadAddon(fitAddon);
 
 // Initialize exports for ArkTS to call
 window.exports = {};
@@ -123,14 +114,62 @@ function strToUint8Array(str) {
     return buf;
 }
 
-// Setup global term object for debugging if needed
-window.term = term;
+// Creates the xterm.js Terminal instance.
+// NOTE: This xterm.js build ships with the DOM renderer only (no
+// canvas/WebGL/rendererType option), so ligature and italic suppression
+// are both handled purely via CSS classes on <body> — see term.css.
+function createTerminal() {
+    var ligatures = false;
+    var italic = true;
+    try {
+        if (window.native && native.getLigatures) {
+            ligatures = !!native.getLigatures();
+        }
+        if (window.native && native.getItalic) {
+            italic = !!native.getItalic();
+        }
+    } catch (e) {
+        console.warn('Failed to read renderer prefs', e);
+    }
+
+    if (!ligatures) {
+        document.body.classList.add('ligatures-off');
+    }
+    if (!italic) {
+        document.body.classList.add('italics-off');
+    }
+
+    var options = {
+        cursorBlink: true,
+        allowProposedApi: true, // Needed for some addons
+        allowTransparency: true, // User preference: Transparency supported
+        fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
+        fontSize: 14, // Default, will be overridden by native.getFontSize()
+        theme: {
+            background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
+            foreground: '#ffffff',
+            cursor: '#ffffff'
+        },
+        screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
+        scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
+    };
+
+    term = new Terminal(options);
+    term.loadAddon(fitAddon);
+
+    // Link clicks
+    term.options.linkHandler = {
+        activate: (e, text) => {
+            if (native && native.openLink) native.openLink(text);
+        }
+    };
+
+    // Setup global term object for debugging if needed
+    window.term = term;
+}
 
 // Main initialization function
 window.onload = function () {
-    term.open(document.getElementById('terminal'));
-    setupImeGuard();
-
     // Retry mechanism for native object injection
     let retryCount = 0;
     const maxRetries = 10;
@@ -149,6 +188,16 @@ window.onload = function () {
 
         // Initial fit with a slight delay to ensure container is ready
         setTimeout(() => {
+            // 0. Create terminal and open it
+            try {
+                createTerminal();
+                term.open(document.getElementById('terminal'));
+                setupImeGuard();
+            } catch (e) {
+                console.error("Failed to create terminal", e);
+                return;
+            }
+
             // 1. Setup event listeners and sync preferences FIRST
             //    确保 term.onResize 在 fitAddon.fit() 之前设置好，
             //    这样首次 fit 的 resize 事件才能触发 native.resize() 发送给 VM 内核
@@ -215,7 +264,7 @@ window.onload = function () {
                 term.resize(80, 24); // Fallback
             }
 
-            // 4. Load WebGL
+            // 4. Load WebGL (unavailable in this DOM-renderer-only build)
             if (shouldEnableWebGL) {
                 try {
                     webglAddon.onContextLoss(e => {
@@ -274,10 +323,39 @@ function syncPrefs() {
             const shape = native.getCursorShape();
             if (shape) exports.setCursorShape(shape); // Use our adapter logic
         }
+        if (native.getBackgroundColor) {
+            const bg = native.getBackgroundColor();
+            if (bg) exports.setBackgroundColor(bg);
+        }
+        if (native.getBackgroundImage) {
+            const img = native.getBackgroundImage();
+            if (img) exports.setBackgroundImage(img);
+        }
+        if (native.getBackgroundBlur) {
+            const blur = native.getBackgroundBlur();
+            if (blur) exports.setBackgroundBlur(blur);
+        }
+        if (native.getUserFonts) {
+            const fontsJson = native.getUserFonts();
+            if (fontsJson) registerUserFonts(fontsJson);
+        }
     } catch (e) {
         console.warn("Failed to sync prefs", e);
     }
 }
+
+// Registers user-uploaded fonts (JSON array of {name, dataUrl}) via FontFace.
+function registerUserFonts(json) {
+    try {
+        var fonts = JSON.parse(json);
+        for (var i = 0; i < fonts.length; i++) {
+            exports.addUserFont(fonts[i].name, fonts[i].dataUrl);
+        }
+    } catch (e) {
+        console.warn('registerUserFonts failed', e);
+    }
+}
+exports.registerUserFonts = registerUserFonts;
 
 function setupEventListeners() {
     // 1. Input from User (Keyboard/Mouse) -> Send to VM
@@ -442,6 +520,7 @@ exports.setFontSize = (size) => {
 };
 
 exports.setFontFamily = (family) => {
+    currentFontFamily = family || 'Default';
     var newFamily = mapFontFamily(family);
     term.options.fontFamily = newFamily;
 
@@ -467,6 +546,64 @@ exports.setCursorBlink = (blink) => {
     term.options.cursorBlink = blink;
 };
 
+// Ligature / italic toggles: this build always uses the DOM renderer,
+// so both are pure CSS switches applied live without reloading.
+exports.setLigatures = (enabled) => {
+    document.body.classList.toggle('ligatures-off', !enabled);
+};
+
+exports.setItalic = (enabled) => {
+    document.body.classList.toggle('italics-off', !enabled);
+};
+
+// --- Terminal appearance: background color / image / gaussian blur ---
+
+exports.setBackgroundColor = (color) => {
+    if (!color) return;
+    document.body.style.backgroundColor = color;
+};
+
+exports.setBackgroundImage = (dataUrl) => {
+    var bg = document.getElementById('terminal-bg');
+    if (!bg) return;
+    bg.style.backgroundImage = dataUrl ? 'url("' + dataUrl + '")' : 'none';
+};
+
+exports.setBackgroundBlur = (px) => {
+    var bg = document.getElementById('terminal-bg');
+    if (!bg) return;
+    var radius = parseInt(px, 10) || 0;
+    if (radius > 0) {
+        bg.style.filter = 'blur(' + radius + 'px)';
+        // Slightly upscale so the blurred edges stay covered
+        bg.style.transform = 'scale(' + (1 + radius / 100) + ')';
+    } else {
+        bg.style.filter = 'none';
+        bg.style.transform = 'none';
+    }
+};
+
+// Registers a user-uploaded font into the document via the FontFace API.
+// dataUrl is a base64 data URL of the font file (ttf/otf/woff/woff2).
+exports.addUserFont = (name, dataUrl) => {
+    if (!name || !dataUrl || typeof FontFace === 'undefined') return;
+    try {
+        var face = new FontFace(name, 'url("' + dataUrl + '")');
+        face.load().then(function (loaded) {
+            document.fonts.add(loaded);
+            console.log('User font loaded: ' + name);
+            // Re-apply in case this font is the currently selected one
+            if (currentFontFamily === name) {
+                exports.setFontFamily(name);
+            }
+        }).catch(function (e) {
+            console.error('User font load failed: ' + name, e);
+        });
+    } catch (e) {
+        console.error('addUserFont failed: ' + name, e);
+    }
+};
+
 exports.setFocused = (focus) => {
     if (focus) {
         setupImeGuard();
@@ -480,13 +617,6 @@ exports.setFocused = (focus) => {
 window.hterm = {
     openUrl: (url) => {
         if (native && native.openLink) native.openLink(url);
-    }
-};
-
-// Also listen to link clicks in xterm
-term.options.linkHandler = {
-    activate: (e, text) => {
-        if (native && native.openLink) native.openLink(text);
     }
 };
 

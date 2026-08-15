@@ -166,6 +166,10 @@
     opacity: 1 !important;
 }
 
+.xterm-italic {
+    font-style: italic;
+}
+
 .xterm-underline-1 { text-decoration: underline; }
 .xterm-underline-2 { text-decoration: double underline; }
 .xterm-underline-3 { text-decoration: wavy underline; }

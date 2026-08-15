@@ -253,6 +253,10 @@
       "value": "终端"
     },
     {
+      "name": "setting_block_terminal_background",
+      "value": "终端背景"
+    },
+    {
       "name": "setting_vnc",
       "value": "VNC"
     },
@@ -775,6 +779,74 @@
     {
       "name": "setting_cursor_blink_desc",
       "value": "设置终端光标闪烁"
+    },
+    {
+      "name": "setting_upload_font",
+      "value": "上传字体"
+    },
+    {
+      "name": "setting_upload_font_desc",
+      "value": "导入自定义字体文件 (ttf/otf/woff/woff2)"
+    },
+    {
+      "name": "setting_choose_file",
+      "value": "选择文件"
+    },
+    {
+      "name": "setting_font_imported",
+      "value": "字体导入成功"
+    },
+    {
+      "name": "setting_font_import_failed",
+      "value": "字体导入失败"
+    },
+    {
+      "name": "setting_font_removed",
+      "value": "字体已删除"
+    },
+    {
+      "name": "setting_ligatures",
+      "value": "字体连字"
+    },
+    {
+      "name": "setting_ligatures_desc",
+      "value": "渲染 => 等连字符号"
+    },
+    {
+      "name": "setting_italic",
+      "value": "斜体文字"
+    },
+    {
+      "name": "setting_italic_desc",
+      "value": "允许显示斜体文字"
+    },
+    {
+      "name": "setting_background_color",
+      "value": "背景颜色"
+    },
+    {
+      "name": "setting_background_color_desc",
+      "value": "设置终端背景颜色"
+    },
+    {
+      "name": "setting_background_image",
+      "value": "背景图片"
+    },
+    {
+      "name": "setting_background_image_desc",
+      "value": "设置终端背景图片"
+    },
+    {
+      "name": "setting_background_image_clear",
+      "value": "清除"
+    },
+    {
+      "name": "setting_background_blur",
+      "value": "背景模糊"
+    },
+    {
+      "name": "setting_background_blur_desc",
+      "value": "背景图片的高斯模糊半径"
     },
     {
       "name": "emulator_name",

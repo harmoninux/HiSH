@@ -6,7 +6,7 @@ import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import napi from 'libhish_main.so';
-import appOption, { CursorShape } from '../model/appOption'
+import appOption, { CursorShape, UserFont } from '../model/appOption'
 import { startVm } from '../lib/startVm';
 import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../model/Emulator';
 import { util } from '@kit.ArkTS';
@@ -225,6 +225,19 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalCursorShape, terminalCursorShape);
     const terminalCursorBlink = await appPref.get(appOption.terminalCursorBlink, false) as boolean;
     AppStorage.setOrCreate(appOption.terminalCursorBlink, terminalCursorBlink);
+    const terminalLigatures = await appPref.get(appOption.terminalLigatures, false) as boolean;
+    AppStorage.setOrCreate(appOption.terminalLigatures, terminalLigatures);
+    const terminalItalic = await appPref.get(appOption.terminalItalic, true) as boolean;
+    AppStorage.setOrCreate(appOption.terminalItalic, terminalItalic);
+    const terminalBackgroundColor = await appPref.get(appOption.terminalBackgroundColor, '#000000') as string;
+    AppStorage.setOrCreate(appOption.terminalBackgroundColor, terminalBackgroundColor);
+    const terminalBackgroundImage = await appPref.get(appOption.terminalBackgroundImage, '') as string;
+    AppStorage.setOrCreate(appOption.terminalBackgroundImage, terminalBackgroundImage);
+    const terminalBackgroundBlur = await appPref.get(appOption.terminalBackgroundBlur, 0) as number;
+    AppStorage.setOrCreate(appOption.terminalBackgroundBlur, terminalBackgroundBlur);
+    const terminalUserFonts =
+      JSON.parse(await appPref.get(appOption.terminalUserFonts, '[]') as string) as UserFont[];
+    AppStorage.setOrCreate(appOption.terminalUserFonts, terminalUserFonts);
     const vncEnabled = await appPref.get(appOption.vncEnabled, false) as boolean;
     AppStorage.setOrCreate(appOption.vncEnabled, vncEnabled);
     const vncPortMode = await appPref.get(appOption.vncPortMode, 'local') as string;

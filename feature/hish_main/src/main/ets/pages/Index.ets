@@ -48,7 +48,9 @@ struct PcIndex {
       contentBuilder: () => {
         this.buildSettings();
       }
-    })
+    }),
+    // 2in1 窗口较宽，弹窗默认最大 400vp 过窄，按窗口比例放宽
+    width: '60%'
   })
   userGuideController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({

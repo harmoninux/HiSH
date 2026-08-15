@@ -1,5 +1,5 @@
 {
-  "modelVersion": "5.1.0",
+  "modelVersion": "6.1.1",
   "description": "HiSH App",
   "dependencies": {
     "@ohos/commons-compress": "^2.0.6"

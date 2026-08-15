@@ -4,10 +4,11 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libhish_main.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
-import appOption, { CursorShape, savePreference } from '../model/appOption';
+import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
+import fileToDataUrl from '../lib/fileToDataUrl';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -37,6 +38,12 @@ export default struct WebTerminal {
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
   @StorageProp(appOption.vncEnabled) vncEnabled: boolean = false
+  @Watch('onLigaturesChanged') @StorageProp(appOption.terminalLigatures) termLigatures: boolean = false
+  @Watch('onItalicChanged') @StorageProp(appOption.terminalItalic) termItalic: boolean = true
+  @Watch('onBgColorChanged') @StorageProp(appOption.terminalBackgroundColor) termBgColor: string = '#000000'
+  @Watch('onBgImageChanged') @StorageProp(appOption.terminalBackgroundImage) termBgImage: string = ''
+  @Watch('onBgBlurChanged') @StorageProp(appOption.terminalBackgroundBlur) termBgBlur: number = 0
+  @Watch('onUserFontsChanged') @StorageProp(appOption.terminalUserFonts) termUserFonts: UserFont[] = []
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
@@ -210,6 +217,9 @@ export default struct WebTerminal {
           methodList: ['sendInput', 'resize', 'load',
             'getFontSize', 'getFontFamily',
             'getCursorShape', 'getCursorBlink',
+            'getLigatures', 'getItalic',
+            'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
+            'getUserFonts',
             'setApplicationMode',
             'onAvailableFontsDetected'],
           controller: this.webviewController,
@@ -513,6 +523,72 @@ export default struct WebTerminal {
 
   onCursorBlinkChanged() {
     this.webviewController.runJavaScript(`exports.setCursorBlink(${this.cursorBlink})`)
+  }
+
+  getLigatures(): boolean {
+    return this.termLigatures
+  }
+
+  getItalic(): boolean {
+    return this.termItalic
+  }
+
+  getBackgroundColor(): string {
+    return this.termBgColor
+  }
+
+  getBackgroundBlur(): number {
+    return this.termBgBlur
+  }
+
+  getBackgroundImage(): string {
+    return this.backgroundImageDataUrl()
+  }
+
+  getUserFonts(): string {
+    const fonts = AppStorage.get<UserFont[]>(appOption.terminalUserFonts) ?? []
+    const list: UserFontData[] = []
+    for (const f of fonts) {
+      const data: UserFontData = { name: f.name, dataUrl: fileToDataUrl(f.file) }
+      if (data.dataUrl.length > 0) {
+        list.push(data)
+      }
+    }
+    return JSON.stringify(list)
+  }
+
+  private backgroundImageDataUrl(): string {
+    const fileName = AppStorage.get<string>(appOption.terminalBackgroundImage) ?? ''
+    if (fileName.length === 0) {
+      return ''
+    }
+    const filesDir = AppStorage.get<string>(appOption.appFilesDir) ?? ''
+    return fileToDataUrl(`${filesDir}/terminal_bg/${fileName}`)
+  }
+
+  onBgColorChanged() {
+    this.webviewController.runJavaScript(`exports.setBackgroundColor(${JSON.stringify(this.termBgColor)})`)
+  }
+
+  onBgImageChanged() {
+    this.webviewController.runJavaScript(`exports.setBackgroundImage(${JSON.stringify(this.backgroundImageDataUrl())})`)
+  }
+
+  onBgBlurChanged() {
+    this.webviewController.runJavaScript(`exports.setBackgroundBlur(${this.termBgBlur})`)
+  }
+
+  onUserFontsChanged() {
+    const json = this.getUserFonts()
+    this.webviewController.runJavaScript(`exports.registerUserFonts(${JSON.stringify(json)})`)
+  }
+
+  onLigaturesChanged() {
+    this.webviewController.runJavaScript(`exports.setLigatures(${this.termLigatures})`)
+  }
+
+  onItalicChanged() {
+    this.webviewController.runJavaScript(`exports.setItalic(${this.termItalic})`)
   }
 
   setApplicationMode(mode: boolean) {

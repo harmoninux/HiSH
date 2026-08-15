@@ -1,11 +1,17 @@
 import { CustomContentDialog, window } from '@kit.ArkUI';
 import { common, Want, bundleManager } from '@kit.AbilityKit';
 import preference from '@ohos.data.preferences';
-import appOption, { CursorShape, savePreference } from '../model/appOption';
+import { picker } from '@kit.CoreFileKit';
+import fs from '@ohos.file.fs';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+import appOption, { CursorShape, savePreference, UserFont } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
 import deviceInfo from '@ohos.deviceInfo';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import copyFile from '../lib/copyFile';
+
+const DOMAIN = 0x0000;
 
 const fontSizeOptions: SelectOption[] = [{
   value: '9'
@@ -44,6 +50,14 @@ export default struct SettingsContent {
   @StorageProp(appOption.availableFontFamilies) availableFontFamilies: string[] = ['Default']
   @Watch('saveTermCursorShape') @StorageProp(appOption.terminalCursorShape) termCursorShape: CursorShape = 'BLOCK'
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
+  @Watch('saveTermLigatures') @StorageProp(appOption.terminalLigatures) termLigatures: boolean = false
+  @Watch('saveTermItalic') @StorageProp(appOption.terminalItalic) termItalic: boolean = true
+  @Watch('saveTermBackgroundColor') @StorageProp(appOption.terminalBackgroundColor) termBackgroundColor: string =
+    '#000000'
+  @Watch('saveTermBackgroundImage') @StorageProp(appOption.terminalBackgroundImage) termBackgroundImage: string = ''
+  @Watch('saveTermBackgroundBlur') @StorageProp(appOption.terminalBackgroundBlur) termBackgroundBlur: number = 0
+  @Watch('saveTermUserFonts') @StorageProp(appOption.terminalUserFonts) userFonts: UserFont[] = []
+  @State colorInput: string = ''
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
   @Watch('saveDisplayStatusBar') @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
   @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = false
@@ -81,6 +95,26 @@ export default struct SettingsContent {
       }]
     })
   })
+  colorController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: $r('app.string.setting_background_color'),
+      contentBuilder: () => {
+        this.buildColorPicker();
+      },
+      buttons: [{
+        value: $r('app.string.SettingComplete_label'),
+        buttonStyle: ButtonStyleMode.TEXTUAL,
+        action: () => {
+          this.applyColorInput();
+          this.colorController.close();
+        }
+      }]
+    })
+  })
+  presetColors: string[] = [
+    '#000000', '#0C0C0C', '#1E1E1E', '#282C34', '#002B36',
+    '#300A24', '#2D2D2D', '#FFFFFF', '#F5F5F5', '#0B0C10'
+  ]
   context = this.getUIContext().getHostContext() as common.UIAbilityContext
   preferences?: preference.Preferences
   blockStyle: SettingBlockStyle = new SettingBlockStyle()
@@ -114,7 +148,7 @@ export default struct SettingsContent {
   @Builder
   private buildTerminalFontFamily() {
     Select(this.buildFontFamilyOptions())
-      .width(180)
+      .width(240)
       .value(this.terminalFontFamily)
       .onSelect((_i, value) => AppStorage.setOrCreate(appOption.terminalFontFamily, value))
   }
@@ -128,6 +162,10 @@ export default struct SettingsContent {
         options.push({ value: font });
       }
     }
+    // Append user-uploaded fonts
+    for (const userFont of this.userFonts) {
+      options.push({ value: userFont.name });
+    }
     return options;
   }
 
@@ -137,6 +175,109 @@ export default struct SettingsContent {
       .select(this.termCursorBlink)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.terminalCursorBlink, value)
+      })
+  }
+
+  @Builder
+  private buildTermLigatures() {
+    Checkbox()
+      .select(this.termLigatures)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.terminalLigatures, value)
+      })
+  }
+
+  @Builder
+  private buildTermItalic() {
+    Checkbox()
+      .select(this.termItalic)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.terminalItalic, value)
+      })
+  }
+
+  @Builder
+  private buildBackgroundColorSwatch() {
+    Row()
+      .width(28)
+      .height(28)
+      .borderRadius(14)
+      .backgroundColor(this.termBackgroundColor)
+      .border({ width: 1, color: $r('sys.color.icon_tertiary') })
+  }
+
+  @Builder
+  private buildColorPicker() {
+    Column() {
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(this.presetColors, (color: string) => {
+          Row()
+            .width(36)
+            .height(36)
+            .margin(6)
+            .borderRadius(18)
+            .backgroundColor(color)
+            .border({
+              width: this.termBackgroundColor === color ? 3 : 1,
+              color: this.termBackgroundColor === color ?
+                $r('sys.color.interactive_active') : $r('sys.color.icon_tertiary')
+            })
+            .onClick(() => {
+              AppStorage.setOrCreate(appOption.terminalBackgroundColor, color)
+              this.colorInput = color
+            })
+        }, (color: string) => color)
+      }
+      TextInput({ text: this.colorInput, placeholder: '#000000' })
+        .margin({ top: 12 })
+        .onChange((value: string) => {
+          this.colorInput = value
+        })
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private buildBackgroundImageButtons() {
+    Row() {
+      Button($r('app.string.setting_choose_file'), { buttonStyle: ButtonStyleMode.TEXTUAL })
+        .onClick(() => {
+          this.pickBackgroundImage()
+        })
+      if (this.termBackgroundImage.length > 0) {
+        Button($r('app.string.setting_background_image_clear'), { buttonStyle: ButtonStyleMode.TEXTUAL })
+          .onClick(() => {
+            this.clearBackgroundImage()
+          })
+      }
+    }
+  }
+
+  @Builder
+  private buildBackgroundBlurSlider() {
+    Row() {
+      Slider({ value: this.termBackgroundBlur, min: 0, max: 40, step: 1 })
+        .width(160)
+        .onChange((value: number, mode: SliderChangeMode) => {
+          // 拖动结束/点击时才写入，避免拖动过程中频繁刷写偏好与 WebView
+          if (mode !== SliderChangeMode.Moving) {
+            AppStorage.setOrCreate(appOption.terminalBackgroundBlur, Math.round(value))
+          }
+        })
+      Text(`${this.termBackgroundBlur}px`)
+        .fontSize($r('sys.float.Body_M'))
+        .fontColor($r('sys.color.font_tertiary'))
+        .textAlign(TextAlign.End)
+        .width(44)
+        .margin({ left: 8 })
+    }
+  }
+
+  @Builder
+  private buildUploadFontButton() {
+    Button($r('app.string.setting_choose_file'), { buttonStyle: ButtonStyleMode.TEXTUAL })
+      .onClick(() => {
+        this.pickUserFont()
       })
   }
 
@@ -239,6 +380,53 @@ export default struct SettingsContent {
             })
 
             SettingItem({
+              title: $r('app.string.setting_upload_font'),
+              subTitle: $r('app.string.setting_upload_font_desc'),
+              content: () => {
+                this.buildUploadFontButton()
+              }
+            })
+
+            ForEach(this.userFonts, (font: UserFont, index: number) => {
+              Row() {
+                Text(font.name)
+                  .fontSize($r('sys.float.Body_L'))
+                  .fontColor($r('sys.color.font_secondary'))
+                  .layoutWeight(1)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                Button($r('app.string.setting_background_image_clear'), { buttonStyle: ButtonStyleMode.TEXTUAL })
+                  .onClick(() => {
+                    this.removeUserFont(index)
+                  })
+              }
+              .width('100%')
+              .height(56)
+              .alignItems(VerticalAlign.Center)
+              .padding({ left: $r('sys.float.padding_level6'), right: $r('sys.float.padding_level6') })
+            }, (font: UserFont) => font.file)
+
+            SettingItem({
+              title: $r('app.string.setting_ligatures'),
+              subTitle: $r('app.string.setting_ligatures_desc'),
+              content: () => {
+                this.buildTermLigatures()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.terminalLigatures, !this.termLigatures)
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_italic'),
+              subTitle: $r('app.string.setting_italic_desc'),
+              content: () => {
+                this.buildTermItalic()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.terminalItalic, !this.termItalic)
+            })
+
+            SettingItem({
               title: $r('app.string.setting_cursor_style'),
               subTitle: $r('app.string.setting_cursor_style_desc'),
               content: () => {
@@ -254,6 +442,37 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalCursorBlink, !this.termCursorBlink)
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: $r('app.string.setting_block_terminal_background') })
+          Column() {
+            SettingItem({
+              title: $r('app.string.setting_background_color'),
+              subTitle: $r('app.string.setting_background_color_desc'),
+              content: () => {
+                this.buildBackgroundColorSwatch()
+              }
+            }).onClick(() => {
+              this.colorInput = this.termBackgroundColor
+              this.colorController.open()
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_background_image'),
+              subTitle: $r('app.string.setting_background_image_desc'),
+              content: () => {
+                this.buildBackgroundImageButtons()
+              }
+            })
+
+            SettingItem({
+              title: $r('app.string.setting_background_blur'),
+              subTitle: $r('app.string.setting_background_blur_desc'),
+              content: () => {
+                this.buildBackgroundBlurSlider()
+              }
             })
           }
           .attributeModifier(this.blockStyle)
@@ -437,6 +656,150 @@ export default struct SettingsContent {
 
   async saveTermCursorBlink() {
     await savePreference(appOption.terminalCursorBlink, this.termCursorBlink, this.getUIContext())
+  }
+
+  async saveTermLigatures() {
+    await savePreference(appOption.terminalLigatures, this.termLigatures, this.getUIContext())
+  }
+
+  async saveTermItalic() {
+    await savePreference(appOption.terminalItalic, this.termItalic, this.getUIContext())
+  }
+
+  async saveTermBackgroundColor() {
+    await savePreference(appOption.terminalBackgroundColor, this.termBackgroundColor, this.getUIContext())
+  }
+
+  async saveTermBackgroundImage() {
+    await savePreference(appOption.terminalBackgroundImage, this.termBackgroundImage, this.getUIContext())
+  }
+
+  async saveTermBackgroundBlur() {
+    await savePreference(appOption.terminalBackgroundBlur, this.termBackgroundBlur, this.getUIContext())
+  }
+
+  async saveTermUserFonts() {
+    await savePreference(appOption.terminalUserFonts, this.userFonts, this.getUIContext())
+  }
+
+  private applyColorInput() {
+    const hexReg = new RegExp('^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$')
+    const value = this.colorInput.trim()
+    if (hexReg.test(value)) {
+      AppStorage.setOrCreate(appOption.terminalBackgroundColor, value)
+    }
+  }
+
+  private async pickUserFont(): Promise<void> {
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const options = new picker.DocumentSelectOptions();
+      options.maxSelectNumber = 1;
+      options.fileSuffixFilters = ['ttf', 'otf', 'woff', 'woff2'];
+      const documentPicker = new picker.DocumentViewPicker(context);
+      const uris = await documentPicker.select(options);
+      if (uris.length === 0) {
+        return
+      }
+      await this.importUserFont(uris[0])
+    } catch (e) {
+      hilog.error(DOMAIN, 'SettingsContent', 'pickUserFont failed: %{public}s', JSON.stringify(e))
+      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.setting_font_import_failed') })
+    }
+  }
+
+  private async importUserFont(uri: string): Promise<void> {
+    let rawName = uri.substring(uri.lastIndexOf('/') + 1)
+    try {
+      rawName = decodeURIComponent(rawName)
+    } catch (e) {
+      hilog.warn(DOMAIN, 'SettingsContent', 'decode font name failed, use raw: %{public}s', rawName)
+    }
+    const dotIndex = rawName.lastIndexOf('.')
+    if (dotIndex <= 0) {
+      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.setting_font_import_failed') })
+      return
+    }
+    const ext = rawName.substring(dotIndex + 1).toLowerCase()
+    const baseName = rawName.substring(0, dotIndex)
+    const filesDir = AppStorage.get<string>(appOption.appFilesDir)!!
+    const fontsDir = filesDir + '/fonts'
+    if (!fs.accessSync(fontsDir, fs.AccessModeType.EXIST)) {
+      fs.mkdirSync(fontsDir)
+    }
+    const destPath = `${fontsDir}/font_${Date.now()}.${ext}`
+    await copyFile(uri, destPath)
+
+    const fonts = this.userFonts.slice()
+    const newFont: UserFont = { name: baseName, file: destPath }
+    fonts.push(newFont)
+    AppStorage.setOrCreate(appOption.terminalUserFonts, fonts)
+    this.getUIContext().getPromptAction().showToast({ message: $r('app.string.setting_font_imported') })
+  }
+
+  private removeUserFont(index: number) {
+    const fonts = this.userFonts.slice()
+    const removed = fonts.splice(index, 1)
+    if (removed.length > 0) {
+      try {
+        fs.unlinkSync(removed[0].file)
+      } catch (e) {
+        hilog.warn(DOMAIN, 'SettingsContent', 'remove font file failed: %{public}s', JSON.stringify(e))
+      }
+      if (this.terminalFontFamily === removed[0].name) {
+        AppStorage.setOrCreate(appOption.terminalFontFamily, 'Default')
+      }
+    }
+    AppStorage.setOrCreate(appOption.terminalUserFonts, fonts)
+    this.getUIContext().getPromptAction().showToast({ message: $r('app.string.setting_font_removed') })
+  }
+
+  private async pickBackgroundImage(): Promise<void> {
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const options = new picker.PhotoSelectOptions();
+      options.MIMEType = picker.PhotoViewMIMETypes.IMAGE_TYPE;
+      options.maxSelectNumber = 1;
+      const photoPicker = new picker.PhotoViewPicker(context);
+      const result = await photoPicker.select(options);
+      if (result.photoUris.length === 0) {
+        return
+      }
+      const uri = result.photoUris[0]
+      const dotIndex = uri.lastIndexOf('.')
+      const ext = dotIndex > 0 ? uri.substring(dotIndex + 1).toLowerCase() : 'jpg'
+      const filesDir = AppStorage.get<string>(appOption.appFilesDir)!!
+      const bgDir = filesDir + '/terminal_bg'
+      if (!fs.accessSync(bgDir, fs.AccessModeType.EXIST)) {
+        fs.mkdirSync(bgDir)
+      }
+      this.deleteBackgroundImageFile()
+      const fileName = `background_${Date.now()}.${ext}`
+      await copyFile(uri, `${bgDir}/${fileName}`)
+      AppStorage.setOrCreate(appOption.terminalBackgroundImage, fileName)
+    } catch (e) {
+      hilog.error(DOMAIN, 'SettingsContent', 'pickBackgroundImage failed: %{public}s', JSON.stringify(e))
+    }
+  }
+
+  private clearBackgroundImage() {
+    this.deleteBackgroundImageFile()
+    AppStorage.setOrCreate(appOption.terminalBackgroundImage, '')
+  }
+
+  private deleteBackgroundImageFile() {
+    if (this.termBackgroundImage.length === 0) {
+      return
+    }
+    const filesDir = AppStorage.get<string>(appOption.appFilesDir) ?? ''
+    const path = `${filesDir}/terminal_bg/${this.termBackgroundImage}`
+    try {
+      if (fs.accessSync(path, fs.AccessModeType.EXIST)) {
+        fs.unlinkSync(path)
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, 'SettingsContent', 'remove background image failed: %{public}s', JSON.stringify(e))
+    }
   }
 
   async saveRunningInBackground() {

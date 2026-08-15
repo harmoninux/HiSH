@@ -23,6 +23,31 @@ body {
     -webkit-user-select: text !important;
 }
 
+/* Custom background layer (image + gaussian blur), behind the terminal */
+#terminal-bg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+/* Ligatures disabled (DOM renderer): suppress font ligature shaping */
+body.ligatures-off .xterm-rows span {
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0;
+}
+
+/* Italic disabled (DOM renderer): force normal font style */
+body.italics-off .xterm-rows span {
+    font-style: normal !important;
+}
+
 #matrix {
     position: absolute;
     top: 0;

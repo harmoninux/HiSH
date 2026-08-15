@@ -265,6 +265,10 @@
       "value": "Terminal"
     },
     {
+      "name": "setting_block_terminal_background",
+      "value": "Terminal Background"
+    },
+    {
       "name": "setting_vnc",
       "value": "VNC"
     },
@@ -779,6 +783,74 @@
     {
       "name": "setting_cursor_blink_desc",
       "value": "Set terminal cursor blink"
+    },
+    {
+      "name": "setting_upload_font",
+      "value": "Upload Font"
+    },
+    {
+      "name": "setting_upload_font_desc",
+      "value": "Import a custom font file (ttf/otf/woff/woff2)"
+    },
+    {
+      "name": "setting_choose_file",
+      "value": "Choose"
+    },
+    {
+      "name": "setting_font_imported",
+      "value": "Font imported"
+    },
+    {
+      "name": "setting_font_import_failed",
+      "value": "Failed to import font"
+    },
+    {
+      "name": "setting_font_removed",
+      "value": "Font removed"
+    },
+    {
+      "name": "setting_ligatures",
+      "value": "Font Ligatures"
+    },
+    {
+      "name": "setting_ligatures_desc",
+      "value": "Render ligatures like =>"
+    },
+    {
+      "name": "setting_italic",
+      "value": "Italic Text"
+    },
+    {
+      "name": "setting_italic_desc",
+      "value": "Allow italic text"
+    },
+    {
+      "name": "setting_background_color",
+      "value": "Background Color"
+    },
+    {
+      "name": "setting_background_color_desc",
+      "value": "Set terminal background color"
+    },
+    {
+      "name": "setting_background_image",
+      "value": "Background Image"
+    },
+    {
+      "name": "setting_background_image_desc",
+      "value": "Set terminal background image"
+    },
+    {
+      "name": "setting_background_image_clear",
+      "value": "Clear"
+    },
+    {
+      "name": "setting_background_blur",
+      "value": "Background Blur"
+    },
+    {
+      "name": "setting_background_blur_desc",
+      "value": "Gaussian blur radius for the background image"
     },
     {
       "name": "emulator_name",
