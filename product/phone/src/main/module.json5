@@ -7,6 +7,12 @@
     "deviceTypes": [
       "phone"
     ],
+    "metadata": [
+      {
+        "name": "ohos.arkui.UIMaterial.state",
+        "value": "enable"
+      }
+    ],
     "requestPermissions": [
       {
         "name": "ohos.permission.INTERNET"

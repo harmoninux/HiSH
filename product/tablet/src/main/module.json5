@@ -8,6 +8,12 @@
       "tablet",
       "2in1"
     ],
+    "metadata": [
+      {
+        "name": "ohos.arkui.UIMaterial.state",
+        "value": "enable"
+      }
+    ],
     "requestPermissions": [
       {
         "name": "ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY"
