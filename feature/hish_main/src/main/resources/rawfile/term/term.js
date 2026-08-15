@@ -623,3 +623,8 @@ window.hterm = {
 exports.selectAll = () => {
     term.selectAll();
 };
+
+// Clears the whole terminal buffer (viewport + scrollback)
+exports.clearScreen = () => {
+    term.clear();
+};

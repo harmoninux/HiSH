@@ -177,6 +177,10 @@
       "value": "Copy text"
     },
     {
+      "name": "menu_clear_screen",
+      "value": "Clear screen"
+    },
+    {
       "name": "port_used_prompt",
       "value": "Port %s used by other APPs, removed in port mapping"
     },

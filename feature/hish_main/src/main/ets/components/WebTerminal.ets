@@ -68,20 +68,27 @@ export default struct WebTerminal {
             board.setData(pasteData)
           }
         })
-      MenuItem() {
-        PasteButton()
-          .onClick(async (event: ClickEvent, result: PasteButtonOnClickResult) => {
-            if (PasteButtonOnClickResult.SUCCESS === result) {
-              let board = pasteboard.getSystemPasteboard();
-              const data = await board.getData()
-              const text = data.getPrimaryText()
-              const array = util.TextEncoder.create().encodeInto(text)
-              const base64 = new util.Base64Helper().encodeToStringSync(array)
-              webController.runJavaScript(`exports.paste(atob('${base64}'))`)
-            }
-          })
-          .width('100%')
-      }
+      PasteButton({ text: PasteDescription.PASTE, buttonType: ButtonType.Normal })
+        .onClick(async (event: ClickEvent, result: PasteButtonOnClickResult) => {
+          if (PasteButtonOnClickResult.SUCCESS === result) {
+            let board = pasteboard.getSystemPasteboard();
+            const data = await board.getData()
+            const text = data.getPrimaryText()
+            const array = util.TextEncoder.create().encodeInto(text)
+            const base64 = new util.Base64Helper().encodeToStringSync(array)
+            webController.runJavaScript(`exports.paste(atob('${base64}'))`)
+          }
+        })
+        .fontColor(Color.White)
+        .backgroundColor('#1A292B2E')
+        .align(Alignment.Start)
+        .padding({ left: 12, right: 12 })
+        .width('100%')
+      MenuItem({ content: $r('app.string.menu_clear_screen') })
+        .width('100%')
+        .onClick(() => {
+          webController.runJavaScript('exports.clearScreen()')
+        })
     }
     .width('160vp')
   }

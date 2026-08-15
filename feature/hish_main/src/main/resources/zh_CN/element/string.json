@@ -177,6 +177,10 @@
       "value": "复制"
     },
     {
+      "name": "menu_clear_screen",
+      "value": "清屏"
+    },
+    {
       "name": "port_used_prompt",
       "value": "端口%s被其它应用占用，已临时从端口映射中移除"
     },
