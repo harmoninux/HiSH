@@ -167,4 +167,4 @@ mv rootfs.qcow2 feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.q
 
 # Star history
 
-[![星标历史图表](https://api.star-history.com/svg?repos=harmoninux/hish&type=Date)](https://www.star-history.com/#harmoninux/hish&Date)
+[![星标历史图表](https://star-history.dera.page/svg?repos=harmoninux/hish&type=Date)](https://star-history.dera.page/#harmoninux/hish&Date)

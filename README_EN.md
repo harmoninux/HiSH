@@ -132,4 +132,4 @@ qemu-img convert -p -f raw -O qcow2 rootfs.img rootfs.qcow2
 
 # Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=harmoninux/hish&type=Date)](https://www.star-history.com/#harmoninux/hish&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=harmoninux/hish&type=Date)](https://star-history.dera.page/#harmoninux/hish&Date)
