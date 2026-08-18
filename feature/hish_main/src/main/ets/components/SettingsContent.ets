@@ -326,7 +326,7 @@ export default struct SettingsContent {
               })
             }
 
-            if (!this.bundleInfo?.name.startsWith('dev.hackeris')) {
+            if (this.bundleInfo?.name === 'app.hackeris.hish') {
               LinkItem({
                 icon: $r('sys.symbol.star'),
                 title: $r('app.string.like_this_app'),
