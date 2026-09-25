@@ -58,6 +58,7 @@ sudo apt install -y build-essential cmake curl wget unzip python3 libncurses-dev
 - Extract downloaded zip and set TOOL_HOME env variable to `command-line-tools` directory
 - Change current directory to `deps` and run `make`, for x86_64 emulator default
   - For real devices(aarch64), you can run `make aarch64`
+  - For Phone devices where JIT is unavailable, run `make aarch64-tci` to build QEMU with the TCG interpreter (TCI). This is slower than JIT, but does not require JIT support.
 ```shell
 cd deps
 make
