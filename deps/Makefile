@@ -39,6 +39,7 @@ aarch64-tci: clean_libqemu
 clean_libqemu:
 	rm -f libqemu/.stamp
 	rm -rf libqemu/temp libqemu/build
+	rm -f output/libqemu-system-aarch64*.so
 
 copy: output/.stamp
 

@@ -5,8 +5,10 @@ LSE_FLAGS := -D__ARM_LSE_ATOMIC_INLINES
 endif
 
 QEMU_TCG_FLAGS := --enable-tcg
+QEMU_SYSTEM_OUTPUT := libqemu-system-aarch64.so
 ifeq ($(QEMU_TCI),1)
 QEMU_TCG_FLAGS += --enable-tcg-interpreter
+QEMU_SYSTEM_OUTPUT := libqemu-system-aarch64-tci.so
 endif
 
 all: download/qemu
@@ -32,7 +34,7 @@ all: download/qemu
 	cd temp/qemu && make libqemu-system-aarch64.so -j $(shell nproc)
 	cd temp/qemu && make libqemu-img.so -j $(shell nproc)
 	cp temp/qemu/pc-bios/efi-virtio.rom ./build
-	cp temp/qemu/build/libqemu-system-aarch64.so ./build
+	cp temp/qemu/build/libqemu-system-aarch64.so ./build/$(QEMU_SYSTEM_OUTPUT)
 	cp temp/qemu/build/libqemu-img.so ./build
 	cp temp/qemu/build/subprojects/slirp/libslirp.so.0.4.0 ./build/libslirp.so.0
 	cp temp/qemu/pc-bios/keymaps/en-us ./build/
