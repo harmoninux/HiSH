@@ -74,6 +74,7 @@ sudo apt install -y build-essential cmake curl wget unzip python3 libncurses-dev
 * 解压后将`TOOL_HOME`环境变量设置为解压目录
 * 进入`deps`目录运行`make`（默认针对x86_64模拟器）：
     * 针对真机的构建（arm64-v8a），需要执行`make aarch64`
+    * 针对不支持JIT的Phone设备，可执行`make aarch64-tci`，使用QEMU TCG解释器（TCI）构建，并生成`libqemu-system-aarch64-tci.so`。TCI性能低于JIT，但不依赖JIT支持。
 ```shell 
 cd deps 
 make

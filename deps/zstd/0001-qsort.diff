@@ -1,18 +1,47 @@
-diff --color -uNr zstd-1.5.7.orig/lib/dictBuilder/cover.c zstd-1.5.7/lib/dictBuilder/cover.c
---- zstd-1.5.7.orig/lib/dictBuilder/cover.c	2025-02-19 08:04:24
-+++ zstd-1.5.7/lib/dictBuilder/cover.c	2025-06-11 20:44:59
-@@ -241,10 +241,8 @@
+--- zstd-1.5.7.orig/lib/dictBuilder/cover.c
++++ zstd-1.5.7/lib/dictBuilder/cover.c
+@@ -241,10 +241,9 @@
    unsigned d;
  } COVER_ctx_t;
  
 -#if !defined(_GNU_SOURCE) && !defined(__APPLE__) && !defined(_MSC_VER)
- /* C90 only offers qsort() that needs a global context. */
+-/* C90 only offers qsort() that needs a global context. */
++/* OHOS libc exposes qsort(), but not qsort_r(). Keep the comparison
++ * context globally for this compatibility fallback. */
  static COVER_ctx_t *g_coverCtx = NULL;
 -#endif
  
  /*-*************************************
  *  Helper functions
-@@ -324,28 +322,10 @@
+@@ -288,13 +287,7 @@
+ /**
+  * Same as COVER_cmp() except ties are broken by pointer value
+  */
+-#if (defined(_WIN32) && defined(_MSC_VER)) || defined(__APPLE__)
+-static int WIN_CDECL COVER_strict_cmp(void* g_coverCtx, const void* lp, const void* rp) {
+-#elif defined(_GNU_SOURCE)
+-static int COVER_strict_cmp(const void *lp, const void *rp, void *g_coverCtx) {
+-#else /* C90 fallback.*/
+ static int COVER_strict_cmp(const void *lp, const void *rp) {
+-#endif
+   int result = COVER_cmp((COVER_ctx_t*)g_coverCtx, lp, rp);
+   if (result == 0) {
+     result = lp < rp ? -1 : 1;
+@@ -304,13 +297,7 @@
+ /**
+  * Faster version for d <= 8.
+  */
+-#if (defined(_WIN32) && defined(_MSC_VER)) || defined(__APPLE__)
+-static int WIN_CDECL COVER_strict_cmp8(void* g_coverCtx, const void* lp, const void* rp) {
+-#elif defined(_GNU_SOURCE)
+-static int COVER_strict_cmp8(const void *lp, const void *rp, void *g_coverCtx) {
+-#else /* C90 fallback.*/
+ static int COVER_strict_cmp8(const void *lp, const void *rp) {
+-#endif
+   int result = COVER_cmp8((COVER_ctx_t*)g_coverCtx, lp, rp);
+   if (result == 0) {
+     result = lp < rp ? -1 : 1;
+@@ -324,28 +311,10 @@
   * to clean it up.
   */
  static void stableSort(COVER_ctx_t *ctx) {
@@ -34,7 +63,8 @@ diff --color -uNr zstd-1.5.7.orig/lib/dictBuilder/cover.c zstd-1.5.7/lib/dictBui
 -          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
 -#else /* C90 fallback.*/
 -    g_coverCtx = ctx;
-     /* TODO(cavalcanti): implement a reentrant qsort() when is not available. */
+-    /* TODO(cavalcanti): implement a reentrant qsort() when is not available. */
++    /* OHOS has no qsort_r(); use the C90-compatible qsort() fallback. */
      qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
 -#endif
