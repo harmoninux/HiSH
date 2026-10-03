@@ -1,0 +1,17 @@
+[
+  {
+    "File": "feature/hish_main/src/main/ets/lib/validatePortMappings.ets",
+    "Sha256": "8A903280DB7A3B177EE4BE2B4E6194BE43C897C7931FA3AB97047E182B880304",
+    "StagedMatch": true
+  },
+  {
+    "File": "feature/hish_main/src/main/ets/components/EditEmulatorContent.ets",
+    "Sha256": "55C85C36EB7008E4947F2036F00CE8A6935432D240FF083C11A10DE509FFAEFD",
+    "StagedMatch": true
+  },
+  {
+    "File": "feature/hish_main/src/main/ets/components/PortMappingEdit.ets",
+    "Sha256": "804127CB191ECC65B917EB5A695466C4990122737C396C311ECA61FE28E63833",
+    "StagedMatch": true
+  }
+]

@@ -1,6 +1,10 @@
 {
   "string": [
     {
+      "name": "setting_port_out_of_range",
+      "value": "Mapping %d: guest and host ports must be integers between 1 and 65535"
+    },
+    {
       "name": "module_desc",
       "value": "HiSH, Run Linux Shell on HarmonyOS"
     },

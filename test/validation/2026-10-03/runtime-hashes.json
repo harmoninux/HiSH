@@ -1,0 +1,8 @@
+{
+  "feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2": "367962E0DF197E75DFED6F89CAFD231BD4DADCDD5EB77D0A2D2F320CF660C834",
+  "product/phone/build/default/outputs/default/entry-default-signed.hap": "20B0B4C2AA6C95C66075D1E4F343086E6A954D1F8082C627B3B1928A9538B7F7",
+  "feature/hish_main/libs/arm64-v8a/libqemu-system-aarch64-tci.so": "A00C357CCCE9C21EAA459659342F9361A0C0687FADBBC6432F65351A89FF82B4",
+  "feature/hish_main/libs/arm64-v8a/libqemu-img.so": "6FA67004BCDBCE1826810CCE99E10AC15A7DFFE498A7256F1C01B5D732E43260",
+  "feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64": "914E3D790E191C17E7E1A845418C1DEAEDE5BFF318EB69754382F6DEADD156F5",
+  "feature/hish_main/libs/arm64-v8a/libslirp.so.0": "86C1434FE9F238C91FB9A7210ABD8792B2A277F50DA75C78BD00278769904F45"
+}
