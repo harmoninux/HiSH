@@ -190,6 +190,9 @@ export default struct WebTerminal {
       }
     }] : []
     const regularOptions: MenuElement[] = [{
+      value: $r('app.string.web_preview_title'),
+      action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/WebPreviewPage' })
+    }, {
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
