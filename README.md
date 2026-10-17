@@ -169,3 +169,34 @@ mv rootfs.qcow2 feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.q
 # Star history
 
 [![星标历史图表](https://star-history.dera.page/svg?repos=harmoninux/hish&type=Date)](https://star-history.dera.page/#harmoninux/hish&Date)
+
+
+（本章节所有数字均有可复现台账：SCORE.json / raw/idle_ab_*.json / device_thread_attribution.txt / SHA256SUMS 163 项对账全绿，可按需提供样本。）
+
+> 附：同批测量含 iothread `poll-max-ns=2000000` 忙轮询与 VNC 静止刷新的宿主侧归因数据（本仓库 issue #182），供 qemu-ohos 上游默认值评估。原始终端级 CSV/JSON 台账可应要求提供。
+
+
+## 手机端长驻与省电调优（实测数据版）
+
+适用场景：把 HiSH 当"掌上 Linux 服务器"长期挂着跑常驻服务（消息网关 / SSH / agent 等）。
+
+### 一句话结论
+锁屏后台的耗电大头 = **guest 内无关常驻服务（可省 ~57%）** > **HiSH 管线轮询税（iothread/VNC/QGA，约 0.5~0.7 核，普通用户不可调）** > 内核 config 调优（实测无收益，不必折腾）。
+
+### 实操清单（按收益排序）
+1. **裁剪 guest 常驻服务**：`systemctl disable --now <非必要服务>`。非破坏做法是删 systemd wants 软链，unit 本体保留，随时 `enable --now` 回滚。
+   - 实测（Mate80，dev 签名版，n=15×四臂 bracketed，双基线吻合 1.1%）：禁用三个无关服务后，锁屏后台宿主空转 CPU **1.615 → 0.698 核（−56.8%）**
+2. **不用时"暂停"而非"划掉"**：暂停保留内存状态、恢复秒级、连接不断；划掉 = 冷启动（实测 force-stop 重开 → qga up 中位 10.4s、端到端应答 13.4s，服务需重连）。
+3. **自启与自愈军规**：需要长驻的服务 unit 配 `Restart=always` + `RestartSec=3`，`systemctl enable --now`，配合系统保活卡片即可 60 分钟+ 锁屏存活（实测 5/5 节点、boot_id 不变）。
+4. **发行版选择**：Ubuntu 24 LTS 够用且与官方导入镜像生态一致；换更新发行版对常驻功耗影响≈0（数据都在盘里，迁移成本远大于收益）。Alpine 轻量但无 systemd，长驻服务治理会失去现成工具。
+5. **内核**：官方 stock 内核即可——stock / 调优 / 裁剪三版对照实测，boot 与吞吐差异全部落在噪声带内；裁剪版还可能因块设备配置（如去掉 SCSI）导致镜像挂不上 root。
+6. **进阶（非官方支持区）**：对功耗极致敏感的场景，考虑在宿主原生容器/proot 环境跑服务（无指令翻译税），HiSH 保留给需要完整 VM 隔离的工作负载。
+
+### 待上游澄清的口径
+- README 标注 "JIT: Pad/2in1 支持，Phone 不支持"，但发布口径提到开发版可用 JIT。Phone 真机 dev 签名版实际走 TCG JIT 还是 TCI 构建，建议文档给出**可自查的判定方法**（如 guest 内简易 CPU 基准或启动日志特征）。
+
+---
+
+（本章节所有数字均有可复现台账：SCORE.json / raw/idle_ab_*.json / device_thread_attribution.txt / SHA256SUMS 163 项对账全绿，可按需提供样本。）
+
+> 附：同批测量含 iothread `poll-max-ns=2000000` 忙轮询与 VNC 静止刷新的宿主侧归因数据（harmoninux/HiSH issue #182），供 qemu-ohos 上游默认值评估。原始 CSV/JSON 台账可应要求提供。
