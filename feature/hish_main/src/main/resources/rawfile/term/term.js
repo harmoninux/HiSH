@@ -394,11 +394,146 @@ function setupEventListeners() {
         }
     }, { passive: false });
 
-    // Prevent scrolling/bouncing on mobile
+    // --- Touch gesture arbitration + fling (momentum) scrolling ---
+    // Terminal content is not natively scrollable: the visible layers are
+    // fixed and xterm emulates scrolling by writing viewport.scrollTop in its
+    // own touchmove handler on #terminal. When the drag starts on selectable
+    // text (user-select: text, kept for long-press copy), the WebView may
+    // claim the gesture for text selection and cancel the touch stream —
+    // which made swiping over text feel stuck.
+    //
+    // Arbitration:
+    //   - Swipe past the slop threshold → claim the gesture via
+    //     preventDefault() so the browser never turns it into a selection or
+    //     pan gesture; xterm's handler still receives the events and scrolls.
+    //   - Selection appearing mid-gesture (long-press) → hand the stream back
+    //     to the browser so word selection + copy keep working.
+    //   - Multi-touch (pinch zoom) is left untouched.
+    //
+    // Fling: while a scroll gesture is active, sample touch positions and on
+    // release keep scrolling with an exponentially decaying velocity (rAF).
+    // Buffer/render sync needs no extra work — xterm's 'scroll' listener on
+    // .xterm-viewport fires for every scrollTop change (same path as wheel).
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var touchHadSelection = false;
+    var gestureDecided = false;
+    var isScrollGesture = false;
+    var TOUCH_SLOP = 8;
+
+    var touchSamples = []; // [{y, t}] recent scroll-gesture positions
+    var flingRafId = 0;
+    var FLING_SAMPLE_MS = 100;    // velocity estimation window
+    var FLING_MIN_VELOCITY = 0.1; // px/ms; slower release counts as a stop
+    var FLING_MAX_VELOCITY = 5;   // px/ms safety cap
+    var FLING_FRICTION_MS = 350;  // decay time constant (Android-like feel)
+    var FLING_MIN_SPEED = 0.01;   // px/ms stop threshold
+
+    function stopFling() {
+        if (flingRafId) {
+            cancelAnimationFrame(flingRafId);
+            flingRafId = 0;
+        }
+    }
+
+    function startFling(velocity) {
+        var vp = document.querySelector('#terminal .xterm-viewport');
+        if (!vp) return;
+        stopFling();
+        var v = velocity;
+        var lastTime = performance.now();
+        var step = function (now) {
+            var dt = now - lastTime;
+            lastTime = now;
+            var before = vp.scrollTop;
+            vp.scrollTop = before + v * dt;
+            // Unchanged scrollTop → hit the top/bottom bound (or no scrollback)
+            if (vp.scrollTop === before) {
+                flingRafId = 0;
+                return;
+            }
+            v *= Math.exp(-dt / FLING_FRICTION_MS);
+            if (Math.abs(v) > FLING_MIN_SPEED) {
+                flingRafId = requestAnimationFrame(step);
+            } else {
+                flingRafId = 0;
+            }
+        };
+        flingRafId = requestAnimationFrame(step);
+    }
+
+    function nativeSelectionActive() {
+        var s = window.getSelection();
+        return !!(s && !s.isCollapsed);
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        stopFling();
+        touchSamples = [];
+        if (e.touches.length !== 1) {
+            gestureDecided = true;
+            isScrollGesture = false;
+            return;
+        }
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchHadSelection = nativeSelectionActive();
+        gestureDecided = false;
+        isScrollGesture = false;
+    }, { passive: true });
+
     document.addEventListener('touchmove', (e) => {
-        if (e.touches.length > 1) return; // Allow pinch zoom if not handled by CSS
-        // e.preventDefault(); // DISABLED: Allow native text selection gestures
+        if (e.touches.length !== 1) return; // Allow pinch zoom if not handled by CSS
+        var x = e.touches[0].clientX;
+        var y = e.touches[0].clientY;
+        if (!gestureDecided) {
+            if (Math.abs(x - touchStartX) < TOUCH_SLOP && Math.abs(y - touchStartY) < TOUCH_SLOP) {
+                return;
+            }
+            gestureDecided = true;
+            if (!touchHadSelection && nativeSelectionActive()) {
+                // A long-press selection engaged during this touch: let the
+                // browser keep the stream for selection dragging.
+                isScrollGesture = false;
+                return;
+            }
+            isScrollGesture = true;
+        }
+        if (isScrollGesture) {
+            // Claim the gesture before the browser can classify it as a text
+            // selection drag. xterm's bubble-phase touchmove handler on
+            // #terminal still receives this event and does the scrolling.
+            e.preventDefault();
+            touchSamples.push({ y: y, t: e.timeStamp });
+            while (touchSamples.length > 2 && e.timeStamp - touchSamples[0].t > FLING_SAMPLE_MS) {
+                touchSamples.shift();
+            }
+        }
     }, { passive: false });
+
+    var resetTouchGesture = function () {
+        gestureDecided = false;
+        isScrollGesture = false;
+        touchSamples = [];
+    };
+
+    document.addEventListener('touchend', () => {
+        // Fling on release, using the velocity of the last ~100ms of dragging.
+        // Finger up (y decreases) → (first.y - last.y) > 0 → scroll down.
+        if (isScrollGesture && touchSamples.length > 1) {
+            var first = touchSamples[0];
+            var last = touchSamples[touchSamples.length - 1];
+            if (last.t > first.t) {
+                var v = (first.y - last.y) / (last.t - first.t);
+                v = Math.max(-FLING_MAX_VELOCITY, Math.min(FLING_MAX_VELOCITY, v));
+                if (Math.abs(v) > FLING_MIN_VELOCITY) {
+                    startFling(v);
+                }
+            }
+        }
+        resetTouchGesture();
+    }, { passive: true });
+    document.addEventListener('touchcancel', resetTouchGesture, { passive: true });
 
     // --- EVENT SHIELD: Force Native Context Menu (Global Capture) ---
     // This listener runs in the CAPTURE phase on the DOCUMENT.
