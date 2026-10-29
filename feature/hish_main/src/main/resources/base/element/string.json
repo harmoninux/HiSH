@@ -794,7 +794,7 @@
     },
     {
       "name": "setting_upload_font_desc",
-      "value": "Import a custom font file (ttf/otf/woff/woff2)"
+      "value": "Import a custom font file"
     },
     {
       "name": "setting_choose_file",

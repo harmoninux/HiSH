@@ -790,7 +790,7 @@
     },
     {
       "name": "setting_upload_font_desc",
-      "value": "导入自定义字体文件 (ttf/otf/woff/woff2)"
+      "value": "导入自定义字体文件"
     },
     {
       "name": "setting_choose_file",
