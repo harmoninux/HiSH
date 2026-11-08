@@ -189,7 +189,7 @@ export struct PortMappingEdit {
             .width(90)
             .margin({ left: 5, right: 5 })
             .onChange((value) => {
-              const guest = value ? parseInt(value) : undefined;
+              const guest = value ? Number(value) : undefined;
               updateGuest(guest)
             })
           Divider().vertical(true)
@@ -199,7 +199,7 @@ export struct PortMappingEdit {
             .width(90)
             .margin({ left: 5, right: 5 })
             .onChange((value) => {
-              const host = value ? parseInt(value) : undefined;
+              const host = value ? Number(value) : undefined;
               updateHost(host)
             })
         }

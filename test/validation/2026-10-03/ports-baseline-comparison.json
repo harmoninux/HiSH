@@ -1,0 +1,44 @@
+[
+  {
+    "guest": -1,
+    "host": 8000,
+    "baseline": "accepted",
+    "candidate": {
+      "kind": "range",
+      "index": 0
+    }
+  },
+  {
+    "guest": 65536,
+    "host": 8000,
+    "baseline": "accepted",
+    "candidate": {
+      "kind": "range",
+      "index": 0
+    }
+  },
+  {
+    "guest": 3080,
+    "host": 65536,
+    "baseline": "accepted",
+    "candidate": {
+      "kind": "range",
+      "index": 0
+    }
+  },
+  {
+    "guest": 1.5,
+    "host": 8000,
+    "baseline": "accepted",
+    "candidate": {
+      "kind": "range",
+      "index": 0
+    }
+  },
+  {
+    "guest": 3080,
+    "host": 8000,
+    "baseline": "accepted",
+    "candidate": "accepted"
+  }
+]

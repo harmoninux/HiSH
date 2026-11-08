@@ -8,6 +8,7 @@ import appOption, { savePreference } from "../model/appOption"
 import { LoadingDialog, PromptAction } from "@kit.ArkUI"
 import copyFile from "../lib/copyFile"
 import { BackButton } from "./BackButton"
+import { validatePortMappings } from '../lib/validatePortMappings'
 
 @Component
 export default struct EditEmulatorContent {
@@ -326,32 +327,19 @@ export default struct EditEmulatorContent {
   }
 
   private portMappingError(): string | undefined {
-    let mappings = this.portMappingItems.map(it => it.model)
-    let i = mappings
-      .findIndex(it => {
-        return !(it.guest && it.host)
-      })
-    if (i >= 0) {
+    const error = validatePortMappings(this.portMappingItems.map(it => it.model))
+    if (!error) {
+      return undefined
+    }
+    if (error.kind === 'incomplete') {
       const temp = this.getResourceString('setting_incomplete_port_mapping')
-      return util.format(temp, (i + 1))
+      return util.format(temp, error.index + 1)
     }
-
-    i = mappings
-      .findIndex(it => {
-        return (it.host || 0) <= 0
-      })
-    if (i >= 0) {
-      const temp = this.getResourceString('setting_port_should_larger')
-      return util.format(temp, (i + 1))
+    if (error.kind === 'range') {
+      const temp = this.getResourceString('setting_port_out_of_range')
+      return util.format(temp, error.index + 1)
     }
-
-    const guestPorts = new Set(mappings.map(it => it.guest))
-    const hostPorts = new Set(mappings.map(it => it.host))
-    if (guestPorts.size < mappings.length || hostPorts.size < mappings.length) {
-      return this.getResourceString('setting_duplicated_port')
-    }
-
-    return undefined
+    return this.getResourceString('setting_duplicated_port')
   }
 
   private getResourceString(name: string): string | undefined {

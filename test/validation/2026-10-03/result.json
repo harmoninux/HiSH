@@ -1,0 +1,15 @@
+{
+  "base_commit": "db2b51b90a06922619ab356c86874554724633bd",
+  "date": "2026-10-03",
+  "cli": "HarmonyOS Command Line Tools 6.1.1.280",
+  "sdk": "HarmonyOS 6.1.1 API24",
+  "host_tests": {
+    "passed": 19,
+    "failed": 0
+  },
+  "phone_unsigned_build": "passed",
+  "phone_hap_sha256": "B1D8479753C373CA470DE961BD0288A626E7AF9AFA6E74FF23A2D7EF028D9FA6",
+  "device_ui_test": "passed: missing, zero, both overflow sides, duplicate, valid save",
+  "qemu_network_test": "passed: guest 3080 to host 8000 in full HiSH",
+  "device_evidence": "DEVICE.md"
+}

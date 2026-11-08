@@ -1,6 +1,10 @@
 {
   "string": [
     {
+      "name": "setting_port_out_of_range",
+      "value": "第 %d 条映射：模拟器和主机端口都必须是 1 至 65535 的整数"
+    },
+    {
       "name": "module_desc",
       "value": "HiSH Entry Module"
     },
