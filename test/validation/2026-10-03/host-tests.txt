@@ -1,0 +1,30 @@
+✔ accepts 127.0.0.1:8000 (1.8669ms)
+✔ accepts  localhost:3080/path?q=1#part  (0.3685ms)
+✔ accepts https://example.org/app (0.1124ms)
+✔ accepts HTTP://127.0.0.1:65535 (0.1079ms)
+✔ accepts [::1]:8000 (2.7343ms)
+✔ accepts example.org (0.2712ms)
+✔ rejects "" (0.5337ms)
+✔ rejects "file:///data/a" (0.2567ms)
+✔ rejects "javascript:alert(1)" (0.1423ms)
+✔ rejects "data:text/html,a" (0.1804ms)
+✔ rejects "intent://a" (0.1517ms)
+✔ rejects "ftp://localhost" (0.0876ms)
+✔ rejects "http://user:password@localhost" (0.0792ms)
+✔ rejects "http://localhost:0" (0.108ms)
+✔ rejects "http://localhost:65536" (0.0797ms)
+✔ rejects "http://localhost:-1" (0.2196ms)
+✔ rejects "http://localhost:abc" (0.08ms)
+✔ rejects "http://" (0.0916ms)
+✔ rejects "http://a b" (0.0852ms)
+✔ rejects "http://localhost\\path" (0.086ms)
+✔ rejects "http://localhost\n/path" (0.0445ms)
+✔ phone and tablet routes expose the new shared page (1.0657ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1184.9285

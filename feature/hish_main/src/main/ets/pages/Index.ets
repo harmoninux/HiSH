@@ -89,6 +89,18 @@ struct PcIndex {
             buttonStyle: ButtonStyleMode.TEXTUAL,
             controlSize: ControlSize.SMALL
           }) {
+            Text($r('app.string.web_preview_title')).fontColor($r('sys.color.white'))
+          }
+          .borderRadius(4)
+          .padding(4)
+          .margin({ right: 10 })
+          .attributeModifier(this.immersiveButton)
+          .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/WebPreviewPage' }))
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
             SymbolGlyph($r('sys.symbol.display'))
               .fontSize('20vp')
               .width(20)

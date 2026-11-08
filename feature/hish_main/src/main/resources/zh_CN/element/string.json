@@ -1,5 +1,12 @@
 {
   "string": [
+    { "name": "web_preview_title", "value": "网页预览" },
+    { "name": "web_preview_ports", "value": "映射端口" },
+    { "name": "web_preview_open", "value": "打开" },
+    { "name": "web_preview_refresh", "value": "刷新" },
+    { "name": "web_preview_invalid_url", "value": "请输入 HTTP 或 HTTPS 地址，不支持在地址中嵌入账号密码" },
+    { "name": "web_preview_help", "value": "在 HiSH 内打开 Linux 的 Web 服务，可保持应用在前台。请先配置主机端口映射并重启模拟器，服务在 Linux 中需监听 0.0.0.0。映射端口菜单仅提供配置入口，不表示服务已经就绪。" },
+    { "name": "web_preview_load_failed", "value": "页面加载失败。请检查地址、服务监听、已生效的端口映射和证书，然后刷新。" },
     {
       "name": "module_desc",
       "value": "HiSH Entry Module"

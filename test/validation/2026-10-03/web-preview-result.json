@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-03",
+  "baseline": "db2b51b90a06922619ab356c86874554724633bd",
+  "hostTests": {
+    "passed": 22,
+    "failed": 0
+  },
+  "productionBuild": {
+    "sdkApi": 24,
+    "toolchain": "HarmonyOS Command Line Tools 6.1.1.280",
+    "tabletUnsigned": "PASS",
+    "phoneUnsigned": "PASS"
+  },
+  "deviceUiFixture": {
+    "compileToolchainApi": 24,
+    "productionPageSha256": "B25AE993A9FD31D0396AB9EA4F74DD9CB87A7A84E3AC85CBBFBBBE20E61C8213",
+    "stepsPassed": 8,
+    "steps": [
+      "进入预览页",
+      "查看模拟映射端口菜单",
+      "加载第一页",
+      "点击链接进入第二页",
+      "系统返回第一页",
+      "服务断开后刷新显示错误",
+      "服务恢复后刷新成功",
+      "系统返回回到启动页而非空白页"
+    ],
+    "originalHapSha256": "A31989CE665A10CAE7F3AF5E74D40CD08EBF55ED0A3A797B64829745E56ED66F",
+    "usesQemu": false,
+    "originalAppRestored": true,
+    "runtimeApi": 23,
+    "fixturePageSha256": "B25AE993A9FD31D0396AB9EA4F74DD9CB87A7A84E3AC85CBBFBBBE20E61C8213",
+    "device": "Mate",
+    "compatibleApi": 12,
+    "targetApi": 12,
+    "service": "Host loopback HTTP via HDC reverse forwarding"
+  },
+  "fullHiSHGuestIntegration": {
+    "independentTestAppRemoved": true,
+    "runtimeApi": 23,
+    "usesHdcReverseForward": false,
+    "verified": true,
+    "evidence": "FULL_DEVICE.md",
+    "compileToolchainApi": 24,
+    "service": "Alpine busybox-extras httpd guest 3080 to host 8000",
+    "device": "Mate / BRA-AL00",
+    "compatibleApi": 12,
+    "checksPassed": 11,
+    "status": "PASS",
+    "usesHostHttp": false,
+    "targetApi": 12,
+    "usesQemu": true
+  }
+}

@@ -1,5 +1,12 @@
 {
   "string": [
+    { "name": "web_preview_title", "value": "Web preview" },
+    { "name": "web_preview_ports", "value": "Mapped ports" },
+    { "name": "web_preview_open", "value": "Open" },
+    { "name": "web_preview_refresh", "value": "Reload" },
+    { "name": "web_preview_invalid_url", "value": "Enter an HTTP or HTTPS address without embedded credentials" },
+    { "name": "web_preview_help", "value": "Open a Linux Web service here to keep HiSH in the foreground. Configure a host port mapping, restart the VM, and bind the service to 0.0.0.0 in Linux. Mapped ports are configuration suggestions, not a service health check." },
+    { "name": "web_preview_load_failed", "value": "Unable to load the page. Check the address, service listener, active port mapping and certificate, then reload." },
     {
       "name": "module_desc",
       "value": "HiSH, Run Linux Shell on HarmonyOS"
