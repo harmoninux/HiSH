@@ -33,7 +33,7 @@ export class backgroundRunningManager {
       if (granted) {
         geoLocationManager.on("locationChange", {
           interval: 15,
-          locationScenario: geoLocationManager.PowerConsumptionScenario.NO_POWER_CONSUMPTION
+          locationScenario: geoLocationManager.PowerConsumptionScenario.LOW_POWER_CONSUMPTION
         }, () => {
         })
         await startContinuousTask(context)
