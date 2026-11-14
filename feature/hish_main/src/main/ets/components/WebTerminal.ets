@@ -47,7 +47,6 @@ export default struct WebTerminal {
   @Watch('onUserFontsChanged') @StorageProp(appOption.terminalUserFonts) termUserFonts: UserFont[] = []
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
-  resizeTimeout?: number = undefined
   applicationMode: boolean = false
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
@@ -414,11 +413,9 @@ export default struct WebTerminal {
 
   async resize(width: number, height: number): Promise<void> {
     hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
-
-    if (this.resizeTimeout !== undefined) {
-      clearTimeout(this.resizeTimeout!!)
-    }
-    this.resizeTimeout = setTimeout(() => this.sendInput('\x1b' + `[8;${height};${width}t`), 100)
+    // 串口终端没有 TIOCSWINSZ 通道，尺寸只影响 WebView 内的 xterm 布局。
+    // 不要向 pty 写 CSI 8 t：它会被 shell 的行编辑器当成键盘输入，
+    // 在 zsh 里表现为命令行出现 ";<rows>;<cols>t" 这样的碎片。
   }
 
   // 性能优化：输出缓冲区
